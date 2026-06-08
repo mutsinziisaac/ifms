@@ -1,0 +1,120 @@
+import { useEffect, useRef, useState } from "react"
+import { Bell, Gauge, Navigation, PauseCircle } from "lucide-react"
+
+import { useLiveAlerts, useLiveVehicles } from "@/data/hooks"
+import { formatSpeed } from "@/lib/format"
+
+import { ActivityStatCard } from "./ActivityStatCard"
+
+/** Points kept in each sparkline — ~28 ticks of live history. */
+const SERIES_LENGTH = 28
+
+interface Sample {
+  moving: number
+  speed: number
+  idling: number
+  alerts: number
+}
+
+/** Deterministic, gentle wave around each value so cards look alive on first paint. */
+function seedHistory(sample: Sample, length: number): Sample[] {
+  const wobble = (value: number, i: number) => {
+    if (value <= 0) return 0
+    const wave = Math.sin(i / 2.5) * 0.06 + Math.sin(i / 4) * 0.035
+    return Math.max(0, value * (1 + wave))
+  }
+  return Array.from({ length }, (_, i) => ({
+    moving: wobble(sample.moving, i),
+    speed: wobble(sample.speed, i),
+    idling: wobble(sample.idling, i),
+    alerts: wobble(sample.alerts, i),
+  }))
+}
+
+export function KpiRow() {
+  const vehicles = useLiveVehicles()
+  const alerts = useLiveAlerts()
+
+  const total = vehicles.length
+  const moving = vehicles.filter((v) => v.status === "moving").length
+  const idling = vehicles.filter((v) => v.status === "idling").length
+
+  const movingVehicles = vehicles.filter((v) => v.status === "moving")
+  const avgSpeed =
+    movingVehicles.length > 0
+      ? movingVehicles.reduce((sum, v) => sum + v.speedKmh, 0) /
+        movingVehicles.length
+      : 0
+
+  const dayAgo = Date.now() - 24 * 60 * 60 * 1000
+  const alertsToday = alerts.filter(
+    (a) => new Date(a.at).getTime() >= dayAgo
+  ).length
+
+  // Newest telemetry timestamp; advancing it marks a fresh simulation tick.
+  const tick = vehicles.reduce<string | null>(
+    (latest, v) =>
+      latest === null || v.lastSyncAt > latest ? v.lastSyncAt : latest,
+    null
+  )
+
+  // Rolling history that scrolls every sparkline forward in unison. Seeded with
+  // a gentle wave so the cards have a curve before real samples arrive.
+  const [history, setHistory] = useState<Sample[]>(() =>
+    seedHistory(
+      { moving, speed: avgSpeed, idling, alerts: alertsToday },
+      SERIES_LENGTH
+    )
+  )
+  const lastTickRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (tick === null || tick === lastTickRef.current) return
+    lastTickRef.current = tick
+    setHistory((prev) => {
+      const next =
+        prev.length >= SERIES_LENGTH
+          ? prev.slice(prev.length - SERIES_LENGTH + 1)
+          : prev.slice()
+      next.push({ moving, speed: avgSpeed, idling, alerts: alertsToday })
+      return next
+    })
+  }, [tick, moving, avgSpeed, idling, alertsToday])
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <ActivityStatCard
+        label="Moving now"
+        value={moving}
+        series={history.map((h) => h.moving)}
+        icon={Navigation}
+        intent="success"
+        hint={`of ${total} tracked`}
+      />
+      <ActivityStatCard
+        label="Average speed"
+        value={formatSpeed(avgSpeed)}
+        series={history.map((h) => h.speed)}
+        icon={Gauge}
+        intent="default"
+        hint="Live corridor average"
+      />
+      <ActivityStatCard
+        label="Idling"
+        value={idling}
+        series={history.map((h) => h.idling)}
+        icon={PauseCircle}
+        intent="warning"
+        hint="Engine on, stationary"
+      />
+      <ActivityStatCard
+        label="Alerts today"
+        value={alertsToday}
+        series={history.map((h) => h.alerts)}
+        icon={Bell}
+        intent={alertsToday > 0 ? "danger" : "default"}
+        hint="Last 24 hours"
+      />
+    </div>
+  )
+}
