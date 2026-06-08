@@ -5,19 +5,28 @@ import { BrowserRouter } from "react-router-dom"
 
 import "./index.css"
 import App from "./App.tsx"
+import { AuthProvider } from "@/auth/auth-context"
+import { MapsProvider } from "@/components/map/MapsProvider"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { Toaster } from "@/components/ui/sonner"
 import { queryClient } from "@/lib/query-client"
+import { SimulationProvider } from "@/sim/SimulationProvider"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider defaultTheme="light">
-          <App />
-          <Toaster richColors position="top-right" />
-        </ThemeProvider>
-      </BrowserRouter>
+      <ThemeProvider defaultTheme="light">
+        <MapsProvider>
+          <SimulationProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <App />
+                <Toaster richColors position="top-right" />
+              </AuthProvider>
+            </BrowserRouter>
+          </SimulationProvider>
+        </MapsProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>
 )

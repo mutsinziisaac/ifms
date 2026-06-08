@@ -1,0 +1,386 @@
+import { useEffect, useMemo, useState } from "react"
+import { useSearchParams } from "react-router-dom"
+import {
+  Pencil,
+  Plus,
+  Route as RouteIcon,
+  Search,
+  Trash2,
+  Truck,
+} from "lucide-react"
+import { toast } from "sonner"
+
+import { ConfirmDialog } from "@/components/common/ConfirmDialog"
+import { EmptyState } from "@/components/common/EmptyState"
+import { PageHeader } from "@/components/layout/PageHeader"
+import { FleetMap } from "@/components/map/FleetMap"
+import { RoutePolyline } from "@/components/map/RoutePolyline"
+import { VehicleMarker } from "@/components/map/VehicleMarker"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
+import {
+  useDeleteRoute,
+  useDrivers,
+  useGeozones,
+  useLiveVehicles,
+  useRoutes,
+  useSetRouteActive,
+} from "@/data/hooks"
+import type { RouteDef } from "@/data/types"
+import { fullName } from "@/lib/format"
+import { boundsOf, padBounds, type GeoBounds } from "@/lib/maps"
+import { cn } from "@/lib/utils"
+
+import { AssignVehiclesDialog } from "./components/AssignVehiclesDialog"
+import { RouteDetailPanel } from "./components/RouteDetailPanel"
+import { RouteFormDialog } from "./components/RouteFormDialog"
+
+const SELECTED_COLOR = "#0d9488"
+const MUTED_COLOR = "#94a3b8"
+
+type DialogState =
+  | { kind: "none" }
+  | { kind: "create" }
+  | { kind: "edit"; route: RouteDef }
+  | { kind: "delete"; route: RouteDef }
+  | { kind: "assign"; route: RouteDef }
+
+export function RoutesPage() {
+  const routesQuery = useRoutes()
+  const routes = useMemo(() => routesQuery.data ?? [], [routesQuery.data])
+  const isLoading = routesQuery.isLoading
+
+  const liveVehicles = useLiveVehicles()
+  const drivers = useDrivers().data ?? []
+  const geozones = useGeozones().data ?? []
+
+  const setActive = useSetRouteActive()
+
+  const [search, setSearch] = useState("")
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [dialog, setDialog] = useState<DialogState>({ kind: "none" })
+
+  // Deep-link from global search: /routes?id=... preselects that route.
+  const [searchParams] = useSearchParams()
+  const linkedId = searchParams.get("id")
+  useEffect(() => {
+    if (linkedId) setSelectedId(linkedId)
+  }, [linkedId])
+
+  const driverName = useMemo(() => {
+    const map = new Map(drivers.map((d) => [d.id, fullName(d)]))
+    return (id: string | null) => (id ? map.get(id) : undefined)
+  }, [drivers])
+
+  const geozoneName = useMemo(() => {
+    const map = new Map(geozones.map((z) => [z.id, z.name]))
+    return (id: string | null) => (id ? map.get(id) : undefined)
+  }, [geozones])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (q.length === 0) return routes
+    return routes.filter((route) => {
+      if (route.name.toLowerCase().includes(q)) return true
+      if (route.description.toLowerCase().includes(q)) return true
+      return route.waypoints.some((w) => w.name.toLowerCase().includes(q))
+    })
+  }, [routes, search])
+
+  const selectedRoute = useMemo(
+    () => routes.find((r) => r.id === selectedId) ?? null,
+    [routes, selectedId]
+  )
+
+  // Fit the map to the selected route, or to all routes when none is selected.
+  const bounds = useMemo<GeoBounds | null>(() => {
+    const points = selectedRoute
+      ? selectedRoute.path
+      : routes.flatMap((r) => r.path)
+    const b = boundsOf(points)
+    return b ? padBounds(b, 0.15) : null
+  }, [selectedRoute, routes])
+
+  // Live vehicles running the selected corridor — the "trucks on the road".
+  const corridorVehicles = useMemo(() => {
+    if (!selectedRoute) return []
+    return liveVehicles.filter((v) => v.routeId === selectedRoute.id)
+  }, [liveVehicles, selectedRoute])
+
+  const closeDialog = () => setDialog({ kind: "none" })
+
+  return (
+    <div className="flex h-[calc(100vh-7rem)] min-h-[640px] flex-col">
+      <PageHeader
+        title="Routes"
+        description="Freight corridors and vehicle itineraries."
+        actions={
+          <Button onClick={() => setDialog({ kind: "create" })}>
+            <Plus className="size-4" />
+            Add route
+          </Button>
+        }
+      />
+
+      <div className="flex min-h-0 flex-1 gap-4">
+        {/* Left: route list + detail */}
+        <div className="flex w-[380px] shrink-0 flex-col overflow-hidden rounded-xl border bg-card">
+          <div className="border-b p-3">
+            <div className="relative">
+              <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search routes or stops…"
+                className="pl-8"
+                autoComplete="off"
+              />
+            </div>
+          </div>
+
+          <ScrollArea className="min-h-0 flex-1">
+            {isLoading ? (
+              <div className="space-y-2 p-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : filtered.length === 0 ? (
+              <EmptyState
+                icon={RouteIcon}
+                title={
+                  routes.length === 0 ? "No routes yet" : "No matching routes"
+                }
+                description={
+                  routes.length === 0
+                    ? "Create your first freight corridor to start monitoring itineraries."
+                    : "Try a different search term."
+                }
+                action={
+                  routes.length === 0 ? (
+                    <Button
+                      size="sm"
+                      onClick={() => setDialog({ kind: "create" })}
+                    >
+                      <Plus className="size-4" />
+                      Add route
+                    </Button>
+                  ) : undefined
+                }
+                className="py-16"
+              />
+            ) : (
+              <ul className="divide-y">
+                {filtered.map((route) => {
+                  const isSelected = route.id === selectedId
+                  return (
+                    <li key={route.id}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          setSelectedId(isSelected ? null : route.id)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            setSelectedId(isSelected ? null : route.id)
+                          }
+                        }}
+                        className={cn(
+                          "cursor-pointer px-3 py-3 transition-colors",
+                          isSelected ? "bg-primary/5" : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{route.name}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                              {route.distanceKm} km · {route.waypoints.length}{" "}
+                              stops
+                            </p>
+                          </div>
+                          <Badge
+                            variant={route.active ? "default" : "secondary"}
+                            className={cn(
+                              "shrink-0",
+                              !route.active && "text-muted-foreground"
+                            )}
+                          >
+                            {route.active ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+
+                        <div
+                          className="mt-2.5 flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="mr-auto flex items-center gap-1.5">
+                            <Switch
+                              size="sm"
+                              checked={route.active}
+                              onCheckedChange={(checked) =>
+                                setActive.mutate(
+                                  { id: route.id, active: checked },
+                                  {
+                                    onSuccess: () =>
+                                      toast.success(
+                                        checked
+                                          ? `"${route.name}" activated`
+                                          : `"${route.name}" deactivated — existing assignments stay effective`
+                                      ),
+                                    onError: (error: Error) =>
+                                      toast.error(error.message),
+                                  }
+                                )
+                              }
+                              aria-label="Toggle route active"
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {route.active ? "Active" : "Inactive"}
+                            </span>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => setDialog({ kind: "assign", route })}
+                            aria-label="Assign vehicles"
+                            title="Assign vehicles"
+                          >
+                            <Truck className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground hover:text-foreground"
+                            onClick={() => setDialog({ kind: "edit", route })}
+                            aria-label="Edit route"
+                            title="Edit route"
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => setDialog({ kind: "delete", route })}
+                            aria-label="Delete route"
+                            title="Delete route"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {isSelected ? <RouteDetailPanel route={route} /> : null}
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </ScrollArea>
+        </div>
+
+        {/* Right: map */}
+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border">
+          <FleetMap bounds={bounds} className="h-full w-full rounded-none">
+            {routes.map((route) => {
+              const isSelected = route.id === selectedId
+              if (route.path.length < 2) return null
+              return (
+                <RoutePolyline
+                  key={route.id}
+                  path={route.path}
+                  color={isSelected ? SELECTED_COLOR : MUTED_COLOR}
+                  active={route.active}
+                  selected={isSelected}
+                  waypoints={route.waypoints}
+                  showWaypoints={isSelected}
+                  onClick={() => setSelectedId(route.id)}
+                />
+              )
+            })}
+
+            {corridorVehicles.map((vehicle) => (
+              <VehicleMarker
+                key={vehicle.id}
+                vehicle={vehicle}
+                driverName={driverName(vehicle.driverId)}
+                geozoneName={geozoneName(vehicle.insideGeozoneId)}
+                onClick={() => setSelectedId(vehicle.routeId)}
+              />
+            ))}
+          </FleetMap>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <RouteFormDialog
+        open={dialog.kind === "create"}
+        onOpenChange={(open) => !open && closeDialog()}
+      />
+      {dialog.kind === "edit" ? (
+        <RouteFormDialog
+          open
+          onOpenChange={(open) => !open && closeDialog()}
+          route={dialog.route}
+        />
+      ) : null}
+      {dialog.kind === "assign" ? (
+        <AssignVehiclesDialog
+          open
+          onOpenChange={(open) => !open && closeDialog()}
+          route={dialog.route}
+        />
+      ) : null}
+      {dialog.kind === "delete" ? (
+        <DeleteRouteDialog
+          route={dialog.route}
+          onClose={closeDialog}
+          onDeleted={(id) => {
+            if (selectedId === id) setSelectedId(null)
+          }}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function DeleteRouteDialog({
+  route,
+  onClose,
+  onDeleted,
+}: {
+  route: RouteDef
+  onClose: () => void
+  onDeleted: (id: string) => void
+}) {
+  const deleteRoute = useDeleteRoute()
+  return (
+    <ConfirmDialog
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title="Delete route"
+      description={`Delete "${route.name}"? Vehicles on this corridor will be unassigned. This cannot be undone.`}
+      confirmLabel="Delete route"
+      destructive
+      isPending={deleteRoute.isPending}
+      onConfirm={() =>
+        deleteRoute.mutate(route.id, {
+          onSuccess: () => {
+            toast.success(`Route "${route.name}" deleted`)
+            onDeleted(route.id)
+            onClose()
+          },
+          onError: (error: Error) => toast.error(error.message),
+        })
+      }
+    />
+  )
+}
