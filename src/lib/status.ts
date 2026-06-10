@@ -6,9 +6,11 @@ import { addDays, differenceInCalendarDays } from "date-fns"
 
 import { formatDate, formatKm } from "@/lib/format"
 import type {
-  AlertSeverity,
-  AlertType,
   DriverStatus,
+  EventRuleType,
+  EventSeverity,
+  EventStatus,
+  EventType,
   MaintenanceStatus,
   MaintenanceTask,
   MaintenanceVehicleState,
@@ -100,10 +102,10 @@ export const DRIVER_STATUS_CONFIG: Record<
 }
 
 // ---------------------------------------------------------------------------
-// Alerts
+// Events
 // ---------------------------------------------------------------------------
 
-export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
+export const EVENT_TYPE_LABEL: Record<EventType, string> = {
   entry: "Geozone entry",
   exit: "Geozone exit",
   speeding: "Speeding",
@@ -111,27 +113,69 @@ export const ALERT_TYPE_LABEL: Record<AlertType, string> = {
   idle: "Excessive idling",
 }
 
-export const ALERT_SEVERITY_CONFIG: Record<
-  AlertSeverity,
-  { label: string; badgeClass: string; dotClass: string }
+export const EVENT_RULE_TYPE_LABEL: Record<EventRuleType, string> = {
+  entry: "Geozone entry",
+  exit: "Geozone exit",
+  speeding: "Zone speed limit",
+  global_speeding: "Fleet speed limit",
+  idle: "Excessive idle",
+  no_signal: "Signal timeout",
+}
+
+export const EVENT_SEVERITY_CONFIG: Record<
+  EventSeverity,
+  { label: string; color: string; badgeClass: string; dotClass: string }
 > = {
   info: {
     label: "Info",
+    color: "#0ea5e9",
     badgeClass:
       "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30",
     dotClass: "bg-sky-500",
   },
   warning: {
     label: "Warning",
+    color: "#f59e0b",
     badgeClass:
       "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
     dotClass: "bg-amber-500",
   },
   critical: {
     label: "Critical",
+    color: "#f43f5e",
     badgeClass:
       "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
     dotClass: "bg-rose-500",
+  },
+}
+
+export const EVENT_STATUS_CONFIG: Record<
+  EventStatus,
+  { label: string; badgeClass: string; dotClass: string }
+> = {
+  open: {
+    label: "Open",
+    badgeClass:
+      "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30",
+    dotClass: "bg-sky-500",
+  },
+  acknowledged: {
+    label: "Acknowledged",
+    badgeClass:
+      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    dotClass: "bg-amber-500",
+  },
+  escalated: {
+    label: "Escalated",
+    badgeClass:
+      "bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30",
+    dotClass: "bg-violet-500",
+  },
+  closed: {
+    label: "Closed",
+    badgeClass:
+      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    dotClass: "bg-emerald-500",
   },
 }
 
@@ -200,9 +244,7 @@ export function computeMaintenanceState(
   }
 
   const interval = task.intervalDays ?? 1
-  const lastDate = state.lastServiceDate
-    ? new Date(state.lastServiceDate)
-    : now
+  const lastDate = state.lastServiceDate ? new Date(state.lastServiceDate) : now
   const dueDate = addDays(lastDate, interval)
   const remaining = differenceInCalendarDays(dueDate, now)
   const remainingPct = remaining / interval

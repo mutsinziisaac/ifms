@@ -1,15 +1,24 @@
 import { NavLink, useLocation } from "react-router-dom"
 import {
+  ChevronDown,
   Hexagon,
   IdCard,
   LayoutDashboard,
+  RadioTower,
   Route,
+  Siren,
+  SlidersHorizontal,
   Truck,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -30,14 +39,70 @@ interface NavItem {
   icon: LucideIcon
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { title: "Overview", path: "/", icon: LayoutDashboard },
-  { title: "Fleet", path: "/fleet", icon: Truck },
-  { title: "Drivers", path: "/drivers", icon: IdCard },
-  { title: "Geozones", path: "/geozones", icon: Hexagon },
-  { title: "Routes", path: "/routes", icon: Route },
-  { title: "Maintenance", path: "/maintenance", icon: Wrench },
+interface NavGroup {
+  label: string
+  collapsible?: boolean
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Management",
+    items: [
+      { title: "Overview", path: "/", icon: LayoutDashboard },
+      { title: "Fleet", path: "/fleet", icon: Truck },
+      { title: "Drivers", path: "/drivers", icon: IdCard },
+      { title: "Events", path: "/events", icon: Siren },
+      { title: "Providers", path: "/providers", icon: RadioTower },
+      { title: "Maintenance", path: "/maintenance", icon: Wrench },
+    ],
+  },
+  {
+    label: "Configuration",
+    collapsible: true,
+    items: [
+      { title: "Geofencing", path: "/geozones", icon: Hexagon },
+      { title: "Routes", path: "/routes", icon: Route },
+      { title: "Event Rules", path: "/config/events", icon: SlidersHorizontal },
+    ],
+  },
 ]
+
+function NavMenu({
+  items,
+  isActive,
+}: {
+  items: NavItem[]
+  isActive: (path: string) => boolean
+}) {
+  return (
+    <SidebarMenu>
+      {items.map((item) => {
+        const Icon = item.icon
+        const active = isActive(item.path)
+        return (
+          <SidebarMenuItem key={item.path}>
+            <SidebarMenuButton
+              asChild
+              isActive={active}
+              tooltip={item.title}
+              className={cn(
+                "relative",
+                active &&
+                  "before:absolute before:top-1/2 before:left-0 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary [&>svg]:text-sidebar-primary"
+              )}
+            >
+              <NavLink to={item.path}>
+                <Icon />
+                <span>{item.title}</span>
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )
+      })}
+    </SidebarMenu>
+  )
+}
 
 export function AppSidebar() {
   const location = useLocation()
@@ -64,36 +129,36 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon
-                const active = isActive(item.path)
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={active}
-                      tooltip={item.title}
-                      className={cn(
-                        "relative",
-                        active &&
-                          "before:absolute before:top-1/2 before:left-0 before:h-5 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-sidebar-primary [&>svg]:text-sidebar-primary"
-                      )}
-                    >
-                      <NavLink to={item.path}>
-                        <Icon />
-                        <span>{item.title}</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {NAV_GROUPS.map((group) =>
+          group.collapsible ? (
+            <Collapsible
+              key={group.label}
+              defaultOpen
+              className="group/collapsible"
+            >
+              <SidebarGroup>
+                <SidebarGroupLabel asChild>
+                  <CollapsibleTrigger>
+                    {group.label}
+                    <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                  </CollapsibleTrigger>
+                </SidebarGroupLabel>
+                <CollapsibleContent>
+                  <SidebarGroupContent>
+                    <NavMenu items={group.items} isActive={isActive} />
+                  </SidebarGroupContent>
+                </CollapsibleContent>
+              </SidebarGroup>
+            </Collapsible>
+          ) : (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <NavMenu items={group.items} isActive={isActive} />
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        )}
       </SidebarContent>
 
       <SidebarFooter>

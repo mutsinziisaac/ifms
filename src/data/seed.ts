@@ -9,17 +9,22 @@ import {
   pathLengthKm,
 } from "@/lib/maps"
 import {
+  ESCALATION_TARGETS,
   ETHIOPIA_REGIONS,
   GPS_PROVIDERS,
   VEHICLE_TYPES,
-  type Alert,
-  type AlertRule,
-  type AlertSeverity,
-  type AlertType,
   type DB,
+  type Entity,
+  type EntityCategory,
+  type EventRule,
+  type EventSeverity,
+  type EventStatus,
+  type EventType,
+  type FleetEvent,
+  type ProviderTelemetry,
+  type ZoneRuleType,
   type Driver,
   type DriverStatus,
-  type Entity,
   type EthiopiaRegion,
   type Geozone,
   type GeozoneGroup,
@@ -130,84 +135,97 @@ function polygonAround(
 interface EntitySeed {
   name: string
   shortName: string
+  category: EntityCategory
   domain: string
   address: string
   phone: string
   region: EthiopiaRegion
 }
 
+// The "providers" — government ministries and institutions whose fleets
+// transmit device data to the MoTL platform. IDs stay ent-01..ent-09 so all
+// vehicle/driver links remain stable.
 const ENTITY_SEEDS: EntitySeed[] = [
   {
-    name: "Ethiopian Shipping & Logistics Services Enterprise",
-    shortName: "ESLSE",
-    domain: "eslse",
-    address: "Algeria Street, Kirkos, Addis Ababa",
-    phone: "+251 11 551 2900",
+    name: "Ministry of Health",
+    shortName: "MoH",
+    category: "ministry",
+    domain: "moh.gov",
+    address: "Sudan Street, Lideta, Addis Ababa",
+    phone: "+251 11 551 7011",
     region: "Addis Ababa",
   },
   {
-    name: "Comet Transport S.C.",
-    shortName: "Comet",
-    domain: "comet",
-    address: "Debre Zeit Road, Akaki Kaliti, Addis Ababa",
-    phone: "+251 11 439 1140",
+    name: "Ethiopian Roads Administration",
+    shortName: "ERA",
+    category: "agency",
+    domain: "era.gov",
+    address: "Ras Abebe Aregay Street, Lideta, Addis Ababa",
+    phone: "+251 11 551 7170",
     region: "Addis Ababa",
   },
   {
-    name: "Trans Ethiopia PLC",
-    shortName: "TransEth",
-    domain: "transethiopia",
-    address: "Industry Street, Mekelle Road, Adama",
-    phone: "+251 22 111 8820",
-    region: "Oromia",
+    name: "Ministry of Agriculture",
+    shortName: "MoA",
+    category: "ministry",
+    domain: "moa.gov",
+    address: "Gurd Shola, Bole, Addis Ababa",
+    phone: "+251 11 646 2633",
+    region: "Addis Ababa",
   },
   {
-    name: "Abay Logistics PLC",
-    shortName: "Abay",
-    domain: "abaylogistics",
-    address: "Tana Avenue, Bahir Dar",
-    phone: "+251 58 220 4470",
-    region: "Amhara",
+    name: "Ethiopian Electric Power",
+    shortName: "EEP",
+    category: "enterprise",
+    domain: "eep.com",
+    address: "De Gaulle Square, Arada, Addis Ababa",
+    phone: "+251 11 155 3066",
+    region: "Addis Ababa",
   },
   {
-    name: "Tikur Abay Transport S.C.",
-    shortName: "Tikur Abay",
-    domain: "tikurabay",
-    address: "Gish Abay Street, Bahir Dar",
-    phone: "+251 58 226 1190",
-    region: "Amhara",
+    name: "Ethiopian Postal Service",
+    shortName: "EthioPost",
+    category: "enterprise",
+    domain: "ethiopost",
+    address: "Churchill Avenue, Arada, Addis Ababa",
+    phone: "+251 11 551 0011",
+    region: "Addis Ababa",
   },
   {
-    name: "Shebelle Transport S.C.",
-    shortName: "Shebelle",
-    domain: "shebelle",
-    address: "Jigjiga Road, Dire Dawa",
-    phone: "+251 25 111 3360",
+    name: "Ministry of Water & Energy",
+    shortName: "MoWE",
+    category: "ministry",
+    domain: "mowe.gov",
+    address: "Haile Gebrselassie Avenue, Bole, Addis Ababa",
+    phone: "+251 11 661 1111",
+    region: "Addis Ababa",
+  },
+  {
+    name: "Ethiopian Customs Commission",
+    shortName: "ECC",
+    category: "agency",
+    domain: "ecc.gov",
+    address: "Eastern Corridor Branch, Jigjiga Road, Dire Dawa",
+    phone: "+251 25 111 2299",
     region: "Dire Dawa",
   },
   {
-    name: "Selam Bus Line S.C.",
-    shortName: "Selam Bus",
-    domain: "selambus",
-    address: "Meskel Square, Kirkos, Addis Ababa",
-    phone: "+251 11 554 8800",
+    name: "Ministry of Education",
+    shortName: "MoE",
+    category: "ministry",
+    domain: "moe.gov",
+    address: "Arat Kilo, Arada, Addis Ababa",
+    phone: "+251 11 155 3133",
     region: "Addis Ababa",
   },
   {
-    name: "Awash Freight Carriers PLC",
-    shortName: "Awash Freight",
-    domain: "awashfreight",
-    address: "Corridor Road, Awash Town, Afar",
-    phone: "+251 22 224 0150",
+    name: "Disaster Risk Management Commission",
+    shortName: "EDRMC",
+    category: "agency",
+    domain: "edrmc.gov",
+    address: "Semera Corridor Road, Semera",
+    phone: "+251 33 666 0190",
     region: "Afar",
-  },
-  {
-    name: "Horizon Oil Transporters PLC",
-    shortName: "Horizon Oil",
-    domain: "horizonoil",
-    address: "Kality Fuel Depot Road, Akaki Kaliti, Addis Ababa",
-    phone: "+251 11 471 6620",
-    region: "Addis Ababa",
   },
 ]
 
@@ -216,6 +234,7 @@ function buildEntities(): Entity[] {
     id: `ent-${pad(i + 1, 2)}`,
     name: e.name,
     shortName: e.shortName,
+    category: e.category,
     address: e.address,
     phone: e.phone,
     email: `info@${e.domain}.et`,
@@ -425,16 +444,17 @@ function buildGeozones(rng: Rng, now: number): BuiltGeozones {
 }
 
 // ---------------------------------------------------------------------------
-// Alert rules
+// Event rules
 // ---------------------------------------------------------------------------
 
-function buildAlertRules(byName: Map<string, Geozone>): AlertRule[] {
-  const rules: AlertRule[] = []
+function buildEventRules(byName: Map<string, Geozone>): EventRule[] {
+  const rules: EventRule[] = []
   let n = 0
   const add = (
     zoneName: string,
-    type: AlertRule["type"],
+    type: ZoneRuleType,
     speedLimitKmh: number | null,
+    severity: EventSeverity,
     active: boolean
   ) => {
     const zone = byName.get(zoneName)
@@ -445,6 +465,8 @@ function buildAlertRules(byName: Map<string, Geozone>): AlertRule[] {
       geozoneId: zone.id,
       type,
       speedLimitKmh,
+      thresholdMinutes: null,
+      severity,
       active,
     })
   }
@@ -459,8 +481,8 @@ function buildAlertRules(byName: Map<string, Geozone>): AlertRule[] {
     "Dire Dawa Freight Depot",
   ]
   for (const z of entryExitZones) {
-    add(z, "entry", null, true)
-    add(z, "exit", null, true)
+    add(z, "entry", null, "info", true)
+    add(z, "exit", null, "info", true)
   }
 
   // Speeding rules at the three checkpoint zones.
@@ -469,11 +491,33 @@ function buildAlertRules(byName: Map<string, Geozone>): AlertRule[] {
     "Mille Checkpoint",
     "Adama Weighbridge",
   ]) {
-    add(z, "speeding", 80, true)
+    add(z, "speeding", 80, "warning", true)
   }
 
   // Deactivated entry rule for Hawassa Industrial Park (demonstrates toggle).
-  add("Hawassa Industrial Park", "entry", null, false)
+  add("Hawassa Industrial Park", "entry", null, "info", false)
+
+  // Fleet-wide rules (geozoneId null).
+  const addGlobal = (
+    type: EventRule["type"],
+    speedLimitKmh: number | null,
+    thresholdMinutes: number | null,
+    severity: EventSeverity
+  ) => {
+    n++
+    rules.push({
+      id: `rule-${pad(n, 2)}`,
+      geozoneId: null,
+      type,
+      speedLimitKmh,
+      thresholdMinutes,
+      severity,
+      active: true,
+    })
+  }
+  addGlobal("global_speeding", 100, null, "warning")
+  addGlobal("idle", null, 45, "info")
+  addGlobal("no_signal", null, 30, "warning")
 
   return rules
 }
@@ -1035,15 +1079,23 @@ function buildAssignments(
 }
 
 // ---------------------------------------------------------------------------
-// Alerts
+// Events
 // ---------------------------------------------------------------------------
 
-function buildAlerts(
+const RESOLUTION_NOTES = [
+  "Verified with the operator — vehicle cleared to proceed.",
+  "Driver contacted; warning issued and logged on file.",
+  "Confirmed scheduled stop at the terminal. No action needed.",
+  "Device reconnected after a SIM reset by the GPS provider.",
+  "Checkpoint transit confirmed against the trip manifest.",
+]
+
+function buildEvents(
   rng: Rng,
   vehicles: Vehicle[],
   geozones: Geozone[],
   now: number
-): Alert[] {
+): FleetEvent[] {
   const byName = new Map(geozones.map((g) => [g.name, g]))
   const corridorZones = [
     "Modjo Dry Port",
@@ -1065,8 +1117,8 @@ function buildAlerts(
   const pickVehicle = () => rng.pick(vehicles)
 
   interface Spec {
-    type: AlertType
-    severity: AlertSeverity
+    type: EventType
+    severity: EventSeverity
     zoneName: string | null
   }
 
@@ -1103,7 +1155,7 @@ function buildAlerts(
   }
 
   // Assign timestamps spread over the last 48h.
-  const alerts: Alert[] = specs.map((spec, i) => {
+  const events: FleetEvent[] = specs.map((spec, i) => {
     const v = pickVehicle()
     const zone = spec.zoneName ? (byName.get(spec.zoneName) ?? null) : null
     const atMs = now - rng.float(2 * MIN, 48 * HOUR)
@@ -1126,27 +1178,91 @@ function buildAlerts(
     } else {
       message = `${v.plate} idling beyond the allowed threshold`
     }
+    // Workflow status by age: older events are mostly handled, fresh ones
+    // mostly open — gives the Events workspace a believable mix.
+    const ageMs = now - atMs
+    let status: EventStatus
+    if (ageMs > 24 * HOUR) {
+      status = rng.bool(0.8) ? "closed" : "acknowledged"
+    } else if (ageMs > 12 * HOUR) {
+      status = rng.bool(0.45)
+        ? "acknowledged"
+        : rng.bool(0.5)
+          ? "escalated"
+          : "open"
+    } else {
+      status = rng.bool(0.75) ? "open" : "acknowledged"
+    }
+
+    const handled = status !== "open"
+    const acknowledgedAt = handled
+      ? new Date(atMs + rng.float(0.05, 0.3) * ageMs).toISOString()
+      : null
+    const escalatedAt =
+      status === "escalated"
+        ? new Date(atMs + rng.float(0.3, 0.6) * ageMs).toISOString()
+        : null
+    const closedAt =
+      status === "closed"
+        ? new Date(atMs + rng.float(0.5, 0.9) * ageMs).toISOString()
+        : null
+
     return {
-      id: `alr-${pad(i + 1, 3)}`,
+      id: `evt-${pad(i + 1, 3)}`,
       type: spec.type,
       severity: spec.severity,
       vehicleId: v.id,
       vehiclePlate: v.plate,
+      entityId: v.entityId,
       geozoneId: zone?.id ?? null,
       geozoneName: zone?.name ?? null,
       message,
       at: new Date(atMs).toISOString(),
       location,
-      read: now - atMs > 12 * HOUR,
+      read: handled || ageMs > 12 * HOUR,
+      status,
+      acknowledgedBy: handled ? "Operations Center" : null,
+      acknowledgedAt,
+      escalatedTo: status === "escalated" ? rng.pick(ESCALATION_TARGETS) : null,
+      escalatedAt,
+      closedBy: status === "closed" ? "Operations Center" : null,
+      closedAt,
+      resolutionNote: status === "closed" ? rng.pick(RESOLUTION_NOTES) : null,
     }
   })
 
   // Newest first, then renumber ids so they read sequentially.
-  alerts.sort((a, b) => +new Date(b.at) - +new Date(a.at))
-  alerts.forEach((a, i) => {
-    a.id = `alr-${pad(i + 1, 3)}`
+  events.sort((a, b) => +new Date(b.at) - +new Date(a.at))
+  events.forEach((e, i) => {
+    e.id = `evt-${pad(i + 1, 3)}`
   })
-  return alerts
+  return events
+}
+
+// ---------------------------------------------------------------------------
+// Provider telemetry baseline
+// ---------------------------------------------------------------------------
+
+function buildProviderTelemetry(
+  rng: Rng,
+  entities: Entity[],
+  vehicles: Vehicle[]
+): ProviderTelemetry[] {
+  return entities.map((e) => {
+    const fleet = vehicles.filter((v) => v.entityId === e.id)
+    const transmitting = fleet.filter((v) => v.status !== "no_signal").length
+    const history: number[] = []
+    for (let i = 0; i < 40; i++) {
+      history.push(
+        Math.max(0, Math.min(fleet.length, transmitting + rng.int(-2, 1)))
+      )
+    }
+    return {
+      entityId: e.id,
+      messagesTotal: fleet.length * rng.int(1800, 4200),
+      history,
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -1328,12 +1444,13 @@ export function createSeedDB(): DB {
   const entityDomains = ENTITY_SEEDS.map((e) => e.domain)
   const routes = buildRoutes(rng, now)
   const { geozones, groups, byName } = buildGeozones(rng, now)
-  const alertRules = buildAlertRules(byName)
+  const eventRules = buildEventRules(byName)
   const { vehicles } = buildVehicles(rng, routes, geozones, now)
   const { drivers } = buildDrivers(rng, vehicles, entityDomains, now)
   const trips = buildTrips(rng, vehicles, routes, now)
   const assignments = buildAssignments(rng, vehicles, drivers, now)
-  const alerts = buildAlerts(rng, vehicles, geozones, now)
+  const events = buildEvents(rng, vehicles, geozones, now)
+  const providerTelemetry = buildProviderTelemetry(rng, entities, vehicles)
   const maintenanceTasks = buildMaintenance(rng, vehicles, now)
 
   return {
@@ -1342,8 +1459,9 @@ export function createSeedDB(): DB {
     drivers,
     geozones,
     geozoneGroups: groups,
-    alertRules,
-    alerts,
+    eventRules,
+    events,
+    providerTelemetry,
     routes,
     trips,
     assignments,

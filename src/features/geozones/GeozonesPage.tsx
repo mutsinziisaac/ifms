@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Bell, Hexagon, MapPin, Plus, Upload, X } from "lucide-react"
+import { Hexagon, MapPin, Plus, Upload, X } from "lucide-react"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { PageHeader } from "@/components/layout/PageHeader"
@@ -22,15 +22,12 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useGeozoneGroups, useGeozones, useLiveVehicles } from "@/data/hooks"
 import type { Geozone } from "@/data/types"
 import { DEFAULT_GEOZONE_COLOR } from "@/lib/geozone-colors"
 import { boundsOf, padBounds } from "@/lib/maps"
 import type { GeoBounds } from "@/lib/maps"
 
-import { AlertRulesPanel } from "./components/AlertRulesPanel"
-import { AlertsListPanel } from "./components/AlertsListPanel"
 import { GeozoneCsvImportDialog } from "./components/GeozoneCsvImportDialog"
 import {
   GeozoneFormDialog,
@@ -38,6 +35,7 @@ import {
 } from "./components/GeozoneFormDialog"
 import { GeozoneGroupDialog } from "./components/GeozoneGroupDialog"
 import { GeozoneList } from "./components/GeozoneList"
+import { ZoneRulesPanel } from "./components/ZoneRulesPanel"
 
 type DrawMode = "polygon" | "circle" | null
 
@@ -161,7 +159,7 @@ export function GeozonesPage() {
     <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col">
       <PageHeader
         title="Geozones"
-        description="Geofenced corridor points of interest and alert rules."
+        description="Geofenced corridor points of interest and zone event rules."
         actions={
           <>
             <Button
@@ -212,79 +210,49 @@ export function GeozonesPage() {
       <div className="flex min-h-0 flex-1 gap-4">
         {/* Left panel */}
         <div className="flex w-[380px] shrink-0 flex-col rounded-2xl border bg-card">
-          <Tabs
-            defaultValue="zones"
-            className="flex min-h-0 flex-1 flex-col gap-0"
-          >
-            <div className="border-b p-3">
-              <TabsList className="w-full">
-                <TabsTrigger value="zones" className="flex-1">
-                  <MapPin className="size-4" />
-                  Geozones
-                </TabsTrigger>
-                <TabsTrigger value="alerts" className="flex-1">
-                  <Bell className="size-4" />
-                  Alerts
-                </TabsTrigger>
-              </TabsList>
-            </div>
+          <div className="flex items-center gap-2 border-b p-4">
+            <MapPin className="size-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Geozones</span>
+          </div>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-4 p-3">
+              <GeozoneList
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                hiddenIds={hiddenIds}
+                onToggleVisible={toggleVisible}
+                onEdit={handleEdit}
+              />
 
-            <TabsContent
-              value="zones"
-              className="min-h-0 flex-1 data-[state=inactive]:hidden"
-            >
-              <ScrollArea className="h-full">
-                <div className="space-y-4 p-3">
-                  <GeozoneList
-                    selectedId={selectedId}
-                    onSelect={setSelectedId}
-                    hiddenIds={hiddenIds}
-                    onToggleVisible={toggleVisible}
-                    onEdit={handleEdit}
-                  />
-
-                  {selectedZone ? (
-                    <>
-                      <Separator />
-                      <div className="rounded-xl border bg-muted/20 p-3">
-                        <div className="mb-3 flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">
-                              {selectedZone.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground capitalize">
-                              {selectedZone.shape} geozone
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label="Clear selection"
-                            onClick={() => setSelectedId(null)}
-                          >
-                            <X className="size-4" />
-                          </Button>
-                        </div>
-                        <AlertRulesPanel geozone={selectedZone} />
+              {selectedZone ? (
+                <>
+                  <Separator />
+                  <div className="rounded-xl border bg-muted/20 p-3">
+                    <div className="mb-3 flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">
+                          {selectedZone.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {selectedZone.shape} geozone
+                        </p>
                       </div>
-                    </>
-                  ) : null}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-
-            <TabsContent
-              value="alerts"
-              className="min-h-0 flex-1 data-[state=inactive]:hidden"
-            >
-              <ScrollArea className="h-full">
-                <div className="p-3">
-                  <AlertsListPanel />
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          </Tabs>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Clear selection"
+                        onClick={() => setSelectedId(null)}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    </div>
+                    <ZoneRulesPanel geozone={selectedZone} />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </ScrollArea>
         </div>
 
         {/* Right map */}

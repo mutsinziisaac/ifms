@@ -1,13 +1,15 @@
 # IFMS — Integrated Fleet Management System (prototype)
 
 A high-fidelity, **demo prototype** for the Ministry of Transport & Logistics (MoTL)
-Ethiopia to monitor vehicles operated by **other entities** (transport/logistics
-companies) along the Addis Ababa–Djibouti corridor. All data is dummy and lives in an
-in-memory store — there is no backend.
+Ethiopia to monitor vehicles operated by **other entities** — government ministries,
+agencies and public enterprises ("providers") — along the Addis Ababa–Djibouti
+corridor. All data is dummy and lives in an in-memory store — there is no backend.
 
-Scope (per `ver.2 SRS Document 11.10.2024.docx`): Driver Management, Vehicle/Fleet
-Management, Geozone Management, Routes Management, Maintenance Management, plus a mock
-login and an overview dashboard.
+Scope (per `ver.2 SRS Document 11.10.2024.docx`, since extended): Driver Management,
+Vehicle/Fleet Management, Geozone Management, Routes Management, Maintenance
+Management, an Events workspace (violations with an open → acknowledged → escalated →
+closed workflow), a Providers dashboard (per-ministry device/transmission stats), an
+Event Rules configuration page, plus a mock login and an overview dashboard.
 
 ## Commands
 
@@ -29,24 +31,36 @@ degrade to a styled placeholder. `.env` is git-ignored.
   `src/index.css`, Outfit font, dark mode via `d` key), shadcn/ui (`src/components/ui/`),
   react-router-dom 7, TanStack Query 5, recharts, `@vis.gl/react-google-maps`.
 - **Data layer** (`src/data/`): `types.ts` (domain model) → `seed.ts` (stable seeded
-  Ethiopian dummy data: 9 entities, 48 vehicles, 36 drivers, 12 geozones, 6 routes, 6
-  maintenance tasks) → `store.ts` (in-memory singleton DB + `subscribe`/`mutate`) →
-  `api.ts` (async mock API with fake latency) → `hooks.ts` (TanStack Query hooks +
-  mutations that cross-invalidate). `query-keys.ts` centralizes keys.
+  Ethiopian dummy data: 9 entities = government institutions, 48 vehicles, 36 drivers,
+  12 geozones, 6 routes, 6 maintenance tasks, 26 events with seeded workflow states,
+  ~51 event rules incl. 3 fleet-wide ones, provider telemetry baselines) → `store.ts`
+  (in-memory singleton DB + `subscribe`/`mutate`) → `api.ts` (async mock API with fake
+  latency) → `hooks.ts` (TanStack Query hooks + mutations that cross-invalidate).
+  `query-keys.ts` centralizes keys. The domain event type is **`FleetEvent`** (never a
+  bare `Event` — that collides with the DOM global); its workflow transitions are
+  guarded in `api.acknowledgeEvent`/`escalateEvent`/`closeEvent`.
 - **Live simulation** (`src/sim/`): `simulation.ts` ticks every 1.5s — moves vehicles
-  along route polylines, flips statuses, and fires geofence entry/exit/speeding alerts
-  for **active** alert rules. High-frequency map updates bypass Query via
-  `useLiveVehicles()`/`useLiveAlerts()` (`useSyncExternalStore`); lists/CRUD use Query.
+  along route polylines, flips statuses, fires geofence entry/exit/speeding events for
+  **active** zone rules plus fleet-wide `global_speeding`/`idle`/`no_signal` rules
+  (zone speeding wins over global to avoid double-firing; idle/no_signal fire once per
+  episode), and appends per-entity transmission samples to `db.providerTelemetry`.
+  High-frequency map updates bypass Query via `useLiveVehicles()`/`useLiveEvents()`/
+  `useLiveProviderTelemetry()` (`useSyncExternalStore`); lists/CRUD use Query.
   `SimulationProvider` exposes pause + speed (1×/4×/16×), surfaced in the topbar.
 - **Maps** (`src/components/map/`): `MapsProvider` (APIProvider or graceful fallback),
   `FleetMap` (themed, map-type switcher, right-click coords), and overlays
-  (`VehicleMarker`, `GeozoneOverlay`, `RoutePolyline`, `DrawingManager`, `TripPlayback`).
+  (`VehicleMarker`, `GeozoneOverlay`, `RoutePolyline`, `TrailPolyline`, `FollowCamera`,
+  `DrawingManager`, `TripPlayback`).
   **All overlays must be rendered as children of `<FleetMap>`** (they use `useMap()`).
 - **Shell/auth**: mock auth in `src/auth/` (any credentials, localStorage `ifms.auth`);
-  `AppShell` = sidebar + topbar + routed `<Outlet>`. Routes in `src/App.tsx`.
-- **Features** (`src/features/<area>/`): `dashboard`, `vehicles`, `drivers`, `geozones`,
+  `AppShell` = sidebar (Management + collapsible Configuration groups) + topbar +
+  routed `<Outlet>`. Routes in `src/App.tsx` — `/events`, `/providers`,
+  `/providers/:id`, `/config/events` joined the original set.
+- **Features** (`src/features/<area>/`): `dashboard`, `vehicles`, `drivers`, `events`
+  (workspace + `EventRulesPage` at `/config/events`), `providers`, `geozones`,
   `routes`, `maintenance`, `auth`. Shared building blocks in `src/components/common/`
-  (`DataTable`, `StatCard`, status badges, `FormDialog`, `ConfirmDialog`, …).
+  (`DataTable`, `StatCard`, `Sparkline`, status badges, `FormDialog`, `ConfirmDialog`,
+  …); provider stats math lives once in `src/lib/provider-stats.ts`.
 
 ## Conventions
 

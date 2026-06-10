@@ -2,8 +2,8 @@ import { Bell, BellOff } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { formatRelativeTime } from "@/lib/format"
-import { ALERT_SEVERITY_CONFIG, ALERT_TYPE_LABEL } from "@/lib/status"
-import { useAlerts, useMarkAllAlertsRead } from "@/data/hooks"
+import { EVENT_SEVERITY_CONFIG, EVENT_TYPE_LABEL } from "@/lib/status"
+import { useEvents, useMarkAllEventsRead } from "@/data/hooks"
 import { Button } from "@/components/ui/button"
 import {
   Popover,
@@ -13,11 +13,11 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function NotificationsBell() {
-  const alerts = useAlerts().data ?? []
-  const markAllRead = useMarkAllAlertsRead()
+  const events = useEvents().data ?? []
+  const markAllRead = useMarkAllEventsRead()
 
-  const unread = alerts.filter((a) => !a.read).length
-  const latest = alerts.slice(0, 20)
+  const unread = events.filter((e) => !e.read).length
+  const latest = events.slice(0, 20)
 
   return (
     <Popover>
@@ -52,33 +52,33 @@ export function NotificationsBell() {
               </p>
             </div>
           ) : (
-            latest.map((alert) => (
+            latest.map((event) => (
               <div
-                key={alert.id}
+                key={event.id}
                 className={cn(
                   "border-b p-3 last:border-0",
-                  !alert.read && "bg-accent/40"
+                  !event.read && "bg-accent/40"
                 )}
               >
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
                       "size-2 shrink-0 rounded-full",
-                      ALERT_SEVERITY_CONFIG[alert.severity].dotClass
+                      EVENT_SEVERITY_CONFIG[event.severity].dotClass
                     )}
                   />
                   <span
                     className={cn(
                       "truncate text-sm",
-                      !alert.read && "font-medium"
+                      !event.read && "font-medium"
                     )}
                   >
-                    {alert.message}
+                    {event.message}
                   </span>
                 </div>
                 <p className="pl-4 text-xs text-muted-foreground">
-                  {ALERT_TYPE_LABEL[alert.type]} ·{" "}
-                  {formatRelativeTime(alert.at)}
+                  {EVENT_TYPE_LABEL[event.type]} ·{" "}
+                  {formatRelativeTime(event.at)}
                 </p>
               </div>
             ))

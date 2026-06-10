@@ -1,17 +1,18 @@
 // Live simulation engine. A single setInterval drives the whole fleet: every
 // real-time tick advances moving vehicles along their routes, rolls status
-// transitions, evaluates geofencing rules and emits alerts — all inside ONE
-// store.mutate so consumers re-render once per tick.
+// transitions, evaluates event rules (geofencing + fleet-wide) and emits
+// events — all inside ONE store.mutate so consumers re-render once per tick.
 
 import { qk } from "@/data/query-keys"
 import { mutate } from "@/data/store"
 import type {
-  Alert,
-  AlertRule,
   DB,
+  EventRule,
+  FleetEvent,
   Geozone,
   RouteDef,
   Vehicle,
+  ZoneRuleType,
 } from "@/data/types"
 import { queryClient } from "@/lib/query-client"
 import { interpolateAlongPath, isInsideGeozone } from "@/lib/maps"
@@ -19,8 +20,10 @@ import { interpolateAlongPath, isInsideGeozone } from "@/lib/maps"
 const TICK_MS = 1500
 // At 1x: 1.5 real s * 1 * 40 = 60 simulated seconds per tick.
 const SIM_SECONDS_PER_REAL_SECOND = 40
-const MAX_ALERTS = 200
+const MAX_EVENTS = 200
 const SPEEDING_THROTTLE_WINDOW = 50
+const TELEMETRY_HISTORY_MAX = 40
+const MIN_MS = 60 * 1000
 
 export interface SimulationHandle {
   stop: () => void
@@ -31,17 +34,66 @@ export interface SimulationHandle {
 let simIdCounter = 0
 const ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
 
-function nextAlertId(): string {
+function nextEventId(): string {
   simIdCounter++
   let suffix = ""
   for (let i = 0; i < 4; i++) {
     suffix += ID_CHARS[Math.floor(Math.random() * ID_CHARS.length)]
   }
-  return `alr-${suffix}${(Date.now() + simIdCounter).toString(36).slice(-2)}`
+  return `evt-${suffix}${(Date.now() + simIdCounter).toString(36).slice(-2)}`
 }
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
+}
+
+function newEvent(
+  v: Vehicle,
+  type: FleetEvent["type"],
+  severity: FleetEvent["severity"],
+  zone: Geozone | null,
+  message: string,
+  now: string
+): FleetEvent {
+  return {
+    id: nextEventId(),
+    type,
+    severity,
+    vehicleId: v.id,
+    vehiclePlate: v.plate,
+    entityId: v.entityId,
+    geozoneId: zone?.id ?? null,
+    geozoneName: zone?.name ?? null,
+    message,
+    at: now,
+    location: { ...v.position },
+    read: false,
+    status: "open",
+    acknowledgedBy: null,
+    acknowledgedAt: null,
+    escalatedTo: null,
+    escalatedAt: null,
+    closedBy: null,
+    closedAt: null,
+    resolutionNote: null,
+  }
+}
+
+/** Active fleet-wide rules, resolved once per tick. */
+interface GlobalRules {
+  speeding: EventRule | undefined
+  idle: EventRule | undefined
+  noSignal: EventRule | undefined
+}
+
+function resolveGlobalRules(db: DB): GlobalRules {
+  const active = (type: EventRule["type"]) =>
+    db.eventRules.find((r) => r.type === type && r.active)
+  return {
+    speeding: active("global_speeding"),
+    idle: active("idle"),
+    noSignal: active("no_signal"),
+  }
 }
 
 export function startSimulation(): SimulationHandle {
@@ -59,22 +111,47 @@ export function startSimulation(): SimulationHandle {
       const routesById = new Map<string, RouteDef>(
         db.routes.map((r) => [r.id, r])
       )
-      const newAlerts: Alert[] = []
+      const globalRules = resolveGlobalRules(db)
+      const newEvents: FleetEvent[] = []
 
       db.vehicles = db.vehicles.map((vehicle) =>
-        tickVehicle(db, vehicle, routesById, simElapsedHours, now, newAlerts)
+        tickVehicle(
+          db,
+          vehicle,
+          routesById,
+          globalRules,
+          simElapsedHours,
+          now,
+          newEvents
+        )
       )
 
-      if (newAlerts.length > 0) {
-        db.alerts.unshift(...newAlerts)
-        if (db.alerts.length > MAX_ALERTS) {
-          db.alerts.length = MAX_ALERTS
+      if (newEvents.length > 0) {
+        db.events.unshift(...newEvents)
+        if (db.events.length > MAX_EVENTS) {
+          db.events.length = MAX_EVENTS
         }
+      }
+
+      // Provider telemetry — count devices that synced this tick per entity.
+      const syncedByEntity = new Map<string, number>()
+      for (const v of db.vehicles) {
+        if (v.lastSyncAt === now) {
+          syncedByEntity.set(
+            v.entityId,
+            (syncedByEntity.get(v.entityId) ?? 0) + 1
+          )
+        }
+      }
+      for (const t of db.providerTelemetry) {
+        const sample = syncedByEntity.get(t.entityId) ?? 0
+        t.messagesTotal += sample
+        t.history = [...t.history.slice(-(TELEMETRY_HISTORY_MAX - 1)), sample]
       }
     })
 
     queryClient.invalidateQueries({ queryKey: qk.vehicles })
-    queryClient.invalidateQueries({ queryKey: qk.alerts })
+    queryClient.invalidateQueries({ queryKey: qk.events })
   }, TICK_MS)
 
   return {
@@ -97,9 +174,10 @@ function tickVehicle(
   db: DB,
   prev: Vehicle,
   routesById: Map<string, RouteDef>,
+  globalRules: GlobalRules,
   simElapsedHours: number,
   now: string,
-  newAlerts: Alert[]
+  newEvents: FleetEvent[]
 ): Vehicle {
   // Ignition-blocked vehicles never auto-change anything.
   if (prev.status === "ignition_blocked") {
@@ -133,6 +211,7 @@ function tickVehicle(
   // --- no_signal: freeze position and lastSyncAt entirely ---
   if (v.status === "no_signal") {
     v.speedKmh = 0
+    applyNoSignalRule(db, v, globalRules.noSignal, now, newEvents)
     return v
   }
 
@@ -141,7 +220,10 @@ function tickVehicle(
     v.speedKmh = 0
     v.lastSyncAt = now
     // Re-evaluate geofencing (it sits still, but rules may have changed).
-    applyGeofencing(db, prev, v, now, newAlerts)
+    applyGeofencing(db, prev, v, now, newEvents)
+    if (v.status === "idling") {
+      applyIdleRule(db, v, globalRules.idle, now, newEvents)
+    }
     return v
   }
 
@@ -186,13 +268,14 @@ function tickVehicle(
   if (v.fuelPct < 8) v.fuelPct = 95
   v.lastSyncAt = now
 
-  applyGeofencing(db, prev, v, now, newAlerts)
+  applyGeofencing(db, prev, v, now, newEvents)
+  applyGlobalSpeeding(db, v, globalRules.speeding, now, newEvents)
 
   return v
 }
 
 // ---------------------------------------------------------------------------
-// Geofencing — entry/exit/speeding alert generation.
+// Geofencing — entry/exit/speeding event generation.
 // ---------------------------------------------------------------------------
 
 function applyGeofencing(
@@ -200,7 +283,7 @@ function applyGeofencing(
   prev: Vehicle,
   v: Vehicle,
   now: string,
-  newAlerts: Alert[]
+  newEvents: FleetEvent[]
 ): void {
   let newInsideId: string | null = null
   let newInsideZone: Geozone | undefined
@@ -218,40 +301,34 @@ function applyGeofencing(
     // Exited the old zone.
     if (oldInsideId !== null) {
       const oldZone = db.geozones.find((z) => z.id === oldInsideId)
-      const exitRule = findActiveRule(db.alertRules, oldInsideId, "exit")
+      const exitRule = findActiveZoneRule(db.eventRules, oldInsideId, "exit")
       if (oldZone && exitRule) {
-        newAlerts.push({
-          id: nextAlertId(),
-          type: "exit",
-          severity: "info",
-          vehicleId: v.id,
-          vehiclePlate: v.plate,
-          geozoneId: oldZone.id,
-          geozoneName: oldZone.name,
-          message: `${v.plate} exited ${oldZone.name}`,
-          at: now,
-          location: { ...v.position },
-          read: false,
-        })
+        newEvents.push(
+          newEvent(
+            v,
+            "exit",
+            exitRule.severity,
+            oldZone,
+            `${v.plate} exited ${oldZone.name}`,
+            now
+          )
+        )
       }
     }
     // Entered the new zone.
     if (newInsideId !== null && newInsideZone) {
-      const entryRule = findActiveRule(db.alertRules, newInsideId, "entry")
+      const entryRule = findActiveZoneRule(db.eventRules, newInsideId, "entry")
       if (entryRule) {
-        newAlerts.push({
-          id: nextAlertId(),
-          type: "entry",
-          severity: "info",
-          vehicleId: v.id,
-          vehiclePlate: v.plate,
-          geozoneId: newInsideZone.id,
-          geozoneName: newInsideZone.name,
-          message: `${v.plate} entered ${newInsideZone.name}`,
-          at: now,
-          location: { ...v.position },
-          read: false,
-        })
+        newEvents.push(
+          newEvent(
+            v,
+            "entry",
+            entryRule.severity,
+            newInsideZone,
+            `${v.plate} entered ${newInsideZone.name}`,
+            now
+          )
+        )
       }
     }
   }
@@ -260,54 +337,152 @@ function applyGeofencing(
 
   // Speeding — while inside a zone with an active speeding rule.
   if (newInsideId !== null && newInsideZone) {
-    const speedRule = findActiveRule(db.alertRules, newInsideId, "speeding")
+    const speedRule = findActiveZoneRule(db.eventRules, newInsideId, "speeding")
     if (
       speedRule &&
       speedRule.speedLimitKmh !== null &&
       v.speedKmh > speedRule.speedLimitKmh
     ) {
       const limit = speedRule.speedLimitKmh
-      // Throttle: skip if a speeding alert already exists for this
-      // vehicle+zone among the 50 newest alerts (including this tick's).
-      const recentExisting = db.alerts
-        .slice(0, SPEEDING_THROTTLE_WINDOW)
-        .some(
-          (a) =>
-            a.type === "speeding" &&
-            a.vehicleId === v.id &&
-            a.geozoneId === newInsideId
-        )
-      const pendingThisTick = newAlerts.some(
-        (a) =>
-          a.type === "speeding" &&
-          a.vehicleId === v.id &&
-          a.geozoneId === newInsideId
-      )
-      if (!recentExisting && !pendingThisTick) {
+      if (!speedingAlreadyReported(db, newEvents, v.id, newInsideId)) {
         const speed = Math.round(v.speedKmh)
-        newAlerts.push({
-          id: nextAlertId(),
-          type: "speeding",
-          severity: speed > limit + 25 ? "critical" : "warning",
-          vehicleId: v.id,
-          vehiclePlate: v.plate,
-          geozoneId: newInsideZone.id,
-          geozoneName: newInsideZone.name,
-          message: `${v.plate} exceeded ${limit} km/h in ${newInsideZone.name} (${speed} km/h)`,
-          at: now,
-          location: { ...v.position },
-          read: false,
-        })
+        newEvents.push(
+          newEvent(
+            v,
+            "speeding",
+            speed > limit + 25 ? "critical" : speedRule.severity,
+            newInsideZone,
+            `${v.plate} exceeded ${limit} km/h in ${newInsideZone.name} (${speed} km/h)`,
+            now
+          )
+        )
       }
     }
   }
 }
 
-function findActiveRule(
-  rules: AlertRule[],
+// Throttle: skip if a speeding event already exists for this vehicle+zone
+// (zone null = fleet-wide) among the newest events, including this tick's.
+function speedingAlreadyReported(
+  db: DB,
+  pending: FleetEvent[],
+  vehicleId: string,
+  geozoneId: string | null
+): boolean {
+  const matches = (e: FleetEvent) =>
+    e.type === "speeding" &&
+    e.vehicleId === vehicleId &&
+    e.geozoneId === geozoneId
+  return (
+    db.events.slice(0, SPEEDING_THROTTLE_WINDOW).some(matches) ||
+    pending.some(matches)
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Fleet-wide rules — global speeding, excessive idle, signal timeout.
+// ---------------------------------------------------------------------------
+
+function applyGlobalSpeeding(
+  db: DB,
+  v: Vehicle,
+  rule: EventRule | undefined,
+  now: string,
+  newEvents: FleetEvent[]
+): void {
+  if (!rule || rule.speedLimitKmh === null) return
+  if (v.speedKmh <= rule.speedLimitKmh) return
+  // A zone speeding rule covering the current zone wins — avoid double-fire.
+  if (
+    v.insideGeozoneId !== null &&
+    findActiveZoneRule(db.eventRules, v.insideGeozoneId, "speeding")
+  ) {
+    return
+  }
+  if (speedingAlreadyReported(db, newEvents, v.id, null)) return
+  const speed = Math.round(v.speedKmh)
+  newEvents.push(
+    newEvent(
+      v,
+      "speeding",
+      speed > rule.speedLimitKmh + 25 ? "critical" : rule.severity,
+      null,
+      `${v.plate} exceeded the fleet speed limit of ${rule.speedLimitKmh} km/h (${speed} km/h)`,
+      now
+    )
+  )
+}
+
+// Fire once per episode: skip if an event of this type already exists for the
+// vehicle since the episode began (db.events is capped, so the scan is cheap).
+function hasEventSince(
+  db: DB,
+  pending: FleetEvent[],
+  type: FleetEvent["type"],
+  vehicleId: string,
+  sinceIso: string
+): boolean {
+  return (
+    pending.some((e) => e.type === type && e.vehicleId === vehicleId) ||
+    db.events.some(
+      (e) => e.type === type && e.vehicleId === vehicleId && e.at >= sinceIso
+    )
+  )
+}
+
+function applyIdleRule(
+  db: DB,
+  v: Vehicle,
+  rule: EventRule | undefined,
+  now: string,
+  newEvents: FleetEvent[]
+): void {
+  if (!rule || rule.thresholdMinutes === null) return
+  const idleMs = +new Date(now) - +new Date(v.statusSince)
+  if (idleMs < rule.thresholdMinutes * MIN_MS) return
+  if (hasEventSince(db, newEvents, "idle", v.id, v.statusSince)) return
+  const idleMin = Math.round(idleMs / MIN_MS)
+  newEvents.push(
+    newEvent(
+      v,
+      "idle",
+      rule.severity,
+      null,
+      `${v.plate} idling for ${idleMin} min (limit ${rule.thresholdMinutes} min)`,
+      now
+    )
+  )
+}
+
+function applyNoSignalRule(
+  db: DB,
+  v: Vehicle,
+  rule: EventRule | undefined,
+  now: string,
+  newEvents: FleetEvent[]
+): void {
+  if (!rule || rule.thresholdMinutes === null) return
+  const silentMs = +new Date(now) - +new Date(v.lastSyncAt)
+  if (silentMs < rule.thresholdMinutes * MIN_MS) return
+  if (hasEventSince(db, newEvents, "no_signal", v.id, v.statusSince)) return
+  const silentMin = Math.round(silentMs / MIN_MS)
+  newEvents.push(
+    newEvent(
+      v,
+      "no_signal",
+      rule.severity,
+      null,
+      `${v.plate} lost GPS signal — no sync for ${silentMin} min`,
+      now
+    )
+  )
+}
+
+function findActiveZoneRule(
+  rules: EventRule[],
   geozoneId: string,
-  type: AlertRule["type"]
-): AlertRule | undefined {
+  type: ZoneRuleType
+): EventRule | undefined {
   return rules.find(
     (r) => r.geozoneId === geozoneId && r.type === type && r.active
   )

@@ -8,6 +8,7 @@ import { useSyncExternalStore } from "react"
 import * as api from "./api"
 import type {
   DriverInput,
+  EventRuleInput,
   GeozoneInput,
   MaintenanceTaskInput,
   RouteInput,
@@ -15,7 +16,7 @@ import type {
 } from "./api"
 import { qk } from "./query-keys"
 import { getDB, getVersion, subscribe } from "./store"
-import type { Alert, AlertRuleType, LatLng, Vehicle } from "./types"
+import type { FleetEvent, LatLng, ProviderTelemetry, Vehicle } from "./types"
 
 // ---------------------------------------------------------------------------
 // Query hooks
@@ -60,12 +61,12 @@ export function useGeozoneGroups() {
   })
 }
 
-export function useAlertRules() {
-  return useQuery({ queryKey: qk.alertRules, queryFn: api.listAlertRules })
+export function useEventRules() {
+  return useQuery({ queryKey: qk.eventRules, queryFn: api.listEventRules })
 }
 
-export function useAlerts() {
-  return useQuery({ queryKey: qk.alerts, queryFn: api.listAlerts })
+export function useEvents() {
+  return useQuery({ queryKey: qk.events, queryFn: api.listEvents })
 }
 
 export function useRoutes() {
@@ -184,10 +185,10 @@ export function useAssignVehicleToDriver() {
   })
 }
 
-// Geozone mutations also affect alert rules and vehicles (insideGeozoneId).
+// Geozone mutations also affect event rules and vehicles (insideGeozoneId).
 function invalidateGeozoneScope(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: qk.geozones })
-  qc.invalidateQueries({ queryKey: qk.alertRules })
+  qc.invalidateQueries({ queryKey: qk.eventRules })
   qc.invalidateQueries({ queryKey: qk.vehicles })
 }
 
@@ -261,38 +262,65 @@ export function useDeleteGeozoneGroup() {
   })
 }
 
-export function useUpsertAlertRule() {
+export function useUpsertEventRule() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: {
-      id?: string
-      geozoneId: string
-      type: AlertRuleType
-      speedLimitKmh: number | null
-      active: boolean
-    }) => api.upsertAlertRule(input),
+    mutationFn: (input: EventRuleInput) => api.upsertEventRule(input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.alertRules })
+      qc.invalidateQueries({ queryKey: qk.eventRules })
     },
   })
 }
 
-export function useDeleteAlertRule() {
+export function useDeleteEventRule() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) => api.deleteAlertRule(id),
+    mutationFn: (id: string) => api.deleteEventRule(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.alertRules })
+      qc.invalidateQueries({ queryKey: qk.eventRules })
     },
   })
 }
 
-export function useMarkAllAlertsRead() {
+export function useMarkAllEventsRead() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => api.markAllAlertsRead(),
+    mutationFn: () => api.markAllEventsRead(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.alerts })
+      qc.invalidateQueries({ queryKey: qk.events })
+    },
+  })
+}
+
+export function useAcknowledgeEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; by: string }) =>
+      api.acknowledgeEvent(vars.id, vars.by),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.events })
+    },
+  })
+}
+
+export function useEscalateEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; to: string; by: string }) =>
+      api.escalateEvent(vars.id, { to: vars.to, by: vars.by }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.events })
+    },
+  })
+}
+
+export function useCloseEvent() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; by: string; note: string }) =>
+      api.closeEvent(vars.id, { by: vars.by, note: vars.note }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.events })
     },
   })
 }
@@ -399,8 +427,13 @@ export function useLiveVehicles(): Vehicle[] {
   return getDB().vehicles
 }
 
-export function useLiveAlerts(limit?: number): Alert[] {
+export function useLiveEvents(limit?: number): FleetEvent[] {
   useSyncExternalStore(subscribe, getVersion, getVersion)
-  const alerts = getDB().alerts
-  return limit === undefined ? alerts : alerts.slice(0, limit)
+  const events = getDB().events
+  return limit === undefined ? events : events.slice(0, limit)
+}
+
+export function useLiveProviderTelemetry(): ProviderTelemetry[] {
+  useSyncExternalStore(subscribe, getVersion, getVersion)
+  return getDB().providerTelemetry
 }

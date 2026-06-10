@@ -2,11 +2,13 @@ import { useState } from "react"
 import {
   ArrowRightFromLine,
   ArrowRightToLine,
+  ArrowUpRight,
   Gauge,
   Plus,
   Trash2,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
+import { Link } from "react-router-dom"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -20,16 +22,21 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import {
-  useAlertRules,
-  useDeleteAlertRule,
-  useUpsertAlertRule,
+  useDeleteEventRule,
+  useEventRules,
+  useUpsertEventRule,
 } from "@/data/hooks"
-import { ALERT_RULE_TYPES } from "@/data/types"
-import type { AlertRule, AlertRuleType, Geozone } from "@/data/types"
+import { ZONE_RULE_TYPES } from "@/data/types"
+import type {
+  EventRule,
+  EventSeverity,
+  Geozone,
+  ZoneRuleType,
+} from "@/data/types"
 import { cn } from "@/lib/utils"
 
 const RULE_META: Record<
-  AlertRuleType,
+  ZoneRuleType,
   { label: string; icon: LucideIcon; description: string }
 > = {
   entry: {
@@ -49,28 +56,36 @@ const RULE_META: Record<
   },
 }
 
-export interface AlertRulesPanelProps {
+const DEFAULT_SEVERITY: Record<ZoneRuleType, EventSeverity> = {
+  entry: "info",
+  exit: "info",
+  speeding: "warning",
+}
+
+export interface ZoneRulesPanelProps {
   geozone: Geozone
 }
 
-export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
-  const rules = (useAlertRules().data ?? []).filter(
+export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
+  const rules = (useEventRules().data ?? []).filter(
     (rule) => rule.geozoneId === geozone.id
   )
 
-  const upsertRule = useUpsertAlertRule()
-  const deleteRule = useDeleteAlertRule()
+  const upsertRule = useUpsertEventRule()
+  const deleteRule = useDeleteEventRule()
 
-  const [newType, setNewType] = useState<AlertRuleType>("entry")
+  const [newType, setNewType] = useState<ZoneRuleType>("entry")
   const [newSpeed, setNewSpeed] = useState("60")
 
-  const toggleActive = (rule: AlertRule, active: boolean) => {
+  const toggleActive = (rule: EventRule, active: boolean) => {
     upsertRule.mutate(
       {
         id: rule.id,
         geozoneId: rule.geozoneId,
         type: rule.type,
         speedLimitKmh: rule.speedLimitKmh,
+        thresholdMinutes: rule.thresholdMinutes,
+        severity: rule.severity,
         active,
       },
       {
@@ -79,7 +94,7 @@ export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
     )
   }
 
-  const removeRule = (rule: AlertRule) => {
+  const removeRule = (rule: EventRule) => {
     deleteRule.mutate(rule.id, {
       onSuccess: () => toast.success("Rule removed"),
       onError: () => toast.error("Could not remove rule"),
@@ -101,11 +116,13 @@ export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
         geozoneId: geozone.id,
         type: newType,
         speedLimitKmh,
+        thresholdMinutes: null,
+        severity: DEFAULT_SEVERITY[newType],
         active: true,
       },
       {
         onSuccess: () => {
-          toast.success("Alert rule added")
+          toast.success("Event rule added")
           setNewType("entry")
           setNewSpeed("60")
         },
@@ -117,7 +134,7 @@ export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-heading text-sm font-semibold">Alert rules</h3>
+        <h3 className="font-heading text-sm font-semibold">Event rules</h3>
         <span className="text-xs text-muted-foreground tabular-nums">
           {rules.length} rule{rules.length === 1 ? "" : "s"}
         </span>
@@ -126,11 +143,11 @@ export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
       <div className="space-y-2">
         {rules.length === 0 ? (
           <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
-            No alert rules yet for this zone.
+            No event rules yet for this zone.
           </p>
         ) : (
           rules.map((rule) => {
-            const meta = RULE_META[rule.type]
+            const meta = RULE_META[rule.type as ZoneRuleType]
             const Icon = meta.icon
             return (
               <div
@@ -179,13 +196,13 @@ export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
           </span>
           <Select
             value={newType}
-            onValueChange={(value) => setNewType(value as AlertRuleType)}
+            onValueChange={(value) => setNewType(value as ZoneRuleType)}
           >
             <SelectTrigger className="h-8 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {ALERT_RULE_TYPES.map((type) => (
+              {ZONE_RULE_TYPES.map((type) => (
                 <SelectItem key={type} value={type}>
                   {RULE_META[type].label}
                 </SelectItem>
@@ -216,6 +233,14 @@ export function AlertRulesPanel({ geozone }: AlertRulesPanelProps) {
           Add
         </Button>
       </div>
+
+      <Link
+        to="/config/events"
+        className="flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+      >
+        All event rules
+        <ArrowUpRight className="size-3.5" />
+      </Link>
     </div>
   )
 }
