@@ -10,7 +10,8 @@ export interface LatLng {
 }
 
 // ---------------------------------------------------------------------------
-// Entities — the monitored transport/logistics companies ("other entities")
+// Entities — the monitored government institutions ("providers") whose fleets
+// transmit device data to the MoTL platform
 // ---------------------------------------------------------------------------
 
 export const ETHIOPIA_REGIONS = [
@@ -25,10 +26,14 @@ export const ETHIOPIA_REGIONS = [
 ] as const
 export type EthiopiaRegion = (typeof ETHIOPIA_REGIONS)[number]
 
+export const ENTITY_CATEGORIES = ["ministry", "agency", "enterprise"] as const
+export type EntityCategory = (typeof ENTITY_CATEGORIES)[number]
+
 export interface Entity {
   id: ID
   name: string
   shortName: string
+  category: EntityCategory
   address: string
   phone: string
   email: string
@@ -148,7 +153,7 @@ export interface Driver {
 }
 
 // ---------------------------------------------------------------------------
-// Geozones & alert rules
+// Geozones & event rules
 // ---------------------------------------------------------------------------
 
 export type GeozoneShape = "polygon" | "circle"
@@ -180,47 +185,107 @@ export interface GeozoneGroup {
   color: string
 }
 
-export const ALERT_RULE_TYPES = ["entry", "exit", "speeding"] as const
-export type AlertRuleType = (typeof ALERT_RULE_TYPES)[number]
+/**
+ * Rule types: "entry"/"exit"/"speeding" are geozone-scoped (geozoneId
+ * required); "global_speeding"/"idle"/"no_signal" apply fleet-wide
+ * (geozoneId null).
+ */
+export const EVENT_RULE_TYPES = [
+  "entry",
+  "exit",
+  "speeding",
+  "global_speeding",
+  "idle",
+  "no_signal",
+] as const
+export type EventRuleType = (typeof EVENT_RULE_TYPES)[number]
 
-export interface AlertRule {
+export const ZONE_RULE_TYPES = ["entry", "exit", "speeding"] as const
+export type ZoneRuleType = (typeof ZONE_RULE_TYPES)[number]
+
+export interface EventRule {
   id: ID
-  geozoneId: ID
-  type: AlertRuleType
-  /** Only for "speeding" rules */
+  type: EventRuleType
+  /** Required for entry/exit/speeding; null for global rule types */
+  geozoneId: ID | null
+  /** Only for "speeding" / "global_speeding" rules */
   speedLimitKmh: number | null
-  /** Deactivated rules never generate alerts */
+  /** Only for "idle" / "no_signal" rules — minutes before the rule fires */
+  thresholdMinutes: number | null
+  /** Severity stamped on events this rule fires */
+  severity: EventSeverity
+  /** Deactivated rules never generate events */
   active: boolean
 }
 
 // ---------------------------------------------------------------------------
-// Alerts (the live events feed)
+// Events (the live violations feed, with a handling workflow)
 // ---------------------------------------------------------------------------
 
-export const ALERT_TYPES = [
+export const EVENT_TYPES = [
   "entry",
   "exit",
   "speeding",
   "no_signal",
   "idle",
 ] as const
-export type AlertType = (typeof ALERT_TYPES)[number]
+export type EventType = (typeof EVENT_TYPES)[number]
 
-export type AlertSeverity = "info" | "warning" | "critical"
+export type EventSeverity = "info" | "warning" | "critical"
 
-export interface Alert {
+export const EVENT_STATUSES = [
+  "open",
+  "acknowledged",
+  "escalated",
+  "closed",
+] as const
+export type EventStatus = (typeof EVENT_STATUSES)[number]
+
+/** Where an event can be escalated to (demo-grade constant list). */
+export const ESCALATION_TARGETS = [
+  "Corridor Operations Director",
+  "Federal Transport Authority",
+  "Regional Police Liaison",
+] as const
+
+/** Named FleetEvent (not Event) to avoid colliding with the DOM global. */
+export interface FleetEvent {
   id: ID
-  type: AlertType
-  severity: AlertSeverity
+  type: EventType
+  severity: EventSeverity
   vehicleId: ID
   vehiclePlate: string
+  /** Provider (entity) the vehicle belongs to, denormalized for filtering */
+  entityId: ID
   geozoneId: ID | null
   geozoneName: string | null
   message: string
   /** ISO timestamp */
   at: string
   location: LatLng
+  /** Notification read-state — independent of the handling workflow */
   read: boolean
+  // --- handling workflow ---
+  status: EventStatus
+  acknowledgedBy: string | null
+  acknowledgedAt: string | null
+  escalatedTo: string | null
+  escalatedAt: string | null
+  closedBy: string | null
+  closedAt: string | null
+  resolutionNote: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Provider telemetry (per-entity transmission stats, updated by the sim)
+// ---------------------------------------------------------------------------
+
+export interface ProviderTelemetry {
+  entityId: ID
+  /** Total position messages received since the session started */
+  messagesTotal: number
+  /** Per-tick transmission counts, oldest → newest, capped at 40 samples */
+  history: number[]
 }
 
 // ---------------------------------------------------------------------------
@@ -340,8 +405,9 @@ export interface DB {
   drivers: Driver[]
   geozones: Geozone[]
   geozoneGroups: GeozoneGroup[]
-  alertRules: AlertRule[]
-  alerts: Alert[]
+  eventRules: EventRule[]
+  events: FleetEvent[]
+  providerTelemetry: ProviderTelemetry[]
   routes: RouteDef[]
   trips: Trip[]
   assignments: VehicleDriverAssignment[]

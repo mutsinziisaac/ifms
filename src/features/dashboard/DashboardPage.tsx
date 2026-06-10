@@ -2,7 +2,7 @@ import { RelativeTime } from "@/components/common/RelativeTime"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { useLiveVehicles } from "@/data/hooks"
 
-import { AlertsFeedCard } from "./components/AlertsFeedCard"
+import { EventsFeedCard } from "./components/EventsFeedCard"
 import { CorridorStatsCard } from "./components/CorridorStatsCard"
 import { FleetStatusDonut } from "./components/FleetStatusDonut"
 import { KpiRow } from "./components/KpiRow"
@@ -47,7 +47,7 @@ export function DashboardPage() {
           </div>
         </div>
 
-        <AlertsFeedCard />
+        <EventsFeedCard />
       </div>
     </div>
   )

@@ -5,11 +5,14 @@
 import { densifyPath, nearestPlaceName } from "./geo"
 import { getDB, mutate } from "./store"
 import type {
-  Alert,
   Driver,
   DriverStatus,
   Entity,
   EthiopiaRegion,
+  EventRule,
+  EventRuleType,
+  EventSeverity,
+  FleetEvent,
   Geozone,
   GeozoneGroup,
   GeozoneShape,
@@ -26,8 +29,6 @@ import type {
   Vehicle,
   VehicleDriverAssignment,
   VehicleType,
-  AlertRule,
-  AlertRuleType,
   Waypoint,
 } from "./types"
 import { centroidOf, isInsideGeozone, pathLengthKm } from "@/lib/maps"
@@ -565,13 +566,13 @@ export async function updateGeozone(
 export async function deleteGeozone(id: ID): Promise<void> {
   await latency()
   mutate((db) => {
-    // Remove its alert rules.
-    db.alertRules = db.alertRules.filter((r) => r.geozoneId !== id)
+    // Remove its zone-scoped event rules (global rules have geozoneId null).
+    db.eventRules = db.eventRules.filter((r) => r.geozoneId !== id)
     // Clear insideGeozoneId references.
     for (const vehicle of db.vehicles) {
       if (vehicle.insideGeozoneId === id) vehicle.insideGeozoneId = null
     }
-    // Keep historical alerts (do not touch db.alerts).
+    // Keep historical events (do not touch db.events).
     db.geozones = db.geozones.filter((g) => g.id !== id)
   })
 }
@@ -660,70 +661,156 @@ export async function deleteGeozoneGroup(id: ID): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Alert rules
+// Event rules
 // ---------------------------------------------------------------------------
 
-export async function listAlertRules(): Promise<AlertRule[]> {
-  await latency()
-  return [...getDB().alertRules]
+const ZONE_SCOPED_RULE_TYPES: EventRuleType[] = ["entry", "exit", "speeding"]
+
+export interface EventRuleInput {
+  id?: ID
+  type: EventRuleType
+  geozoneId: ID | null
+  speedLimitKmh: number | null
+  thresholdMinutes: number | null
+  severity: EventSeverity
+  active: boolean
 }
 
-export async function upsertAlertRule(input: {
-  id?: ID
-  geozoneId: ID
-  type: AlertRuleType
-  speedLimitKmh: number | null
-  active: boolean
-}): Promise<AlertRule> {
+export async function listEventRules(): Promise<EventRule[]> {
   await latency()
-  let result: AlertRule | null = null
+  return [...getDB().eventRules]
+}
+
+export async function upsertEventRule(
+  input: EventRuleInput
+): Promise<EventRule> {
+  await latency()
+  if (ZONE_SCOPED_RULE_TYPES.includes(input.type) && input.geozoneId === null) {
+    throw new Error("Geozone rules require a geozone")
+  }
+  let result: EventRule | null = null
   mutate((db) => {
     if (input.id !== undefined) {
-      const existing = db.alertRules.find((r) => r.id === input.id)
+      const existing = db.eventRules.find((r) => r.id === input.id)
       if (existing) {
-        existing.geozoneId = input.geozoneId
         existing.type = input.type
+        existing.geozoneId = input.geozoneId
         existing.speedLimitKmh = input.speedLimitKmh
+        existing.thresholdMinutes = input.thresholdMinutes
+        existing.severity = input.severity
         existing.active = input.active
         result = existing
         return
       }
     }
-    const rule: AlertRule = {
+    const rule: EventRule = {
       id: input.id ?? nextId("rul"),
-      geozoneId: input.geozoneId,
       type: input.type,
+      geozoneId: input.geozoneId,
       speedLimitKmh: input.speedLimitKmh,
+      thresholdMinutes: input.thresholdMinutes,
+      severity: input.severity,
       active: input.active,
     }
-    db.alertRules.push(rule)
+    db.eventRules.push(rule)
     result = rule
   })
   return result!
 }
 
-export async function deleteAlertRule(id: ID): Promise<void> {
+export async function deleteEventRule(id: ID): Promise<void> {
   await latency()
   mutate((db) => {
-    db.alertRules = db.alertRules.filter((r) => r.id !== id)
+    db.eventRules = db.eventRules.filter((r) => r.id !== id)
   })
 }
 
 // ---------------------------------------------------------------------------
-// Alerts
+// Events
 // ---------------------------------------------------------------------------
 
-export async function listAlerts(): Promise<Alert[]> {
+export async function listEvents(): Promise<FleetEvent[]> {
   await latency()
-  // Newest first — the simulation keeps db.alerts newest-first already.
-  return [...getDB().alerts]
+  // Newest first — the simulation keeps db.events newest-first already.
+  return [...getDB().events]
 }
 
-export async function markAllAlertsRead(): Promise<void> {
+export async function markAllEventsRead(): Promise<void> {
   await latency()
   mutate((db) => {
-    for (const alert of db.alerts) alert.read = true
+    for (const event of db.events) event.read = true
   })
+}
+
+function findEvent(db: ReturnType<typeof getDB>, id: ID): FleetEvent {
+  const event = db.events.find((e) => e.id === id)
+  if (!event) throw new Error(`Event ${id} not found`)
+  return event
+}
+
+export async function acknowledgeEvent(
+  id: ID,
+  by: string
+): Promise<FleetEvent> {
+  await latency()
+  let updated: FleetEvent | null = null
+  mutate((db) => {
+    const event = findEvent(db, id)
+    if (event.status !== "open") {
+      throw new Error("Only open events can be acknowledged")
+    }
+    event.status = "acknowledged"
+    event.acknowledgedBy = by
+    event.acknowledgedAt = nowIso()
+    event.read = true
+    updated = event
+  })
+  return updated!
+}
+
+export async function escalateEvent(
+  id: ID,
+  vars: { to: string; by: string }
+): Promise<FleetEvent> {
+  await latency()
+  let updated: FleetEvent | null = null
+  mutate((db) => {
+    const event = findEvent(db, id)
+    if (event.status !== "open" && event.status !== "acknowledged") {
+      throw new Error("Only open or acknowledged events can be escalated")
+    }
+    if (event.status === "open") {
+      event.acknowledgedBy = vars.by
+      event.acknowledgedAt = nowIso()
+    }
+    event.status = "escalated"
+    event.escalatedTo = vars.to
+    event.escalatedAt = nowIso()
+    event.read = true
+    updated = event
+  })
+  return updated!
+}
+
+export async function closeEvent(
+  id: ID,
+  vars: { by: string; note: string }
+): Promise<FleetEvent> {
+  await latency()
+  let updated: FleetEvent | null = null
+  mutate((db) => {
+    const event = findEvent(db, id)
+    if (event.status === "closed") {
+      throw new Error("Event is already closed")
+    }
+    event.status = "closed"
+    event.closedBy = vars.by
+    event.closedAt = nowIso()
+    event.resolutionNote = vars.note
+    event.read = true
+    updated = event
+  })
+  return updated!
 }
 
 // ---------------------------------------------------------------------------

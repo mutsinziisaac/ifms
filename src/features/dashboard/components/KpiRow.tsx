@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Bell, Gauge, Navigation, PauseCircle } from "lucide-react"
 
-import { useLiveAlerts, useLiveVehicles } from "@/data/hooks"
+import { useLiveEvents, useLiveVehicles } from "@/data/hooks"
 import { formatSpeed } from "@/lib/format"
 
 import { ActivityStatCard } from "./ActivityStatCard"
@@ -13,7 +13,7 @@ interface Sample {
   moving: number
   speed: number
   idling: number
-  alerts: number
+  events: number
 }
 
 /** Deterministic, gentle wave around each value so cards look alive on first paint. */
@@ -27,13 +27,13 @@ function seedHistory(sample: Sample, length: number): Sample[] {
     moving: wobble(sample.moving, i),
     speed: wobble(sample.speed, i),
     idling: wobble(sample.idling, i),
-    alerts: wobble(sample.alerts, i),
+    events: wobble(sample.events, i),
   }))
 }
 
 export function KpiRow() {
   const vehicles = useLiveVehicles()
-  const alerts = useLiveAlerts()
+  const events = useLiveEvents()
 
   const total = vehicles.length
   const moving = vehicles.filter((v) => v.status === "moving").length
@@ -47,8 +47,8 @@ export function KpiRow() {
       : 0
 
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
-  const alertsToday = alerts.filter(
-    (a) => new Date(a.at).getTime() >= dayAgo
+  const eventsToday = events.filter(
+    (e) => new Date(e.at).getTime() >= dayAgo
   ).length
 
   // Newest telemetry timestamp; advancing it marks a fresh simulation tick.
@@ -62,7 +62,7 @@ export function KpiRow() {
   // a gentle wave so the cards have a curve before real samples arrive.
   const [history, setHistory] = useState<Sample[]>(() =>
     seedHistory(
-      { moving, speed: avgSpeed, idling, alerts: alertsToday },
+      { moving, speed: avgSpeed, idling, events: eventsToday },
       SERIES_LENGTH
     )
   )
@@ -76,10 +76,10 @@ export function KpiRow() {
         prev.length >= SERIES_LENGTH
           ? prev.slice(prev.length - SERIES_LENGTH + 1)
           : prev.slice()
-      next.push({ moving, speed: avgSpeed, idling, alerts: alertsToday })
+      next.push({ moving, speed: avgSpeed, idling, events: eventsToday })
       return next
     })
-  }, [tick, moving, avgSpeed, idling, alertsToday])
+  }, [tick, moving, avgSpeed, idling, eventsToday])
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -108,11 +108,11 @@ export function KpiRow() {
         hint="Engine on, stationary"
       />
       <ActivityStatCard
-        label="Alerts today"
-        value={alertsToday}
-        series={history.map((h) => h.alerts)}
+        label="Events today"
+        value={eventsToday}
+        series={history.map((h) => h.events)}
         icon={Bell}
-        intent={alertsToday > 0 ? "danger" : "default"}
+        intent={eventsToday > 0 ? "danger" : "default"}
         hint="Last 24 hours"
       />
     </div>

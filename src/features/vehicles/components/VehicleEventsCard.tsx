@@ -4,20 +4,20 @@ import { Bell } from "lucide-react"
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAlerts } from "@/data/hooks"
-import { ALERT_SEVERITY_CONFIG, ALERT_TYPE_LABEL } from "@/lib/status"
+import { useEvents } from "@/data/hooks"
+import { EVENT_SEVERITY_CONFIG, EVENT_TYPE_LABEL } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 const MAX_EVENTS = 6
 
 export function VehicleEventsCard({ vehicleId }: { vehicleId: string }) {
-  const alertsQuery = useAlerts()
-  const alerts = useMemo(
+  const eventsQuery = useEvents()
+  const events = useMemo(
     () =>
-      (alertsQuery.data ?? [])
-        .filter((a) => a.vehicleId === vehicleId)
+      (eventsQuery.data ?? [])
+        .filter((e) => e.vehicleId === vehicleId)
         .slice(0, MAX_EVENTS),
-    [alertsQuery.data, vehicleId]
+    [eventsQuery.data, vehicleId]
   )
 
   const header = (
@@ -32,42 +32,42 @@ export function VehicleEventsCard({ vehicleId }: { vehicleId: string }) {
   return (
     <Card className="h-full gap-0 p-5">
       {header}
-      {alertsQuery.isLoading ? (
+      {eventsQuery.isLoading ? (
         <div className="space-y-2.5">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-6 w-full rounded" />
           ))}
         </div>
-      ) : alerts.length === 0 ? (
+      ) : events.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">
           No geozone, speeding or signal events recorded.
         </p>
       ) : (
         <ul className="divide-y">
-          {alerts.map((alert) => (
+          {events.map((event) => (
             <li
-              key={alert.id}
+              key={event.id}
               className="flex items-center justify-between gap-3 py-2"
             >
               <span className="inline-flex min-w-0 items-center gap-2">
                 <span
                   className={cn(
                     "size-2 shrink-0 rounded-full",
-                    ALERT_SEVERITY_CONFIG[alert.severity].dotClass
+                    EVENT_SEVERITY_CONFIG[event.severity].dotClass
                   )}
                 />
                 <span className="truncate text-sm">
-                  {ALERT_TYPE_LABEL[alert.type]}
-                  {alert.geozoneName ? (
+                  {EVENT_TYPE_LABEL[event.type]}
+                  {event.geozoneName ? (
                     <span className="text-muted-foreground">
                       {" "}
-                      · {alert.geozoneName}
+                      · {event.geozoneName}
                     </span>
                   ) : null}
                 </span>
               </span>
               <RelativeTime
-                iso={alert.at}
+                iso={event.at}
                 className="shrink-0 text-xs text-muted-foreground"
               />
             </li>

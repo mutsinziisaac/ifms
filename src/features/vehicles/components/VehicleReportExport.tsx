@@ -4,15 +4,19 @@ import { toast } from "sonner"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import {
-  useAlerts,
   useAssignmentsForVehicle,
   useDrivers,
+  useEvents,
   useTripsForVehicle,
 } from "@/data/hooks"
 import type { Vehicle } from "@/data/types"
 import { downloadTextFile, toCsv } from "@/lib/csv"
 import { formatDateTime, fullName } from "@/lib/format"
-import { ALERT_SEVERITY_CONFIG, ALERT_TYPE_LABEL } from "@/lib/status"
+import {
+  EVENT_SEVERITY_CONFIG,
+  EVENT_STATUS_CONFIG,
+  EVENT_TYPE_LABEL,
+} from "@/lib/status"
 
 import { driverIdAt } from "./driver-attribution"
 
@@ -22,27 +26,28 @@ function slug(plate: string): string {
 }
 
 export function VehicleReportExport({ vehicle }: { vehicle: Vehicle }) {
-  const alerts = useAlerts().data ?? []
+  const events = useEvents().data ?? []
   const trips = useTripsForVehicle(vehicle.id).data ?? []
   const assignments = useAssignmentsForVehicle(vehicle.id).data ?? []
   const drivers = useDrivers().data ?? []
 
   const exportEvents = () => {
-    const rows = alerts
-      .filter((a) => a.vehicleId === vehicle.id)
-      .map((a) => [
-        ALERT_SEVERITY_CONFIG[a.severity].label,
-        ALERT_TYPE_LABEL[a.type],
-        a.message,
-        a.geozoneName ?? "",
-        formatDateTime(a.at),
+    const rows = events
+      .filter((e) => e.vehicleId === vehicle.id)
+      .map((e) => [
+        EVENT_SEVERITY_CONFIG[e.severity].label,
+        EVENT_TYPE_LABEL[e.type],
+        EVENT_STATUS_CONFIG[e.status].label,
+        e.message,
+        e.geozoneName ?? "",
+        formatDateTime(e.at),
       ])
     if (rows.length === 0) {
       toast.info("No events to export for this vehicle")
       return
     }
     const csv = toCsv(
-      ["Severity", "Event", "Message", "Geozone", "At"],
+      ["Severity", "Event", "Status", "Message", "Geozone", "At"],
       rows
     )
     downloadTextFile(`${slug(vehicle.plate)}-events.csv`, csv)
