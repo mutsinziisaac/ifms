@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { EntityBadge } from "@/components/common/EntityBadge"
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable"
 import { RelativeTime } from "@/components/common/RelativeTime"
@@ -6,7 +8,6 @@ import {
   EventStatusBadge,
 } from "@/components/common/status-badges"
 import type { Entity, FleetEvent } from "@/data/types"
-import { EVENT_TYPE_LABEL } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 export interface EventsTableProps {
@@ -26,22 +27,23 @@ export function EventsTable({
   toolbarActions,
   onSelect,
 }: EventsTableProps) {
+  const { t } = useTranslation()
   const entityShortName = new Map(entities.map((e) => [e.id, e.shortName]))
 
   const columns: DataTableColumn<FleetEvent>[] = [
     {
       key: "severity",
-      header: "Severity",
+      header: t("events.table.severity"),
       render: (e) => <EventSeverityBadge severity={e.severity} />,
     },
     {
       key: "status",
-      header: "Status",
+      header: t("events.table.status"),
       render: (e) => <EventStatusBadge status={e.status} />,
     },
     {
       key: "event",
-      header: "Event",
+      header: t("events.table.event"),
       className: "max-w-[360px]",
       render: (e) => (
         <div className="min-w-0">
@@ -57,28 +59,28 @@ export function EventsTable({
             {e.message}
           </p>
           <p className="text-xs text-muted-foreground">
-            {EVENT_TYPE_LABEL[e.type]}
+            {t(`enums.eventType.${e.type}`)}
           </p>
         </div>
       ),
     },
     {
       key: "provider",
-      header: "Provider",
+      header: t("events.table.provider"),
       render: (e) => (
         <EntityBadge name={entityShortName.get(e.entityId) ?? "—"} />
       ),
     },
     {
       key: "vehicle",
-      header: "Vehicle",
+      header: t("events.table.vehicle"),
       render: (e) => (
         <span className="font-mono text-xs tabular-nums">{e.vehiclePlate}</span>
       ),
     },
     {
       key: "geozone",
-      header: "Geozone",
+      header: t("events.table.geozone"),
       render: (e) => (
         <span className="text-sm text-muted-foreground">
           {e.geozoneName ?? "—"}
@@ -87,7 +89,7 @@ export function EventsTable({
     },
     {
       key: "when",
-      header: "When",
+      header: t("events.table.when"),
       render: (e) => (
         <RelativeTime iso={e.at} className="text-sm text-muted-foreground" />
       ),
@@ -100,12 +102,12 @@ export function EventsTable({
       columns={columns}
       searchValue={searchValue}
       onSearchChange={onSearchChange}
-      searchPlaceholder="Search events…"
+      searchPlaceholder={t("events.table.searchPlaceholder")}
       toolbarActions={toolbarActions}
       onRowClick={onSelect}
       pageSize={12}
-      emptyTitle="No events match"
-      emptyDescription="Adjust the filters or wait for the live feed."
+      emptyTitle={t("events.table.emptyTitle")}
+      emptyDescription={t("events.table.emptyDescription")}
     />
   )
 }

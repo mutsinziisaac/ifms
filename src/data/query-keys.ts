@@ -18,4 +18,7 @@ export const qk = {
   assignmentsForVehicle: (vehicleId: string) =>
     ["assignments", vehicleId] as const,
   maintenanceTasks: ["maintenance-tasks"] as const,
+  maintenanceServiceRecords: ["maintenance-service-records"] as const,
+  maintenanceServiceRecordsForTask: (taskId: string) =>
+    ["maintenance-service-records", taskId] as const,
 } as const

@@ -61,6 +61,18 @@ degrade to a styled placeholder. `.env` is git-ignored.
   `routes`, `maintenance`, `auth`. Shared building blocks in `src/components/common/`
   (`DataTable`, `StatCard`, `Sparkline`, status badges, `FormDialog`, `ConfirmDialog`,
   …); provider stats math lives once in `src/lib/provider-stats.ts`.
+- **i18n** (`src/i18n/`): react-i18next, English + Amharic (አማርኛ). `index.ts` bootstraps
+  i18next (detect/persist via `localStorage["ifms.lang"]`, fallback `en`, `<html lang>`
+  sync) and is imported once in `main.tsx`. Strings live in **typed TS resource modules**
+  per area: `locales/en/<area>.ts` is the source of truth, `locales/am/<area>.ts` is typed
+  `typeof en` so a missing key fails `tsc`; both are assembled in `locales/{en,am}.ts`.
+  `i18next.d.ts` makes `t()` keys type-safe (`TranslationKey` from `@/i18n` types stored
+  keys). Use `const { t } = useTranslation()` in components; in plain `.ts` helpers
+  translate via the `i18n` singleton (see `src/lib/format.ts`, `status.ts`, `csv.ts`).
+  Render enum labels with `` t(`enums.<group>.${value}`) `` (config in `status.ts` keeps
+  only colors). Amharic uses the Ethiopic-capable Noto font fallback (`index.css`) and
+  `Intl` for dates/relative-times. Switcher: `LanguageSwitcher` in the topbar. Dummy seed
+  data stays English by design; see `src/i18n/REVIEW.md` for terms needing a native pass.
 
 ## Conventions
 

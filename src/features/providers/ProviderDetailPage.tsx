@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   Activity,
@@ -33,13 +34,13 @@ import {
 import type { Vehicle } from "@/data/types"
 import { formatSpeed } from "@/lib/format"
 import { computeProviderStats } from "@/lib/provider-stats"
-import { EVENT_TYPE_LABEL } from "@/lib/status"
 
 import { ProviderCategoryBadge } from "./components/ProviderCategoryBadge"
 
 const MAX_RECENT_EVENTS = 6
 
 export function ProviderDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
@@ -69,12 +70,12 @@ export function ProviderDetailPage() {
     return (
       <EmptyState
         icon={Building2}
-        title="Provider not found"
-        description="The provider you are looking for does not exist."
+        title={t("providers.detail.notFoundTitle")}
+        description={t("providers.detail.notFoundDescription")}
         action={
           <Button onClick={() => navigate("/providers")}>
             <ArrowLeft className="size-4" />
-            Back to providers
+            {t("providers.detail.backToProviders")}
           </Button>
         }
       />
@@ -86,7 +87,7 @@ export function ProviderDetailPage() {
   const deviceColumns: DataTableColumn<Vehicle>[] = [
     {
       key: "plate",
-      header: "Plate",
+      header: t("providers.detail.devicesTable.plate"),
       render: (v) => (
         <span className="font-mono text-sm font-medium tabular-nums">
           {v.plate}
@@ -95,31 +96,33 @@ export function ProviderDetailPage() {
     },
     {
       key: "type",
-      header: "Type",
-      render: (v) => <span className="text-sm capitalize">{v.type}</span>,
+      header: t("providers.detail.devicesTable.type"),
+      render: (v) => (
+        <span className="text-sm">{t(`enums.vehicleType.${v.type}`)}</span>
+      ),
     },
     {
       key: "status",
-      header: "Status",
+      header: t("providers.detail.devicesTable.status"),
       render: (v) => <VehicleStatusBadge status={v.status} />,
     },
     {
       key: "gpsProvider",
-      header: "GPS device",
+      header: t("providers.detail.devicesTable.gpsDevice"),
       render: (v) => (
         <span className="text-sm text-muted-foreground">{v.gpsProvider}</span>
       ),
     },
     {
       key: "speed",
-      header: "Speed",
+      header: t("providers.detail.devicesTable.speed"),
       render: (v) => (
         <span className="text-sm tabular-nums">{formatSpeed(v.speedKmh)}</span>
       ),
     },
     {
       key: "lastSync",
-      header: "Last sync",
+      header: t("providers.detail.devicesTable.lastSync"),
       render: (v) => (
         <RelativeTime
           iso={v.lastSyncAt}
@@ -137,7 +140,7 @@ export function ProviderDetailPage() {
         actions={
           <Button variant="outline" onClick={() => navigate("/providers")}>
             <ArrowLeft className="size-4" />
-            All providers
+            {t("providers.detail.allProviders")}
           </Button>
         }
       />
@@ -161,68 +164,72 @@ export function ProviderDetailPage() {
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Devices"
+            label={t("providers.detail.stats.devices")}
             value={stats.deviceCount}
             icon={RadioTower}
-            hint={`${stats.onlineCount} transmitting now`}
+            hint={t("providers.detail.stats.devicesHint", {
+              count: stats.onlineCount,
+            })}
           />
           <StatCard
-            label="Fleet online"
+            label={t("providers.detail.stats.fleetOnline")}
             value={`${stats.onlinePct}%`}
             icon={Activity}
             intent={stats.onlinePct >= 90 ? "success" : "warning"}
             hint={
               stats.noSignalCount > 0
-                ? `${stats.noSignalCount} device${stats.noSignalCount === 1 ? "" : "s"} without signal`
-                : "All devices reporting"
+                ? t("providers.detail.stats.fleetOnlineHint", {
+                    count: stats.noSignalCount,
+                  })
+                : t("providers.detail.stats.allReporting")
             }
           />
           <StatCard
-            label="Last sync"
+            label={t("providers.detail.stats.lastSync")}
             value={
               stats.lastSyncAt ? <RelativeTime iso={stats.lastSyncAt} /> : "—"
             }
             icon={RadioTower}
-            hint="Most recent device report"
+            hint={t("providers.detail.stats.lastSyncHint")}
           />
           <StatCard
-            label="Messages received"
+            label={t("providers.detail.stats.messagesReceived")}
             value={stats.messagesTotal.toLocaleString()}
             icon={MessagesSquare}
-            hint="Position reports this session"
+            hint={t("providers.detail.stats.messagesReceivedHint")}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Transmission activity</CardTitle>
+              <CardTitle>{t("providers.detail.transmission.title")}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-28 text-primary">
                 <Sparkline data={stats.history} strokeWidth={2} />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Devices reporting per update cycle — live feed.
+                {t("providers.detail.transmission.caption")}
               </p>
             </CardContent>
           </Card>
 
           <Card className="gap-0">
             <CardHeader className="flex-row items-center justify-between gap-2">
-              <CardTitle>Recent events</CardTitle>
+              <CardTitle>{t("providers.detail.events.title")}</CardTitle>
               <Link
                 to={`/events?entity=${entity.id}`}
                 className="flex items-center gap-0.5 text-xs font-medium text-primary transition-colors hover:text-primary/80"
               >
-                View all
+                {t("providers.detail.events.viewAll")}
                 <ChevronRight className="size-3.5" />
               </Link>
             </CardHeader>
             <CardContent className="pt-2">
               {recentEvents.length === 0 ? (
                 <p className="py-2 text-sm text-muted-foreground">
-                  No events recorded for this provider.
+                  {t("providers.detail.events.empty")}
                 </p>
               ) : (
                 <ul className="divide-y">
@@ -233,7 +240,8 @@ export function ProviderDetailPage() {
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm">
-                          {EVENT_TYPE_LABEL[event.type]} · {event.vehiclePlate}
+                          {t(`enums.eventType.${event.type}`)} ·{" "}
+                          {event.vehiclePlate}
                         </p>
                         <RelativeTime
                           iso={event.at}
@@ -253,8 +261,8 @@ export function ProviderDetailPage() {
           data={fleet}
           columns={deviceColumns}
           onRowClick={(v) => navigate(`/fleet/${v.id}`)}
-          emptyTitle="No devices"
-          emptyDescription="This provider has no registered devices."
+          emptyTitle={t("providers.detail.devicesTable.emptyTitle")}
+          emptyDescription={t("providers.detail.devicesTable.emptyDescription")}
         />
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Search, Truck } from "lucide-react"
 
 import { Checkbox } from "@/components/ui/checkbox"
@@ -15,6 +16,7 @@ export function VehicleMultiSelect({
   value: string[]
   onChange: (next: string[]) => void
 }) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState("")
   const { data: vehicles, isLoading } = useVehicles()
   const { data: entities } = useEntities()
@@ -77,7 +79,7 @@ export function VehicleMultiSelect({
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by plate, entity, or type…"
+            placeholder={t("maintenance.multiSelect.searchPlaceholder")}
             className="pl-8"
           />
         </div>
@@ -87,17 +89,21 @@ export function VehicleMultiSelect({
             onCheckedChange={toggleAllShown}
             disabled={filtered.length === 0}
           />
-          <span className="whitespace-nowrap">Select all</span>
+          <span className="whitespace-nowrap">
+            {t("maintenance.multiSelect.selectAll")}
+          </span>
         </label>
       </div>
 
       <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground">
         <span>
-          {filtered.length} vehicle{filtered.length === 1 ? "" : "s"}
-          {search.trim() ? " shown" : ""}
+          {t("maintenance.multiSelect.vehiclesCount", {
+            count: filtered.length,
+          })}
+          {search.trim() ? t("maintenance.multiSelect.shownSuffix") : ""}
         </span>
         <span className="font-medium text-foreground tabular-nums">
-          {value.length} selected
+          {t("maintenance.multiSelect.selectedCount", { count: value.length })}
         </span>
       </div>
 
@@ -111,7 +117,7 @@ export function VehicleMultiSelect({
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-10 text-center text-sm text-muted-foreground">
-              No vehicles match “{search}”.
+              {t("maintenance.multiSelect.noMatch", { query: search })}
             </div>
           ) : (
             filtered.map((v) => {

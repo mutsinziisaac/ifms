@@ -4,9 +4,12 @@
 
 import {
   centroidOf,
+  haversineKm,
+  headingBetween,
   interpolateAlongPath,
   isInsideGeozone,
   pathLengthKm,
+  pointInPolygon,
 } from "@/lib/maps"
 import {
   ESCALATION_TARGETS,
@@ -30,6 +33,7 @@ import {
   type GeozoneGroup,
   type LatLng,
   type LicenseCategory,
+  type MaintenanceServiceRecord,
   type MaintenanceTask,
   type MaintenanceVehicleState,
   type RouteDef,
@@ -46,6 +50,7 @@ import {
   PLACES,
   ROUTE_BLUEPRINTS,
 } from "@/data/geo"
+import { FACILITY_FOOTPRINTS, ROAD_GEOMETRY } from "@/data/geo-real"
 
 // ---------------------------------------------------------------------------
 // Deterministic PRNG + helpers
@@ -105,27 +110,89 @@ function round(n: number, digits = 0): number {
   return Math.round(n * f) / f
 }
 
-// Build a small polygon (4–6 vertices) around a center, a few km across.
-function polygonAround(
+// Nearest point on any *active* route to `p`, plus the local road bearing.
+// Used to plant roadside compounds directly on the highway so the simulation
+// (which moves vehicles strictly along route.path) drives through them and the
+// geofence entry/exit/speeding rules keep firing.
+function nearestOnRoutes(
+  p: LatLng,
+  routes: RouteDef[]
+): { point: LatLng; bearing: number } {
+  let bestPoint: LatLng = p
+  let bestBearing = 0
+  let bestKm = Infinity
+  for (const r of routes) {
+    if (!r.active) continue
+    for (let i = 1; i < r.path.length; i++) {
+      const a = r.path[i - 1]!
+      const km = haversineKm(p, a)
+      if (km < bestKm) {
+        bestKm = km
+        bestPoint = a
+        bestBearing = headingBetween(a, r.path[i]!)
+      }
+    }
+  }
+  return { point: bestPoint, bearing: bestBearing }
+}
+
+// Irregular fenced-compound polygon for a roadside checkpoint / weighbridge /
+// border post. Centered ON the road and elongated along the road bearing so the
+// route runs lengthwise through it (vehicles enter one end, exit the other).
+// `lengthM`/`widthM` are the along-road and across-road spans in metres.
+function roadsideCompound(
   center: LatLng,
-  radiusDeg: number,
-  vertices: number,
+  bearingDeg: number,
+  lengthM: number,
+  widthM: number,
   rng: Rng
 ): LatLng[] {
-  const out: LatLng[] = []
-  const startAngle = rng.float(0, Math.PI * 2)
-  for (let i = 0; i < vertices; i++) {
-    const angle = startAngle + (i / vertices) * Math.PI * 2
-    // Latitude shrinks longitude span; keep it visually round.
-    const r = radiusDeg * rng.float(0.78, 1.18)
-    out.push({
-      lat: center.lat + Math.sin(angle) * r,
-      lng:
-        center.lng +
-        (Math.cos(angle) * r) / Math.cos((center.lat * Math.PI) / 180),
-    })
+  const theta = (bearingDeg * Math.PI) / 180
+  const cosT = Math.cos(theta)
+  const sinT = Math.sin(theta)
+  const cosLat = Math.cos((center.lat * Math.PI) / 180)
+  const toLatLng = (alongM: number, perpM: number): LatLng => {
+    const north = alongM * cosT - perpM * sinT
+    const east = alongM * sinT + perpM * cosT
+    return {
+      lat: center.lat + north / 111320,
+      lng: center.lng + east / (111320 * cosLat),
+    }
   }
-  return out
+  // Six vertices as fractions of the half-spans, lightly jittered so the
+  // outline reads like a fenced yard rather than a rectangle.
+  const base: [number, number][] = [
+    [0.5, -0.32],
+    [0.5, 0.32],
+    [0.12, 0.5],
+    [-0.5, 0.36],
+    [-0.5, -0.36],
+    [-0.12, -0.5],
+  ]
+  return base.map(([a, p]) => {
+    const aj = a * (1 + (rng.next() - 0.5) * 0.24)
+    const pj = p * (1 + (rng.next() - 0.5) * 0.24)
+    return toLatLng(aj * lengthM, pj * widthM)
+  })
+}
+
+// A point guaranteed to lie inside a polygon — the centroid when it is inside
+// (convex shapes), otherwise a centroid→vertex midpoint. Used to park demo
+// vehicles inside a facility footprint, which may be non-convex.
+function interiorPoint(path: LatLng[]): LatLng {
+  if (path.length < 3) return centroidOf(path)
+  const c = centroidOf(path)
+  if (pointInPolygon(c, path)) return c
+  for (const f of [0.5, 0.25, 0.75, 0.1]) {
+    for (const v of path) {
+      const m = {
+        lat: c.lat + (v.lat - c.lat) * f,
+        lng: c.lng + (v.lng - c.lng) * f,
+      }
+      if (pointInPolygon(m, path)) return m
+    }
+  }
+  return c
 }
 
 // ---------------------------------------------------------------------------
@@ -249,7 +316,12 @@ function buildEntities(): Entity[] {
 function buildRoutes(rng: Rng, now: number): RouteDef[] {
   return ROUTE_BLUEPRINTS.map((bp, i) => {
     const places = bp.waypointNames.map((n) => placeByName(n))
-    const path = densifyPath(places.map((p) => p.position))
+    // Real road geometry baked from OSRM (src/data/geo-real.ts); the densified
+    // straight-line path remains as a fallback if a route ever lacks real data.
+    const real = ROAD_GEOMETRY[bp.name]
+    const path = real
+      ? real.map((p) => ({ ...p }))
+      : densifyPath(places.map((p) => p.position))
     const waypoints: Waypoint[] = places.map((p, w) => ({
       id: `rte-${pad(i + 1, 2)}-wp-${pad(w + 1, 2)}`,
       name: p.name,
@@ -272,100 +344,107 @@ function buildRoutes(rng: Rng, now: number): RouteDef[] {
 // Geozones & groups
 // ---------------------------------------------------------------------------
 
-interface CircleSeed {
+// Every geozone is now a polygon. Large facilities trace their real OSM
+// footprint (FACILITY_FOOTPRINTS); roadside checkpoints / weighbridges / border
+// posts are generated as irregular compounds straddling the real road so the
+// simulation still drives vehicles through them. Order is preserved so ids stay
+// geo-01..geo-12 across the rest of the seed.
+interface ZoneSeed {
   name: string
   place: string
-  radiusM: number
+  kind: "footprint" | "compound"
+  // Along-road / across-road spans in metres (compound zones only).
+  lengthM?: number
+  widthM?: number
   note: string
 }
 
-interface PolygonSeed {
-  name: string
-  place: string
-  spanDeg: number
-  vertices: number
-  note: string
-}
-
-const CIRCLE_SEEDS: CircleSeed[] = [
+const ZONE_SEEDS: ZoneSeed[] = [
   {
     name: "Modjo Dry Port",
     place: "Modjo",
-    radiusM: 2500,
+    kind: "footprint",
     note: "Primary inland container depot for the Djibouti corridor.",
   },
   {
     name: "Adama Weighbridge",
     place: "Adama",
-    radiusM: 1200,
+    kind: "compound",
+    // Compounds are irregular yards straddling the carriageway, elongated along
+    // the road. They are sized a few km across — comparable to the old circles —
+    // so the discrete simulation (which can advance several km per tick at higher
+    // speeds) reliably samples a vehicle inside and keeps the geofence rules
+    // firing. Spans were tuned against the real road geometry (scripts/fetch-geo).
+    lengthM: 2600,
+    widthM: 1200,
     note: "Mandatory axle-load weighing for outbound freight.",
   },
   {
     name: "Awash Checkpoint",
     place: "Awash",
-    radiusM: 1500,
+    kind: "compound",
+    lengthM: 2800,
+    widthM: 1200,
     note: "Federal police checkpoint and corridor rest stop.",
   },
   {
     name: "Mille Checkpoint",
     place: "Mille",
-    radiusM: 1500,
+    kind: "compound",
+    lengthM: 3000,
+    widthM: 1300,
     note: "Customs control point on the Afar corridor.",
   },
   {
     name: "Dewele Border Post",
     place: "Dewele",
-    radiusM: 2000,
+    kind: "compound",
+    lengthM: 3200,
+    widthM: 1300,
     note: "Ethiopia–Djibouti land border crossing near the railway.",
   },
   {
     name: "Kality Customs Terminal",
     place: "Kality",
-    radiusM: 1800,
+    kind: "footprint",
     note: "Addis Ababa customs clearance and bonded warehouse area.",
   },
   {
     name: "Hawassa Industrial Park",
     place: "Hawassa",
-    radiusM: 2200,
+    kind: "footprint",
     note: "Export-oriented manufacturing park served by corridor freight.",
   },
-]
-
-const POLYGON_SEEDS: PolygonSeed[] = [
   {
     name: "Galafi Border Crossing",
     place: "Galafi",
-    spanDeg: 0.03,
-    vertices: 5,
+    kind: "compound",
+    lengthM: 3600,
+    widthM: 1400,
     note: "Main road border crossing into Djibouti.",
   },
   {
     name: "Dire Dawa Freight Depot",
     place: "Dire Dawa",
-    spanDeg: 0.025,
-    vertices: 5,
+    kind: "footprint",
     note: "Rail-linked freight consolidation depot.",
   },
   {
     name: "Port of Djibouti Terminal",
     place: "Djibouti City",
-    spanDeg: 0.035,
-    vertices: 6,
+    kind: "footprint",
     note: "Doraleh multipurpose port terminal — corridor destination.",
   },
   {
     name: "Addis Ababa Ring Road Zone",
     place: "Addis Ababa",
-    spanDeg: 0.075,
-    vertices: 6,
+    kind: "footprint",
     note: "City restricted-access zone bounded by the ring road.",
   },
   {
     name: "Semera Logistics Hub",
     place: "Semera",
-    spanDeg: 0.028,
-    vertices: 5,
+    kind: "footprint",
     note: "Afar regional logistics and staging hub.",
   },
 ]
@@ -376,7 +455,11 @@ interface BuiltGeozones {
   byName: Map<string, Geozone>
 }
 
-function buildGeozones(rng: Rng, now: number): BuiltGeozones {
+function buildGeozones(
+  rng: Rng,
+  routes: RouteDef[],
+  now: number
+): BuiltGeozones {
   const groups: GeozoneGroup[] = [
     { id: "grp-01", name: "Border Crossings", color: "#f59e0b" },
     { id: "grp-02", name: "Dry Ports & Terminals", color: "#0ea5e9" },
@@ -399,42 +482,39 @@ function buildGeozones(rng: Rng, now: number): BuiltGeozones {
   const geozones: Geozone[] = []
   let n = 0
 
-  for (const c of CIRCLE_SEEDS) {
+  for (const z of ZONE_SEEDS) {
     n++
-    const center = placeByName(c.place).position
-    geozones.push({
-      id: `geo-${pad(n, 2)}`,
-      name: c.name,
-      shape: "circle",
-      center,
-      radiusM: c.radiusM,
-      path: null,
-      address: nearestPlaceName(center),
-      groupId: groupOf[c.name] ?? null,
-      visible: true,
-      isPOI: true,
-      note: c.note,
-      createdAt: ago(rng.float(60 * DAY, 360 * DAY), now),
-    })
-  }
-
-  for (const p of POLYGON_SEEDS) {
-    n++
-    const anchor = placeByName(p.place).position
-    const path = polygonAround(anchor, p.spanDeg, p.vertices, rng)
+    const anchor = placeByName(z.place).position
+    const footprint = FACILITY_FOOTPRINTS[z.name]
+    let path: LatLng[]
+    if (z.kind === "footprint" && footprint && footprint.length >= 3) {
+      // Real OSM facility outline (cloned so it is never mutated in place).
+      path = footprint.map((p) => ({ ...p }))
+    } else {
+      // Roadside compound planted on the nearest real road. Footprint zones
+      // missing OSM data fall back here too (slightly larger default size).
+      const { point, bearing } = nearestOnRoutes(anchor, routes)
+      path = roadsideCompound(
+        point,
+        bearing,
+        z.lengthM ?? 2600,
+        z.widthM ?? 600,
+        rng
+      )
+    }
     const center = centroidOf(path)
     geozones.push({
       id: `geo-${pad(n, 2)}`,
-      name: p.name,
+      name: z.name,
       shape: "polygon",
       center,
       radiusM: null,
       path,
       address: nearestPlaceName(center),
-      groupId: groupOf[p.name] ?? null,
+      groupId: groupOf[z.name] ?? null,
       visible: true,
       isPOI: true,
-      note: p.note,
+      note: z.note,
       createdAt: ago(rng.float(60 * DAY, 360 * DAY), now),
     })
   }
@@ -743,7 +823,7 @@ function buildVehicles(
     newVehicle(
       nextType(),
       "ignition_off",
-      rng.jitter(modjoZone.center, 0.005),
+      rng.jitter(interiorPoint(modjoZone.path ?? [modjoZone.center]), 0.0008),
       round(rng.float(0, 360)),
       0,
       null,
@@ -758,7 +838,7 @@ function buildVehicles(
     newVehicle(
       nextType(),
       "ignition_off",
-      rng.jitter(kalityZone.center, 0.004),
+      rng.jitter(interiorPoint(kalityZone.path ?? [kalityZone.center]), 0.0008),
       round(rng.float(0, 360)),
       0,
       null,
@@ -1276,7 +1356,30 @@ interface MaintTaskSeed {
   intervalKm: number | null
   intervalDays: number | null
   alertBefore: number
+  /** Per-service cost range in Ethiopian Birr (ETB). */
+  costMin: number
+  costMax: number
 }
+
+// Realistic Addis Ababa / MoTL workshops a service might be logged against.
+const ADDIS_WORKSHOPS = [
+  "MoTL Central Workshop, Kality",
+  "Mesfin Industrial Garage, Kotebe",
+  "Moenco Service Center, Bole",
+  "Ries Engineering Workshop, Lebu",
+  "Tana Heavy Equipment, Akaki",
+  "National Motors Garage, Gerji",
+] as const
+
+// Short, believable work-order notes.
+const MAINT_NOTES = [
+  "Completed to schedule, no faults found.",
+  "Replaced consumables and topped up fluids.",
+  "Minor wear noted, flagged for next cycle.",
+  "Parts sourced locally, vehicle returned to service.",
+  "Carried out during routine depot visit.",
+  "Inspection passed, certificate issued.",
+] as const
 
 const MAINT_SEEDS: MaintTaskSeed[] = [
   {
@@ -1287,6 +1390,8 @@ const MAINT_SEEDS: MaintTaskSeed[] = [
     intervalKm: 10000,
     intervalDays: null,
     alertBefore: 1000,
+    costMin: 3500,
+    costMax: 7000,
   },
   {
     title: "Tire inspection & rotation",
@@ -1296,6 +1401,8 @@ const MAINT_SEEDS: MaintTaskSeed[] = [
     intervalKm: 20000,
     intervalDays: null,
     alertBefore: 2000,
+    costMin: 1500,
+    costMax: 4000,
   },
   {
     title: "Brake system overhaul",
@@ -1305,6 +1412,8 @@ const MAINT_SEEDS: MaintTaskSeed[] = [
     intervalKm: 40000,
     intervalDays: null,
     alertBefore: 4000,
+    costMin: 12000,
+    costMax: 28000,
   },
   {
     title: "Annual technical inspection (Bolo)",
@@ -1313,6 +1422,8 @@ const MAINT_SEEDS: MaintTaskSeed[] = [
     intervalKm: null,
     intervalDays: 365,
     alertBefore: 30,
+    costMin: 1200,
+    costMax: 3000,
   },
   {
     title: "Insurance renewal",
@@ -1322,6 +1433,8 @@ const MAINT_SEEDS: MaintTaskSeed[] = [
     intervalKm: null,
     intervalDays: 365,
     alertBefore: 21,
+    costMin: 18000,
+    costMax: 45000,
   },
   {
     title: "Quarterly preventive service",
@@ -1331,6 +1444,8 @@ const MAINT_SEEDS: MaintTaskSeed[] = [
     intervalKm: null,
     intervalDays: 90,
     alertBefore: 10,
+    costMin: 4000,
+    costMax: 9000,
   },
 ]
 
@@ -1363,8 +1478,52 @@ function buildMaintenance(
   rng: Rng,
   vehicles: Vehicle[],
   now: number
-): MaintenanceTask[] {
+): { tasks: MaintenanceTask[]; records: MaintenanceServiceRecord[] } {
+  const records: MaintenanceServiceRecord[] = []
+  let recCounter = 0
+
+  // Append a believable service history for one vehicle. The most recent record
+  // is anchored to the vehicle's current lastService reference so the detail
+  // page's "last serviced / last cost" line matches the live status; earlier
+  // records step back ~one interval per cycle.
+  function addHistory(
+    seed: MaintTaskSeed,
+    taskId: string,
+    vehicleId: string,
+    lastServiceKm: number | null,
+    lastServiceDate: string | null
+  ): void {
+    const isMileage = seed.paramType === "mileage"
+    const interval = isMileage
+      ? (seed.intervalKm ?? 10000)
+      : (seed.intervalDays ?? 365)
+    const anchorMs = isMileage
+      ? now - rng.float(20 * DAY, 120 * DAY)
+      : new Date(lastServiceDate ?? new Date(now).toISOString()).getTime()
+    const stepMs = isMileage ? rng.float(50 * DAY, 150 * DAY) : interval * DAY
+    const recCount = rng.int(1, 3)
+    for (let r = 0; r < recCount; r++) {
+      recCounter++
+      records.push({
+        id: `mnt-rec-${pad(recCounter, 4)}`,
+        taskId,
+        vehicleId,
+        servicedAt: new Date(anchorMs - stepMs * r).toISOString(),
+        odometerKm: isMileage
+          ? Math.max(0, Math.round((lastServiceKm ?? 0) - interval * r))
+          : null,
+        cost: rng.int(seed.costMin, seed.costMax),
+        workshop: rng.pick(ADDIS_WORKSHOPS),
+        technician: rng.bool(0.75)
+          ? `${rng.pick(DRIVER_NAMES).first} ${rng.pick(DRIVER_NAMES).last}`
+          : null,
+        notes: rng.pick(MAINT_NOTES),
+      })
+    }
+  }
+
   const tasks: MaintenanceTask[] = MAINT_SEEDS.map((seed, i) => {
+    const taskId = `mnt-${pad(i + 1, 2)}`
     const count = rng.int(8, 20)
     // Distinct vehicles for this task.
     const pool = [...vehicles]
@@ -1395,6 +1554,7 @@ function buildMaintenance(
           0,
           Math.round(v.odometerKm - interval + remaining)
         )
+        addHistory(seed, taskId, v.id, lastServiceKm, null)
         return { vehicleId: v.id, lastServiceKm, lastServiceDate: null }
       }
       const interval = seed.intervalDays ?? 365
@@ -1407,15 +1567,17 @@ function buildMaintenance(
       // lastServiceDate = now - (interval - remainingDays).
       const elapsedDays = interval - remainingDays
       const lastServiceMs = now - elapsedDays * DAY
+      const lastServiceDate = new Date(lastServiceMs).toISOString()
+      addHistory(seed, taskId, v.id, null, lastServiceDate)
       return {
         vehicleId: v.id,
         lastServiceKm: null,
-        lastServiceDate: new Date(lastServiceMs).toISOString(),
+        lastServiceDate,
       }
     })
 
     return {
-      id: `mnt-${pad(i + 1, 2)}`,
+      id: taskId,
       title: seed.title,
       description: seed.description,
       paramType: seed.paramType,
@@ -1429,7 +1591,7 @@ function buildMaintenance(
       createdAt: ago(rng.float(60 * DAY, 300 * DAY), now),
     }
   })
-  return tasks
+  return { tasks, records }
 }
 
 // ---------------------------------------------------------------------------
@@ -1443,7 +1605,7 @@ export function createSeedDB(): DB {
   const entities = buildEntities()
   const entityDomains = ENTITY_SEEDS.map((e) => e.domain)
   const routes = buildRoutes(rng, now)
-  const { geozones, groups, byName } = buildGeozones(rng, now)
+  const { geozones, groups, byName } = buildGeozones(rng, routes, now)
   const eventRules = buildEventRules(byName)
   const { vehicles } = buildVehicles(rng, routes, geozones, now)
   const { drivers } = buildDrivers(rng, vehicles, entityDomains, now)
@@ -1451,7 +1613,8 @@ export function createSeedDB(): DB {
   const assignments = buildAssignments(rng, vehicles, drivers, now)
   const events = buildEvents(rng, vehicles, geozones, now)
   const providerTelemetry = buildProviderTelemetry(rng, entities, vehicles)
-  const maintenanceTasks = buildMaintenance(rng, vehicles, now)
+  const { tasks: maintenanceTasks, records: maintenanceServiceRecords } =
+    buildMaintenance(rng, vehicles, now)
 
   return {
     entities,
@@ -1466,5 +1629,6 @@ export function createSeedDB(): DB {
     trips,
     assignments,
     maintenanceTasks,
+    maintenanceServiceRecords,
   }
 }

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
 import { Gauge, MapPin, Truck } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { useVehicles } from "@/data/hooks"
 import type { RouteDef } from "@/data/types"
@@ -10,6 +11,7 @@ export interface RouteDetailPanelProps {
 }
 
 export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
+  const { t } = useTranslation()
   const vehicles = useVehicles().data ?? []
   const assigned = vehicles.filter((v) => v.routeId === route.id)
 
@@ -23,7 +25,7 @@ export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
         <div className="rounded-lg border bg-muted/30 px-3 py-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Gauge className="size-3.5" />
-            Distance
+            {t("routes.detail.distance")}
           </div>
           <p className="mt-0.5 font-heading text-lg font-semibold tabular-nums">
             {formatKm(route.distanceKm)}
@@ -32,7 +34,7 @@ export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
         <div className="rounded-lg border bg-muted/30 px-3 py-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Truck className="size-3.5" />
-            Vehicles
+            {t("routes.detail.vehicles")}
           </div>
           <p className="mt-0.5 font-heading text-lg font-semibold tabular-nums">
             {assigned.length}
@@ -43,7 +45,7 @@ export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
       <div className="space-y-2">
         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <MapPin className="size-3.5" />
-          Waypoints
+          {t("routes.detail.waypoints")}
         </div>
         <ol className="space-y-1">
           {route.waypoints.map((wp, index) => (
@@ -59,11 +61,11 @@ export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
 
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">
-          Assigned vehicles
+          {t("routes.detail.assignedVehicles")}
         </p>
         {assigned.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            No vehicles assigned to this corridor yet.
+            {t("routes.detail.noneAssigned")}
           </p>
         ) : (
           <div className="flex flex-wrap gap-1.5">

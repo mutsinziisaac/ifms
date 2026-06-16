@@ -10,6 +10,7 @@ import type {
   DriverInput,
   EventRuleInput,
   GeozoneInput,
+  LogMaintenanceServiceInput,
   MaintenanceTaskInput,
   RouteInput,
   VehicleInput,
@@ -93,6 +94,15 @@ export function useMaintenanceTasks() {
   return useQuery({
     queryKey: qk.maintenanceTasks,
     queryFn: api.listMaintenanceTasks,
+  })
+}
+
+export function useMaintenanceServiceRecords(taskId?: string) {
+  return useQuery({
+    queryKey: taskId
+      ? qk.maintenanceServiceRecordsForTask(taskId)
+      : qk.maintenanceServiceRecords,
+    queryFn: () => api.listMaintenanceServiceRecords(taskId),
   })
 }
 
@@ -413,6 +423,19 @@ export function useConfirmMaintenanceTask() {
       api.confirmMaintenanceTask(vars.taskId, vars.vehicleIds),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
+      qc.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
+    },
+  })
+}
+
+export function useLogMaintenanceService() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: LogMaintenanceServiceInput) =>
+      api.logMaintenanceService(input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
+      qc.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
     },
   })
 }

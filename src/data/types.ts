@@ -385,6 +385,26 @@ export interface MaintenanceTask {
   createdAt: string
 }
 
+/**
+ * A completed service (work order). Stored as a flat top-level log (like
+ * `events`/`trips`) keyed by task + vehicle, so cost KPIs are a one-pass reduce
+ * and history survives a task's vehicle-membership being edited.
+ */
+export interface MaintenanceServiceRecord {
+  id: ID
+  taskId: ID
+  vehicleId: ID
+  /** ISO timestamp the service was performed */
+  servicedAt: string
+  /** Odometer at service time (mileage tasks); null for date-only tasks */
+  odometerKm: number | null
+  /** Cost in Ethiopian Birr (ETB), whole birr */
+  cost: number
+  workshop: string
+  technician: string | null
+  notes: string
+}
+
 // ---------------------------------------------------------------------------
 // Session (mock auth)
 // ---------------------------------------------------------------------------
@@ -412,4 +432,5 @@ export interface DB {
   trips: Trip[]
   assignments: VehicleDriverAssignment[]
   maintenanceTasks: MaintenanceTask[]
+  maintenanceServiceRecords: MaintenanceServiceRecord[]
 }

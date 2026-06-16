@@ -12,7 +12,9 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
+import type { TranslationKey } from "@/i18n"
 import { cn } from "@/lib/utils"
 import {
   Collapsible,
@@ -33,59 +35,71 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar"
 
+// `titleKey`/`labelKey` are i18n keys resolved with t() at render. `as const`
+// keeps them as literals so the typed t() accepts them.
 interface NavItem {
-  title: string
+  titleKey: TranslationKey
   path: string
   icon: LucideIcon
 }
 
 interface NavGroup {
-  label: string
+  labelKey: TranslationKey
   collapsible?: boolean
   items: NavItem[]
 }
 
-const NAV_GROUPS: NavGroup[] = [
+const NAV_GROUPS = [
   {
-    label: "Management",
+    labelKey: "nav.groups.management",
     items: [
-      { title: "Overview", path: "/", icon: LayoutDashboard },
-      { title: "Fleet", path: "/fleet", icon: Truck },
-      { title: "Drivers", path: "/drivers", icon: IdCard },
-      { title: "Events", path: "/events", icon: Siren },
-      { title: "Providers", path: "/providers", icon: RadioTower },
-      { title: "Maintenance", path: "/maintenance", icon: Wrench },
+      { titleKey: "nav.items.overview", path: "/", icon: LayoutDashboard },
+      { titleKey: "nav.items.fleet", path: "/fleet", icon: Truck },
+      { titleKey: "nav.items.drivers", path: "/drivers", icon: IdCard },
+      { titleKey: "nav.items.events", path: "/events", icon: Siren },
+      { titleKey: "nav.items.providers", path: "/providers", icon: RadioTower },
+      {
+        titleKey: "nav.items.maintenance",
+        path: "/maintenance",
+        icon: Wrench,
+      },
     ],
   },
   {
-    label: "Configuration",
+    labelKey: "nav.groups.configuration",
     collapsible: true,
     items: [
-      { title: "Geofencing", path: "/geozones", icon: Hexagon },
-      { title: "Routes", path: "/routes", icon: Route },
-      { title: "Event Rules", path: "/config/events", icon: SlidersHorizontal },
+      { titleKey: "nav.items.geofencing", path: "/geozones", icon: Hexagon },
+      { titleKey: "nav.items.routes", path: "/routes", icon: Route },
+      {
+        titleKey: "nav.items.eventRules",
+        path: "/config/events",
+        icon: SlidersHorizontal,
+      },
     ],
   },
-]
+] satisfies NavGroup[]
 
 function NavMenu({
   items,
   isActive,
 }: {
-  items: NavItem[]
+  items: readonly NavItem[]
   isActive: (path: string) => boolean
 }) {
+  const { t } = useTranslation()
   return (
     <SidebarMenu>
       {items.map((item) => {
         const Icon = item.icon
         const active = isActive(item.path)
+        const title = t(item.titleKey)
         return (
           <SidebarMenuItem key={item.path}>
             <SidebarMenuButton
               asChild
               isActive={active}
-              tooltip={item.title}
+              tooltip={title}
               className={cn(
                 "relative",
                 active &&
@@ -94,7 +108,7 @@ function NavMenu({
             >
               <NavLink to={item.path}>
                 <Icon />
-                <span>{item.title}</span>
+                <span>{title}</span>
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -105,6 +119,7 @@ function NavMenu({
 }
 
 export function AppSidebar() {
+  const { t } = useTranslation()
   const location = useLocation()
 
   const isActive = (path: string) =>
@@ -120,9 +135,11 @@ export function AppSidebar() {
             <Truck className="size-5 text-white" />
           </div>
           <div className="grid group-data-[collapsible=icon]:hidden">
-            <span className="font-heading leading-none font-bold">IFMS</span>
+            <span className="font-heading leading-none font-bold">
+              {t("nav.brand")}
+            </span>
             <span className="mt-1 text-[10px] leading-tight text-sidebar-foreground/70">
-              Ministry of Transport &amp; Logistics
+              {t("nav.brandSubtitle")}
             </span>
           </div>
         </div>
@@ -132,14 +149,14 @@ export function AppSidebar() {
         {NAV_GROUPS.map((group) =>
           group.collapsible ? (
             <Collapsible
-              key={group.label}
+              key={group.labelKey}
               defaultOpen
               className="group/collapsible"
             >
               <SidebarGroup>
                 <SidebarGroupLabel asChild>
                   <CollapsibleTrigger>
-                    {group.label}
+                    {t(group.labelKey)}
                     <ChevronDown className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
@@ -151,8 +168,8 @@ export function AppSidebar() {
               </SidebarGroup>
             </Collapsible>
           ) : (
-            <SidebarGroup key={group.label}>
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroup key={group.labelKey}>
+              <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <NavMenu items={group.items} isActive={isActive} />
               </SidebarGroupContent>
@@ -163,7 +180,7 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <p className="px-2 py-1 text-[10px] leading-tight text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-          IFMS v1.0 · Federal Democratic Republic of Ethiopia
+          {t("nav.footer")}
         </p>
       </SidebarFooter>
 

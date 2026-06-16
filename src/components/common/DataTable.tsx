@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { ChevronLeft, ChevronRight, Search } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,6 +72,7 @@ export function DataTable<T extends { id: string }>({
   emptyTitle,
   emptyDescription,
 }: DataTableProps<T>): React.ReactElement {
+  const { t } = useTranslation()
   const [pageState, setPage] = useState(0)
 
   const total = data.length
@@ -92,7 +94,9 @@ export function DataTable<T extends { id: string }>({
             <Input
               value={searchValue ?? ""}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={searchPlaceholder ?? "Search…"}
+              placeholder={
+                searchPlaceholder ?? t("common.table.searchPlaceholder")
+              }
               className="pl-9"
             />
           </div>
@@ -103,7 +107,7 @@ export function DataTable<T extends { id: string }>({
           )
           const display =
             filter.value === "all" || !selected
-              ? `${filter.label}: All`
+              ? `${filter.label}: ${t("common.all")}`
               : `${filter.label}: ${selected.label}`
           return (
             <Select
@@ -115,7 +119,7 @@ export function DataTable<T extends { id: string }>({
                 <SelectValue>{display}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="all">{t("common.all")}</SelectItem>
                 {filter.options.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}
@@ -161,7 +165,7 @@ export function DataTable<T extends { id: string }>({
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={colSpan}>
                   <EmptyState
-                    title={emptyTitle ?? "No results"}
+                    title={emptyTitle ?? t("common.table.noResults")}
                     description={emptyDescription}
                   />
                 </TableCell>
@@ -191,7 +195,11 @@ export function DataTable<T extends { id: string }>({
       {total > pageSize && (
         <div className="flex items-center justify-between pt-1">
           <p className="text-xs text-muted-foreground tabular-nums">
-            Showing {start + 1}–{Math.min(start + pageSize, total)} of {total}
+            {t("common.table.showingRange", {
+              from: start + 1,
+              to: Math.min(start + pageSize, total),
+              total,
+            })}
           </p>
           <div className="flex items-center gap-2">
             <Button
@@ -201,7 +209,7 @@ export function DataTable<T extends { id: string }>({
               disabled={page === 0}
             >
               <ChevronLeft />
-              <span className="sr-only">Previous page</span>
+              <span className="sr-only">{t("common.table.previousPage")}</span>
             </Button>
             <Button
               variant="outline"
@@ -210,7 +218,7 @@ export function DataTable<T extends { id: string }>({
               disabled={page >= pageCount - 1}
             >
               <ChevronRight />
-              <span className="sr-only">Next page</span>
+              <span className="sr-only">{t("common.table.nextPage")}</span>
             </Button>
           </div>
         </div>

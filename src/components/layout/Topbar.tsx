@@ -1,4 +1,5 @@
 import { ChevronDown, Moon, Pause, Play, Sun } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 import { useTheme } from "@/components/theme-provider"
@@ -13,12 +14,14 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { GlobalSearch } from "@/components/layout/GlobalSearch"
+import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher"
 import { NotificationsBell } from "@/components/layout/NotificationsBell"
 import { UserMenu } from "@/components/layout/UserMenu"
 
 const SPEED_OPTIONS = [1, 4, 16] as const
 
 export function Topbar() {
+  const { t } = useTranslation()
   const { theme, setTheme } = useTheme()
   const { paused, setPaused, speed, setSpeed } = useSimulation()
 
@@ -46,7 +49,7 @@ export function Topbar() {
           )}
         />
         <span className="text-xs font-medium">
-          {paused ? "Paused" : "Live"}
+          {paused ? t("topbar.paused") : t("topbar.live")}
         </span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -70,12 +73,16 @@ export function Topbar() {
         >
           {paused ? <Play /> : <Pause />}
           <span className="sr-only">
-            {paused ? "Resume simulation" : "Pause simulation"}
+            {paused
+              ? t("topbar.resumeSimulation")
+              : t("topbar.pauseSimulation")}
           </span>
         </Button>
       </div>
 
       <NotificationsBell />
+
+      <LanguageSwitcher />
 
       <Button
         variant="ghost"
@@ -83,7 +90,7 @@ export function Topbar() {
         onClick={() => setTheme(isDark ? "light" : "dark")}
       >
         {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        <span className="sr-only">Toggle theme</span>
+        <span className="sr-only">{t("topbar.toggleTheme")}</span>
       </Button>
 
       <UserMenu />

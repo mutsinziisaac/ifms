@@ -1,14 +1,11 @@
 import { Building2, Radio, Tag } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { VehicleStatusBadge } from "@/components/common/status-badges"
 import { Card } from "@/components/ui/card"
 import type { Entity, Vehicle } from "@/data/types"
 import { VEHICLE_STATUS_CONFIG } from "@/lib/status"
 import { cn } from "@/lib/utils"
-
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
 
 export function VehicleIdentityHeader({
   vehicle,
@@ -19,6 +16,7 @@ export function VehicleIdentityHeader({
   entity: Entity | undefined
   actions?: React.ReactNode
 }) {
+  const { t } = useTranslation()
   return (
     <Card className="flex-row items-center gap-4 p-5">
       <span
@@ -41,11 +39,11 @@ export function VehicleIdentityHeader({
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <Building2 className="size-3.5" />
-            {entity?.shortName ?? "—"}
+            {entity?.shortName ?? t("vehicles.detail.identity.entityFallback")}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Tag className="size-3.5" />
-            {capitalize(vehicle.type)}
+            {t(`enums.vehicleType.${vehicle.type}`)}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <Radio className="size-3.5" />

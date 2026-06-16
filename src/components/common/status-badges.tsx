@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import {
@@ -16,20 +18,22 @@ import type {
 } from "@/data/types"
 
 export function VehicleStatusBadge({ status }: { status: VehicleStatus }) {
+  const { t } = useTranslation()
   const config = VEHICLE_STATUS_CONFIG[status]
   return (
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
       <span className={cn("size-1.5 rounded-full", config.dotClass)} />
-      {config.label}
+      {t(`enums.vehicleStatus.${status}`)}
     </Badge>
   )
 }
 
 export function DriverStatusBadge({ status }: { status: DriverStatus }) {
+  const { t } = useTranslation()
   const config = DRIVER_STATUS_CONFIG[status]
   return (
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
-      {config.label}
+      {t(`enums.driverStatus.${status}`)}
     </Badge>
   )
 }
@@ -39,30 +43,33 @@ export function MaintenanceStatusBadge({
 }: {
   status: MaintenanceStatus
 }) {
+  const { t } = useTranslation()
   const config = MAINTENANCE_STATUS_CONFIG[status]
   return (
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
-      {config.label}
+      {t(`enums.maintenanceStatus.${status}`)}
     </Badge>
   )
 }
 
 export function EventSeverityBadge({ severity }: { severity: EventSeverity }) {
+  const { t } = useTranslation()
   const config = EVENT_SEVERITY_CONFIG[severity]
   return (
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
       <span className={cn("size-1.5 rounded-full", config.dotClass)} />
-      {config.label}
+      {t(`enums.eventSeverity.${severity}`)}
     </Badge>
   )
 }
 
 export function EventStatusBadge({ status }: { status: EventStatus }) {
+  const { t } = useTranslation()
   const config = EVENT_STATUS_CONFIG[status]
   return (
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
       <span className={cn("size-1.5 rounded-full", config.dotClass)} />
-      {config.label}
+      {t(`enums.eventStatus.${status}`)}
     </Badge>
   )
 }

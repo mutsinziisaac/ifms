@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import {
   CheckCheck,
@@ -31,11 +32,6 @@ import {
 } from "@/data/hooks"
 import { EVENT_STATUSES, EVENT_TYPES } from "@/data/types"
 import type { FleetEvent } from "@/data/types"
-import {
-  EVENT_SEVERITY_CONFIG,
-  EVENT_STATUS_CONFIG,
-  EVENT_TYPE_LABEL,
-} from "@/lib/status"
 
 import { EventDetailSheet } from "./components/EventDetailSheet"
 import { EventsMapView } from "./components/EventsMapView"
@@ -79,6 +75,7 @@ function FilterSelect({
 }
 
 export function EventsPage() {
+  const { t } = useTranslation()
   const events = useLiveEvents()
   const entities = useEntities().data ?? []
   const vehicles = useVehicles().data ?? []
@@ -133,11 +130,11 @@ export function EventsPage() {
 
   const handleExport = () => {
     if (filtered.length === 0) {
-      toast.info("No events to export")
+      toast.info(t("events.toast.nothingToExport"))
       return
     }
     exportEventsCsv(filtered, entities)
-    toast.success(`Exported ${filtered.length} events`)
+    toast.success(t("events.toast.exported", { count: filtered.length }))
   }
 
   const filterBar = (
@@ -145,41 +142,41 @@ export function EventsPage() {
       <FilterSelect
         value={status}
         onChange={setStatus}
-        allLabel="All statuses"
+        allLabel={t("events.filters.allStatuses")}
         options={EVENT_STATUSES.map((s) => ({
           value: s,
-          label: EVENT_STATUS_CONFIG[s].label,
+          label: t(`enums.eventStatus.${s}`),
         }))}
       />
       <FilterSelect
         value={severity}
         onChange={setSeverity}
-        allLabel="All severities"
+        allLabel={t("events.filters.allSeverities")}
         options={SEVERITIES.map((s) => ({
           value: s,
-          label: EVENT_SEVERITY_CONFIG[s].label,
+          label: t(`enums.eventSeverity.${s}`),
         }))}
       />
       <FilterSelect
         value={type}
         onChange={setType}
-        allLabel="All types"
-        options={EVENT_TYPES.map((t) => ({
-          value: t,
-          label: EVENT_TYPE_LABEL[t],
+        allLabel={t("events.filters.allTypes")}
+        options={EVENT_TYPES.map((tp) => ({
+          value: tp,
+          label: t(`enums.eventType.${tp}`),
         }))}
       />
       <FilterSelect
         value={entity}
         onChange={setEntity}
-        allLabel="All providers"
+        allLabel={t("events.filters.allProviders")}
         width="w-[170px]"
         options={entities.map((e) => ({ value: e.id, label: e.shortName }))}
       />
       <FilterSelect
         value={vehicle}
         onChange={setVehicle}
-        allLabel="All vehicles"
+        allLabel={t("events.filters.allVehicles")}
         options={vehicles.map((v) => ({ value: v.id, label: v.plate }))}
       />
     </div>
@@ -188,13 +185,13 @@ export function EventsPage() {
   return (
     <div>
       <PageHeader
-        title="Events"
-        description="Violation and activity events across the monitored fleet — review, escalate and close."
+        title={t("events.title")}
+        description={t("events.description")}
         actions={
           <>
             <Button variant="outline" onClick={handleExport}>
               <Download className="size-4" />
-              Export CSV
+              {t("common.exportCsv")}
             </Button>
             <ToggleGroup
               type="single"
@@ -204,13 +201,19 @@ export function EventsPage() {
                 if (value) setView(value as ViewMode)
               }}
             >
-              <ToggleGroupItem value="list" aria-label="List view">
+              <ToggleGroupItem
+                value="list"
+                aria-label={t("events.view.listLabel")}
+              >
                 <List className="size-4" />
-                List
+                {t("common.viewList")}
               </ToggleGroupItem>
-              <ToggleGroupItem value="map" aria-label="Map view">
+              <ToggleGroupItem
+                value="map"
+                aria-label={t("events.view.mapLabel")}
+              >
                 <MapIcon className="size-4" />
-                Map
+                {t("common.viewMap")}
               </ToggleGroupItem>
             </ToggleGroup>
           </>
@@ -220,32 +223,32 @@ export function EventsPage() {
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Open"
+            label={t("events.stats.open")}
             value={openCount}
             icon={CircleDot}
             intent={openCount > 0 ? "danger" : "default"}
-            hint="Awaiting review"
+            hint={t("events.stats.openHint")}
           />
           <StatCard
-            label="Acknowledged"
+            label={t("events.stats.acknowledged")}
             value={ackCount}
             icon={Eye}
             intent="warning"
-            hint="Under review"
+            hint={t("events.stats.acknowledgedHint")}
           />
           <StatCard
-            label="Escalated"
+            label={t("events.stats.escalated")}
             value={escalatedCount}
             icon={TriangleAlert}
             intent={escalatedCount > 0 ? "warning" : "default"}
-            hint="With a higher authority"
+            hint={t("events.stats.escalatedHint")}
           />
           <StatCard
-            label="Closed today"
+            label={t("events.stats.closedToday")}
             value={closedToday}
             icon={CircleCheckBig}
             intent="success"
-            hint="Resolved in the last 24h"
+            hint={t("events.stats.closedTodayHint")}
           />
         </div>
 
@@ -263,12 +266,13 @@ export function EventsPage() {
                 size="sm"
                 onClick={() =>
                   markAllRead.mutate(undefined, {
-                    onSuccess: () => toast.success("All events marked read"),
+                    onSuccess: () =>
+                      toast.success(t("events.toast.allMarkedRead")),
                   })
                 }
               >
                 <CheckCheck className="size-4" />
-                Mark all read
+                {t("common.markAllRead")}
               </Button>
             }
             onSelect={handleSelect}

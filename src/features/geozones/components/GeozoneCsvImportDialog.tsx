@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { AlertTriangle, Download, FileUp } from "lucide-react"
 import { toast } from "sonner"
 
@@ -22,6 +23,7 @@ export function GeozoneCsvImportDialog({
   open,
   onOpenChange,
 }: GeozoneCsvImportDialogProps) {
+  const { t } = useTranslation()
   const [text, setText] = useState("")
   const importGeozones = useImportGeozones()
 
@@ -46,11 +48,12 @@ export function GeozoneCsvImportDialog({
     if (!canImport) return
     importGeozones.mutate(result.zones, {
       onSuccess: () => {
-        const n = result.zones.length
-        toast.success(`${n} geozone${n === 1 ? "" : "s"} imported`)
+        toast.success(
+          t("geozones.toast.imported", { count: result.zones.length })
+        )
         onOpenChange(false)
       },
-      onError: () => toast.error("Import failed"),
+      onError: () => toast.error(t("geozones.toast.importFailed")),
     })
   }
 
@@ -58,12 +61,12 @@ export function GeozoneCsvImportDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Import geozones from CSV"
-      description="Each row is one lat/lng point. Rows sharing a zone name form a polygon (minimum 3 points)."
+      title={t("geozones.csv.title")}
+      description={t("geozones.csv.description")}
       submitLabel={
         canImport
-          ? `Import ${result.zones.length} zone${result.zones.length === 1 ? "" : "s"}`
-          : "Import"
+          ? t("geozones.csv.importCount", { count: result.zones.length })
+          : t("geozones.csv.importButton")
       }
       onSubmit={handleImport}
       isPending={importGeozones.isPending}
@@ -80,12 +83,12 @@ export function GeozoneCsvImportDialog({
           }
         >
           <Download className="size-4" />
-          Download template
+          {t("geozones.csv.downloadTemplate")}
         </Button>
         <Button type="button" variant="outline" size="sm" asChild>
           <label className="cursor-pointer">
             <FileUp className="size-4" />
-            Choose CSV file
+            {t("geozones.csv.chooseFile")}
             <input
               type="file"
               accept=".csv,text/csv"
@@ -100,7 +103,7 @@ export function GeozoneCsvImportDialog({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="csv-text">CSV contents</Label>
+        <Label htmlFor="csv-text">{t("geozones.csv.contentsLabel")}</Label>
         <Textarea
           id="csv-text"
           value={text}
@@ -113,10 +116,9 @@ export function GeozoneCsvImportDialog({
       {hasInput ? (
         <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Preview</span>
+            <span className="font-medium">{t("geozones.csv.preview")}</span>
             <span className="text-muted-foreground tabular-nums">
-              {result.zones.length} valid zone
-              {result.zones.length === 1 ? "" : "s"}
+              {t("geozones.csv.validZones", { count: result.zones.length })}
             </span>
           </div>
 
@@ -129,19 +131,21 @@ export function GeozoneCsvImportDialog({
                 >
                   <span className="truncate">{zone.name}</span>
                   <span className="shrink-0 text-muted-foreground tabular-nums">
-                    {zone.points.length} pts
+                    {t("geozones.csv.pts", { count: zone.points.length })}
                   </span>
                 </li>
               ))}
               {result.zones.length > 5 ? (
                 <li className="text-xs text-muted-foreground">
-                  +{result.zones.length - 5} more
+                  {t("geozones.csv.moreZones", {
+                    count: result.zones.length - 5,
+                  })}
                 </li>
               ) : null}
             </ul>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No valid zones found yet.
+              {t("geozones.csv.noneFound")}
             </p>
           )}
 
@@ -149,15 +153,18 @@ export function GeozoneCsvImportDialog({
             <div className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
               <div className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
                 <AlertTriangle className="size-3.5" />
-                {result.errors.length} issue
-                {result.errors.length === 1 ? "" : "s"}
+                {t("geozones.csv.issues", { count: result.errors.length })}
               </div>
               <ul className="space-y-0.5 text-xs text-muted-foreground">
                 {result.errors.slice(0, 5).map((err, i) => (
                   <li key={i}>{err}</li>
                 ))}
                 {result.errors.length > 5 ? (
-                  <li>+{result.errors.length - 5} more</li>
+                  <li>
+                    {t("geozones.csv.moreZones", {
+                      count: result.errors.length - 5,
+                    })}
+                  </li>
                 ) : null}
               </ul>
             </div>

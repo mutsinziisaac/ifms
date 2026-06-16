@@ -10,6 +10,7 @@ import { EventRulesPage } from "@/features/events/EventRulesPage"
 import { EventsPage } from "@/features/events/EventsPage"
 import { GeozonesPage } from "@/features/geozones/GeozonesPage"
 import { MaintenancePage } from "@/features/maintenance/MaintenancePage"
+import { MaintenanceTaskDetailPage } from "@/features/maintenance/MaintenanceTaskDetailPage"
 import { ProviderDetailPage } from "@/features/providers/ProviderDetailPage"
 import { ProvidersPage } from "@/features/providers/ProvidersPage"
 import { RoutesPage } from "@/features/routes/RoutesPage"
@@ -39,6 +40,7 @@ export function App() {
         <Route path="routes" element={<RoutesPage />} />
         <Route path="config/events" element={<EventRulesPage />} />
         <Route path="maintenance" element={<MaintenancePage />} />
+        <Route path="maintenance/:id" element={<MaintenanceTaskDetailPage />} />
       </Route>
     </Routes>
   )

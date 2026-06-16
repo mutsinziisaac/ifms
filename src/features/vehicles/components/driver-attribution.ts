@@ -40,7 +40,10 @@ export function buildDriverColorMap(
   const map = new Map<ID, string>()
   for (const a of assignments) {
     if (!map.has(a.driverId)) {
-      map.set(a.driverId, DRIVER_TRAIL_COLORS[map.size % DRIVER_TRAIL_COLORS.length]!)
+      map.set(
+        a.driverId,
+        DRIVER_TRAIL_COLORS[map.size % DRIVER_TRAIL_COLORS.length]!
+      )
     }
   }
   return map

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Bell, Gauge, Navigation, PauseCircle } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { useLiveEvents, useLiveVehicles } from "@/data/hooks"
 import { formatSpeed } from "@/lib/format"
@@ -32,6 +33,7 @@ function seedHistory(sample: Sample, length: number): Sample[] {
 }
 
 export function KpiRow() {
+  const { t } = useTranslation()
   const vehicles = useLiveVehicles()
   const events = useLiveEvents()
 
@@ -84,36 +86,36 @@ export function KpiRow() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <ActivityStatCard
-        label="Moving now"
+        label={t("dashboard.kpi.movingNow")}
         value={moving}
         series={history.map((h) => h.moving)}
         icon={Navigation}
         intent="success"
-        hint={`of ${total} tracked`}
+        hint={t("dashboard.kpi.ofTracked", { count: total })}
       />
       <ActivityStatCard
-        label="Average speed"
+        label={t("dashboard.kpi.averageSpeed")}
         value={formatSpeed(avgSpeed)}
         series={history.map((h) => h.speed)}
         icon={Gauge}
         intent="default"
-        hint="Live corridor average"
+        hint={t("dashboard.kpi.liveCorridorAverage")}
       />
       <ActivityStatCard
-        label="Idling"
+        label={t("dashboard.kpi.idling")}
         value={idling}
         series={history.map((h) => h.idling)}
         icon={PauseCircle}
         intent="warning"
-        hint="Engine on, stationary"
+        hint={t("dashboard.kpi.engineOnStationary")}
       />
       <ActivityStatCard
-        label="Events today"
+        label={t("dashboard.kpi.eventsToday")}
         value={eventsToday}
         series={history.map((h) => h.events)}
         icon={Bell}
         intent={eventsToday > 0 ? "danger" : "default"}
-        hint="Last 24 hours"
+        hint={t("dashboard.kpi.last24Hours")}
       />
     </div>
   )

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { FormDialog } from "@/components/common/FormDialog"
@@ -31,15 +32,6 @@ import { fullName } from "@/lib/format"
 // "unassigned" / "no route" options and translate them back to null on submit.
 const NONE = "__none__"
 
-const VEHICLE_TYPE_LABEL: Record<VehicleType, string> = {
-  truck: "Truck",
-  trailer: "Trailer",
-  tanker: "Tanker",
-  bus: "Bus",
-  container: "Container",
-  pickup: "Pickup",
-}
-
 export interface VehicleFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -51,6 +43,7 @@ export function VehicleFormDialog({
   onOpenChange,
   vehicle,
 }: VehicleFormDialogProps) {
+  const { t } = useTranslation()
   const isEdit = vehicle != null
 
   const entities = useEntities().data ?? []
@@ -136,26 +129,28 @@ export function VehicleFormDialog({
         { id: vehicle.id, patch: input },
         {
           onSuccess: () => {
-            toast.success(`Vehicle ${input.plate} updated`)
+            toast.success(t("vehicles.toast.updated", { plate: input.plate }))
             onOpenChange(false)
           },
           onError: (error) =>
             toast.error(
               error instanceof Error
                 ? error.message
-                : "Failed to update vehicle"
+                : t("vehicles.toast.updateFailed")
             ),
         }
       )
     } else {
       createVehicle.mutate(input, {
         onSuccess: () => {
-          toast.success(`Vehicle ${input.plate} added`)
+          toast.success(t("vehicles.toast.created", { plate: input.plate }))
           onOpenChange(false)
         },
         onError: (error) =>
           toast.error(
-            error instanceof Error ? error.message : "Failed to add vehicle"
+            error instanceof Error
+              ? error.message
+              : t("vehicles.toast.createFailed")
           ),
       })
     }
@@ -165,38 +160,44 @@ export function VehicleFormDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit vehicle" : "Add vehicle"}
+      title={
+        isEdit ? t("vehicles.form.editTitle") : t("vehicles.form.addTitle")
+      }
       description={
         isEdit
-          ? "Update the registration and monitoring details for this vehicle."
-          : "Register a new vehicle operated by a monitored entity."
+          ? t("vehicles.form.editDescription")
+          : t("vehicles.form.addDescription")
       }
-      submitLabel={isEdit ? "Save changes" : "Add vehicle"}
+      submitLabel={
+        isEdit ? t("vehicles.form.saveChanges") : t("vehicles.form.addTitle")
+      }
       onSubmit={handleSubmit}
       isPending={isPending}
       disabled={disabled}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="vehicle-plate">Plate number</Label>
+          <Label htmlFor="vehicle-plate">
+            {t("vehicles.form.plateNumber")}
+          </Label>
           <Input
             id="vehicle-plate"
             value={plate}
             onChange={(e) => setPlate(e.target.value)}
-            placeholder="3-45821 ET"
+            placeholder={t("vehicles.form.platePlaceholder")}
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="vehicle-type">Type</Label>
+          <Label htmlFor="vehicle-type">{t("forms.type")}</Label>
           <Select value={type} onValueChange={(v) => setType(v as VehicleType)}>
             <SelectTrigger id="vehicle-type" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {VEHICLE_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {VEHICLE_TYPE_LABEL[t]}
+              {VEHICLE_TYPES.map((vt) => (
+                <SelectItem key={vt} value={vt}>
+                  {t(`enums.vehicleType.${vt}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -205,21 +206,21 @@ export function VehicleFormDialog({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="vehicle-description">Description</Label>
+        <Label htmlFor="vehicle-description">{t("forms.description")}</Label>
         <Input
           id="vehicle-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Sinotruk Howo A7 dry cargo"
+          placeholder={t("vehicles.form.descriptionPlaceholder")}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="vehicle-entity">Entity</Label>
+          <Label htmlFor="vehicle-entity">{t("forms.entity")}</Label>
           <Select value={entityId} onValueChange={setEntityId}>
             <SelectTrigger id="vehicle-entity" className="w-full">
-              <SelectValue placeholder="Select entity" />
+              <SelectValue placeholder={t("vehicles.form.selectEntity")} />
             </SelectTrigger>
             <SelectContent>
               {entities.map((entity) => (
@@ -232,7 +233,7 @@ export function VehicleFormDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="vehicle-region">Region</Label>
+          <Label htmlFor="vehicle-region">{t("forms.region")}</Label>
           <Select
             value={region}
             onValueChange={(v) => setRegion(v as EthiopiaRegion)}
@@ -253,7 +254,7 @@ export function VehicleFormDialog({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="vehicle-gps">GPS provider</Label>
+          <Label htmlFor="vehicle-gps">{t("forms.gpsProvider")}</Label>
           <Select
             value={gpsProvider}
             onValueChange={(v) => setGpsProvider(v as GpsProvider)}
@@ -272,13 +273,13 @@ export function VehicleFormDialog({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="vehicle-driver">Driver</Label>
+          <Label htmlFor="vehicle-driver">{t("forms.driver")}</Label>
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger id="vehicle-driver" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NONE}>Unassigned</SelectItem>
+              <SelectItem value={NONE}>{t("common.unassigned")}</SelectItem>
               {driverOptions.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
                   {fullName(d)}
@@ -290,13 +291,15 @@ export function VehicleFormDialog({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="vehicle-route">Assigned route</Label>
+        <Label htmlFor="vehicle-route">
+          {t("vehicles.form.assignedRoute")}
+        </Label>
         <Select value={routeId} onValueChange={setRouteId}>
           <SelectTrigger id="vehicle-route" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>No route</SelectItem>
+            <SelectItem value={NONE}>{t("vehicles.form.noRoute")}</SelectItem>
             {routeOptions.map((r) => (
               <SelectItem key={r.id} value={r.id}>
                 {r.name}

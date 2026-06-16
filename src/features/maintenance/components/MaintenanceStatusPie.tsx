@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Cell, Label, Pie, PieChart } from "recharts"
 
 import {
@@ -15,22 +16,6 @@ export interface MaintenanceStatusCounts {
   delay: number
 }
 
-const CHART_CONFIG = {
-  count: { label: "Vehicles" },
-  ok: {
-    label: MAINTENANCE_STATUS_CONFIG.ok.label,
-    color: MAINTENANCE_STATUS_CONFIG.ok.color,
-  },
-  waiting: {
-    label: MAINTENANCE_STATUS_CONFIG.waiting.label,
-    color: MAINTENANCE_STATUS_CONFIG.waiting.color,
-  },
-  delay: {
-    label: MAINTENANCE_STATUS_CONFIG.delay.label,
-    color: MAINTENANCE_STATUS_CONFIG.delay.color,
-  },
-} satisfies ChartConfig
-
 export function MaintenanceStatusPie({
   counts,
   className,
@@ -38,19 +23,36 @@ export function MaintenanceStatusPie({
   counts: MaintenanceStatusCounts
   className?: string
 }) {
+  const { t } = useTranslation()
   const total = counts.ok + counts.waiting + counts.delay
+
+  const chartConfig = {
+    count: { label: t("maintenance.pie.vehicles") },
+    ok: {
+      label: t("enums.maintenanceStatus.ok"),
+      color: MAINTENANCE_STATUS_CONFIG.ok.color,
+    },
+    waiting: {
+      label: t("enums.maintenanceStatus.waiting"),
+      color: MAINTENANCE_STATUS_CONFIG.waiting.color,
+    },
+    delay: {
+      label: t("enums.maintenanceStatus.delay"),
+      color: MAINTENANCE_STATUS_CONFIG.delay.color,
+    },
+  } satisfies ChartConfig
 
   const data = useMemo(
     () =>
       (["ok", "waiting", "delay"] as const)
         .map((key) => ({
           key,
-          label: MAINTENANCE_STATUS_CONFIG[key].label,
+          label: t(`enums.maintenanceStatus.${key}`),
           count: counts[key],
           color: MAINTENANCE_STATUS_CONFIG[key].color,
         }))
         .filter((d) => d.count > 0),
-    [counts]
+    [counts, t]
   )
 
   if (total === 0) {
@@ -59,7 +61,7 @@ export function MaintenanceStatusPie({
         <div className="mx-auto grid size-[140px] place-items-center">
           <div className="grid size-[110px] place-items-center rounded-full border-[10px] border-muted">
             <span className="text-center text-xs text-muted-foreground">
-              No vehicles
+              {t("maintenance.pie.noVehicles")}
             </span>
           </div>
         </div>
@@ -69,7 +71,7 @@ export function MaintenanceStatusPie({
 
   return (
     <ChartContainer
-      config={CHART_CONFIG}
+      config={chartConfig}
       className={className ?? "mx-auto aspect-square h-[140px]"}
     >
       <PieChart>
@@ -113,7 +115,7 @@ export function MaintenanceStatusPie({
                     y={(viewBox.cy ?? 0) + 18}
                     className="fill-muted-foreground text-[11px]"
                   >
-                    vehicles
+                    {t("maintenance.pie.vehiclesLabel")}
                   </tspan>
                 </text>
               )

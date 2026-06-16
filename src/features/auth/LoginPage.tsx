@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { LogIn, Truck } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { useAuth } from "@/auth/auth-context"
 import { Button } from "@/components/ui/button"
@@ -15,6 +16,7 @@ interface LocationState {
 }
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const { user, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -44,28 +46,27 @@ export function LoginPage() {
             </div>
             <div>
               <p className="font-heading text-xl leading-none font-bold">
-                IFMS
+                {t("nav.brand")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Integrated Fleet Management System
+                {t("auth.brandSubtitle")}
               </p>
             </div>
           </div>
 
           <div className="space-y-2">
             <h1 className="font-heading text-2xl font-semibold">
-              Sign in to your account
+              {t("auth.signInTitle")}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Ministry of Transport and Logistics · Federal Democratic Republic
-              of Ethiopia
+              {t("auth.ministryLine")}
             </p>
           </div>
 
           <Card className="space-y-4 p-6">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <Label htmlFor="email">Work email</Label>
+                <Label htmlFor="email">{t("auth.workEmail")}</Label>
                 <Input
                   id="email"
                   name="email"
@@ -74,23 +75,23 @@ export function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">{t("auth.password")}</Label>
                 <Input
                   id="password"
                   name="password"
                   type="password"
-                  placeholder="Enter any password"
+                  placeholder={t("auth.passwordPlaceholder")}
                 />
               </div>
               <Button type="submit" className="w-full">
                 <LogIn className="size-4" />
-                Sign in
+                {t("auth.signIn")}
               </Button>
             </form>
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">
-            Demonstration build — any credentials are accepted.
+            {t("auth.demoNotice")}
           </p>
         </div>
       </div>
@@ -108,28 +109,32 @@ export function LoginPage() {
 
         <div className="relative space-y-6 text-white">
           <span className="w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">
-            Ethiopia–Djibouti Corridor Monitoring
+            {t("auth.hero.badge")}
           </span>
           <h2 className="font-heading text-3xl leading-tight font-semibold">
-            Real-time visibility of national freight movement
+            {t("auth.hero.title")}
           </h2>
           <p className="max-w-md text-sm text-white/70">
-            Monitor the vehicles of operating transport entities as they move
-            along the Addis Ababa–Djibouti corridor — live status, geozone
-            activity and route progress, all in one place.
+            {t("auth.hero.description")}
           </p>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
               <p className="text-xl font-semibold">48</p>
-              <p className="text-[11px] text-white/60">Vehicles monitored</p>
+              <p className="text-[11px] text-white/60">
+                {t("auth.hero.vehiclesMonitored")}
+              </p>
             </div>
             <div className="rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
               <p className="text-xl font-semibold">9</p>
-              <p className="text-[11px] text-white/60">Operating entities</p>
+              <p className="text-[11px] text-white/60">
+                {t("auth.hero.operatingEntities")}
+              </p>
             </div>
             <div className="rounded-xl bg-white/10 px-4 py-3 backdrop-blur">
               <p className="text-xl font-semibold">1,000+ km</p>
-              <p className="text-[11px] text-white/60">Corridor coverage</p>
+              <p className="text-[11px] text-white/60">
+                {t("auth.hero.corridorCoverage")}
+              </p>
             </div>
           </div>
         </div>

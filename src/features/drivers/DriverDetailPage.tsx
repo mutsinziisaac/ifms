@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -56,6 +57,7 @@ function InfoRow({
 }
 
 function ProfileCard({ driver }: { driver: Driver }) {
+  const { t } = useTranslation()
   const entities = useEntities().data ?? []
   const entityName =
     entities.find((e) => e.id === driver.entityId)?.shortName ?? "—"
@@ -68,16 +70,16 @@ function ProfileCard({ driver }: { driver: Driver }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between gap-2">
-          <span>Profile</span>
+          <span>{t("drivers.detail.profile.title")}</span>
           <DriverStatusBadge status={driver.status} />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <InfoRow icon={Phone} label="Phone">
+          <InfoRow icon={Phone} label={t("drivers.detail.profile.phone")}>
             {driver.phone || "—"}
           </InfoRow>
-          <InfoRow icon={Mail} label="Email">
+          <InfoRow icon={Mail} label={t("drivers.detail.profile.email")}>
             {driver.email || "—"}
           </InfoRow>
         </div>
@@ -85,13 +87,16 @@ function ProfileCard({ driver }: { driver: Driver }) {
         <Separator />
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <InfoRow icon={IdCard} label="License">
+          <InfoRow icon={IdCard} label={t("drivers.detail.profile.license")}>
             <span className="tabular-nums">{driver.licenseNo}</span>
             <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
               {driver.licenseCategory}
             </span>
           </InfoRow>
-          <InfoRow icon={CalendarDays} label="License expiry">
+          <InfoRow
+            icon={CalendarDays}
+            label={t("drivers.detail.profile.licenseExpiry")}
+          >
             <span className="tabular-nums">
               {formatDate(driver.licenseExpiry)}
             </span>
@@ -104,7 +109,9 @@ function ProfileCard({ driver }: { driver: Driver }) {
                     : "text-amber-600 dark:text-amber-400"
                 )}
               >
-                {expired ? `Expired ${-days}d ago` : `in ${days}d`}
+                {expired
+                  ? t("drivers.license.expiredAgo", { count: -days })
+                  : t("drivers.license.inDays", { count: days })}
               </span>
             )}
           </InfoRow>
@@ -113,17 +120,23 @@ function ProfileCard({ driver }: { driver: Driver }) {
         <Separator />
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <InfoRow icon={Truck} label="Entity">
+          <InfoRow icon={Truck} label={t("drivers.detail.profile.entity")}>
             <EntityBadge name={entityName} />
           </InfoRow>
-          <InfoRow icon={CalendarDays} label="Hire date">
+          <InfoRow
+            icon={CalendarDays}
+            label={t("drivers.detail.profile.hireDate")}
+          >
             <span className="tabular-nums">{formatDate(driver.hireDate)}</span>
           </InfoRow>
         </div>
 
         <Separator />
 
-        <InfoRow icon={ShieldAlert} label="Emergency contact">
+        <InfoRow
+          icon={ShieldAlert}
+          label={t("drivers.detail.profile.emergencyContact")}
+        >
           {driver.emergencyContactName ? (
             <span>
               {driver.emergencyContactName}
@@ -135,7 +148,7 @@ function ProfileCard({ driver }: { driver: Driver }) {
             </span>
           ) : (
             <span className="font-normal text-muted-foreground">
-              Not provided
+              {t("drivers.detail.profile.notProvided")}
             </span>
           )}
         </InfoRow>
@@ -154,6 +167,7 @@ function DetailSkeleton() {
 }
 
 export function DriverDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const driverQuery = useDriver(id)
@@ -169,13 +183,13 @@ export function DriverDetailPage() {
     if (!driver) return
     deleteDriver.mutate(driver.id, {
       onSuccess: () => {
-        toast.success(`Removed ${fullName(driver)}.`)
+        toast.success(t("drivers.toast.removed", { name: fullName(driver) }))
         setDeleteOpen(false)
         navigate("/drivers")
       },
       onError: (err: unknown) =>
         toast.error(
-          err instanceof Error ? err.message : "Could not delete driver."
+          err instanceof Error ? err.message : t("drivers.toast.deleteError")
         ),
     })
   }
@@ -183,7 +197,7 @@ export function DriverDetailPage() {
   if (driverQuery.isLoading) {
     return (
       <div>
-        <PageHeader title="Driver" />
+        <PageHeader title={t("drivers.detail.driver")} />
         <DetailSkeleton />
       </div>
     )
@@ -193,13 +207,13 @@ export function DriverDetailPage() {
     return (
       <div>
         <PageHeader
-          title="Driver not found"
-          description="This driver may have been removed."
+          title={t("drivers.detail.notFoundTitle")}
+          description={t("drivers.detail.notFoundDescription")}
           actions={
             <Button variant="outline" asChild>
               <Link to="/drivers">
                 <ArrowLeft className="size-4" />
-                Back to drivers
+                {t("drivers.detail.backToDrivers")}
               </Link>
             </Button>
           }
@@ -212,20 +226,23 @@ export function DriverDetailPage() {
     <div>
       <PageHeader
         title={fullName(driver)}
-        description={`${driver.licenseNo} · Category ${driver.licenseCategory}`}
+        description={t("drivers.detail.subtitle", {
+          license: driver.licenseNo,
+          category: driver.licenseCategory,
+        })}
         actions={
           <>
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <UserPen className="size-4" />
-              Edit
+              {t("common.edit")}
             </Button>
             <Button variant="outline" onClick={() => setAssignOpen(true)}>
               <Truck className="size-4" />
-              Assign vehicle
+              {t("drivers.detail.assignVehicle")}
             </Button>
             <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
               <Trash2 className="size-4" />
-              Delete
+              {t("common.delete")}
             </Button>
           </>
         }
@@ -249,9 +266,11 @@ export function DriverDetailPage() {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete driver"
-        description={`Remove ${fullName(driver)} from the registry? Any assigned vehicle will be unlinked. This cannot be undone.`}
-        confirmLabel="Delete driver"
+        title={t("drivers.detail.deleteTitle")}
+        description={t("drivers.detail.deleteDescription", {
+          name: fullName(driver),
+        })}
+        confirmLabel={t("drivers.detail.deleteConfirm")}
         destructive
         onConfirm={handleDelete}
         isPending={deleteDriver.isPending}

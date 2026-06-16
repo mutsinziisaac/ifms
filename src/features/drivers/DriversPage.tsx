@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import {
   AlertTriangle,
@@ -21,7 +22,6 @@ import { useDrivers, useEntities, useVehicles } from "@/data/hooks"
 import type { Driver, DriverStatus } from "@/data/types"
 import { DRIVER_STATUSES } from "@/data/types"
 import { daysUntil, formatDate, fullName, initials } from "@/lib/format"
-import { DRIVER_STATUS_CONFIG } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 import { DriverFormDialog } from "./components/DriverFormDialog"
@@ -31,6 +31,7 @@ const EXPIRY_SOON_DAYS = 60
 type AssignmentFilter = "all" | "with" | "without"
 
 export function DriversPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const driversQuery = useDrivers()
   const entities = useEntities().data ?? []
@@ -102,7 +103,7 @@ export function DriversPage() {
   const columns: DataTableColumn<Driver>[] = [
     {
       key: "name",
-      header: "Name",
+      header: t("drivers.table.name"),
       render: (driver) => (
         <div className="flex items-center gap-3">
           <Avatar size="sm">
@@ -121,14 +122,14 @@ export function DriversPage() {
     },
     {
       key: "entity",
-      header: "Entity",
+      header: t("drivers.table.entity"),
       render: (driver) => (
         <EntityBadge name={entityNameById.get(driver.entityId) ?? "—"} />
       ),
     },
     {
       key: "license",
-      header: "License",
+      header: t("drivers.table.license"),
       render: (driver) => {
         const days = daysUntil(driver.licenseExpiry)
         const expired = days < 0
@@ -151,7 +152,9 @@ export function DriversPage() {
                     : "text-amber-600 dark:text-amber-400"
                 )}
               >
-                {expired ? `Expired ${-days}d ago` : `Expires in ${days}d`}
+                {expired
+                  ? t("drivers.license.expiredAgo", { count: -days })
+                  : t("drivers.license.expiresIn", { count: days })}
               </p>
             )}
           </div>
@@ -160,26 +163,28 @@ export function DriversPage() {
     },
     {
       key: "phone",
-      header: "Phone",
+      header: t("drivers.table.phone"),
       render: (driver) => (
         <span className="text-sm tabular-nums">{driver.phone || "—"}</span>
       ),
     },
     {
       key: "vehicle",
-      header: "Assigned vehicle",
+      header: t("drivers.table.assignedVehicle"),
       render: (driver) =>
         driver.assignedVehicleId ? (
           <span className="text-sm font-medium tabular-nums">
             {plateByVehicleId.get(driver.assignedVehicleId) ?? "—"}
           </span>
         ) : (
-          <span className="text-sm text-muted-foreground">Unassigned</span>
+          <span className="text-sm text-muted-foreground">
+            {t("common.unassigned")}
+          </span>
         ),
     },
     {
       key: "status",
-      header: "Status",
+      header: t("drivers.table.status"),
       render: (driver) => <DriverStatusBadge status={driver.status} />,
     },
   ]
@@ -187,37 +192,45 @@ export function DriversPage() {
   return (
     <div>
       <PageHeader
-        title="Drivers"
-        description="Driver profiles, vehicle assignments and safety records."
+        title={t("drivers.title")}
+        description={t("drivers.description")}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            Add driver
+            {t("drivers.addDriver")}
           </Button>
         }
       />
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Total drivers" value={stats.total} icon={IdCard} />
         <StatCard
-          label="Active"
+          label={t("drivers.stats.total")}
+          value={stats.total}
+          icon={IdCard}
+        />
+        <StatCard
+          label={t("drivers.stats.active")}
           value={stats.active}
           icon={UserCheck}
           intent="success"
         />
-        <StatCard label="Assigned" value={stats.assigned} icon={Truck} />
         <StatCard
-          label="Unassigned"
+          label={t("drivers.stats.assigned")}
+          value={stats.assigned}
+          icon={Truck}
+        />
+        <StatCard
+          label={t("drivers.stats.unassigned")}
           value={stats.unassigned}
           icon={UserMinus}
           intent="warning"
         />
         <StatCard
-          label="Licenses expiring"
+          label={t("drivers.stats.expiring")}
           value={stats.expiringSoon}
           icon={AlertTriangle}
           intent="danger"
-          hint="within 60 days"
+          hint={t("drivers.stats.expiringHint", { count: EXPIRY_SOON_DAYS })}
         />
       </div>
 
@@ -228,31 +241,34 @@ export function DriversPage() {
         onRowClick={(driver) => navigate(`/drivers/${driver.id}`)}
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search name, license, phone…"
+        searchPlaceholder={t("drivers.table.searchPlaceholder")}
         filters={[
           {
             key: "assignment",
-            label: "Assignment",
+            label: t("drivers.filters.assignment"),
             value: assignment,
             onChange: (v) => setAssignment(v as AssignmentFilter),
             options: [
-              { value: "with", label: "With assignment" },
-              { value: "without", label: "Without assignment" },
+              { value: "with", label: t("drivers.filters.withAssignment") },
+              {
+                value: "without",
+                label: t("drivers.filters.withoutAssignment"),
+              },
             ],
           },
           {
             key: "status",
-            label: "Status",
+            label: t("drivers.filters.status"),
             value: statusFilter,
             onChange: (v) => setStatusFilter(v as DriverStatus | "all"),
             options: DRIVER_STATUSES.map((status) => ({
               value: status,
-              label: DRIVER_STATUS_CONFIG[status].label,
+              label: t(`enums.driverStatus.${status}`),
             })),
           },
           {
             key: "entity",
-            label: "Entity",
+            label: t("drivers.filters.entity"),
             value: entityFilter,
             onChange: setEntityFilter,
             options: entities.map((entity) => ({
@@ -261,8 +277,8 @@ export function DriversPage() {
             })),
           },
         ]}
-        emptyTitle="No drivers found"
-        emptyDescription="Adjust your filters or add a new driver to get started."
+        emptyTitle={t("drivers.table.emptyTitle")}
+        emptyDescription={t("drivers.table.emptyDescription")}
       />
 
       <DriverFormDialog open={createOpen} onOpenChange={setCreateOpen} />

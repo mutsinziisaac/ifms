@@ -1,23 +1,20 @@
 import type { Entity, FleetEvent } from "@/data/types"
+import i18n from "@/i18n"
 import { downloadTextFile, toCsv } from "@/lib/csv"
 import { formatDateTime } from "@/lib/format"
-import {
-  EVENT_SEVERITY_CONFIG,
-  EVENT_STATUS_CONFIG,
-  EVENT_TYPE_LABEL,
-} from "@/lib/status"
 
 /** Demo-grade event report: the filtered set with full workflow columns. */
 export function exportEventsCsv(
   events: FleetEvent[],
   entities: Entity[]
 ): void {
+  const { t } = i18n
   const entityName = new Map(entities.map((e) => [e.id, e.name]))
   const rows = events.map((e) => [
     formatDateTime(e.at),
-    EVENT_SEVERITY_CONFIG[e.severity].label,
-    EVENT_TYPE_LABEL[e.type],
-    EVENT_STATUS_CONFIG[e.status].label,
+    t(`enums.eventSeverity.${e.severity}`),
+    t(`enums.eventType.${e.type}`),
+    t(`enums.eventStatus.${e.status}`),
     e.message,
     e.vehiclePlate,
     entityName.get(e.entityId) ?? "",
@@ -32,21 +29,21 @@ export function exportEventsCsv(
   ])
   const csv = toCsv(
     [
-      "At",
-      "Severity",
-      "Event",
-      "Status",
-      "Message",
-      "Vehicle",
-      "Provider",
-      "Geozone",
-      "Acknowledged by",
-      "Acknowledged at",
-      "Escalated to",
-      "Escalated at",
-      "Closed by",
-      "Closed at",
-      "Resolution note",
+      t("events.export.at"),
+      t("events.export.severity"),
+      t("events.export.event"),
+      t("events.export.status"),
+      t("events.export.message"),
+      t("events.export.vehicle"),
+      t("events.export.provider"),
+      t("events.export.geozone"),
+      t("events.export.acknowledgedBy"),
+      t("events.export.acknowledgedAt"),
+      t("events.export.escalatedTo"),
+      t("events.export.escalatedAt"),
+      t("events.export.closedBy"),
+      t("events.export.closedAt"),
+      t("events.export.resolutionNote"),
     ],
     rows
   )

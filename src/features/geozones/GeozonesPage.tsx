@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { Hexagon, MapPin, Plus, Upload, X } from "lucide-react"
 
 import { EmptyState } from "@/components/common/EmptyState"
@@ -48,6 +49,7 @@ function pointsForZone(zone: Geozone) {
 }
 
 export function GeozonesPage() {
+  const { t } = useTranslation()
   const geozones = useGeozones().data ?? []
   const groups = useGeozoneGroups().data ?? []
   const liveVehicles = useLiveVehicles()
@@ -158,8 +160,8 @@ export function GeozonesPage() {
   return (
     <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col">
       <PageHeader
-        title="Geozones"
-        description="Geofenced corridor points of interest and zone event rules."
+        title={t("geozones.title")}
+        description={t("geozones.description")}
         actions={
           <>
             <Button
@@ -168,7 +170,7 @@ export function GeozonesPage() {
               onClick={() => setImportOpen(true)}
             >
               <Upload className="size-4" />
-              Import CSV
+              {t("geozones.toolbar.importCsv")}
             </Button>
             <Button
               type="button"
@@ -178,28 +180,28 @@ export function GeozonesPage() {
               }}
             >
               <Plus className="size-4" />
-              New group
+              {t("geozones.toolbar.newGroup")}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button type="button">
                   <Plus className="size-4" />
-                  Add geozone
+                  {t("geozones.toolbar.addGeozone")}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem onSelect={openCreateManual}>
                   <MapPin className="size-4" />
-                  Manual (circle)
+                  {t("geozones.toolbar.manualCircle")}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => startDraw("circle")}>
                   <MapPin className="size-4" />
-                  Draw circle on map
+                  {t("geozones.toolbar.drawCircle")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => startDraw("polygon")}>
                   <Hexagon className="size-4" />
-                  Draw polygon on map
+                  {t("geozones.toolbar.drawPolygon")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -212,7 +214,9 @@ export function GeozonesPage() {
         <div className="flex w-[380px] shrink-0 flex-col rounded-2xl border bg-card">
           <div className="flex items-center gap-2 border-b p-4">
             <MapPin className="size-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Geozones</span>
+            <span className="text-sm font-medium">
+              {t("geozones.list.panelTitle")}
+            </span>
           </div>
           <ScrollArea className="min-h-0 flex-1">
             <div className="space-y-4 p-3">
@@ -233,15 +237,17 @@ export function GeozonesPage() {
                         <p className="truncate text-sm font-semibold">
                           {selectedZone.name}
                         </p>
-                        <p className="text-xs text-muted-foreground capitalize">
-                          {selectedZone.shape} geozone
+                        <p className="text-xs text-muted-foreground">
+                          {t("geozones.list.shapeGeozone", {
+                            shape: t(`geozones.shapes.${selectedZone.shape}`),
+                          })}
                         </p>
                       </div>
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon-sm"
-                        aria-label="Clear selection"
+                        aria-label={t("geozones.toolbar.clearSelection")}
                         onClick={() => setSelectedId(null)}
                       >
                         <X className="size-4" />
@@ -291,7 +297,7 @@ export function GeozonesPage() {
               htmlFor="show-vehicles"
               className="cursor-pointer text-xs font-medium"
             >
-              Live vehicles
+              {t("geozones.toolbar.liveVehicles")}
             </label>
           </div>
 
@@ -299,7 +305,9 @@ export function GeozonesPage() {
           {drawMode ? (
             <div className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-primary/40 bg-background/95 px-3 py-1.5 shadow-md backdrop-blur">
               <span className="text-xs font-medium">
-                Draw a {drawMode} on the map
+                {t("geozones.map.drawHint", {
+                  shape: t(`geozones.shapes.${drawMode}`),
+                })}
               </span>
               <Button
                 type="button"
@@ -308,7 +316,7 @@ export function GeozonesPage() {
                 onClick={() => setDrawMode(null)}
               >
                 <X className="size-3.5" />
-                Cancel
+                {t("common.cancel")}
               </Button>
             </div>
           ) : null}
@@ -319,12 +327,12 @@ export function GeozonesPage() {
               <div className="pointer-events-auto rounded-2xl border bg-background/95 p-2 shadow-lg backdrop-blur">
                 <EmptyState
                   icon={MapPin}
-                  title="No geozones yet"
-                  description="Draw on the map, add one manually, or import from CSV."
+                  title={t("geozones.map.emptyTitle")}
+                  description={t("geozones.map.emptyDescription")}
                   action={
                     <Button type="button" onClick={openCreateManual}>
                       <Plus className="size-4" />
-                      Add geozone
+                      {t("geozones.toolbar.addGeozone")}
                     </Button>
                   }
                 />

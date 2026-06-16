@@ -1,8 +1,9 @@
 import { Bell, BellOff } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
 import { formatRelativeTime } from "@/lib/format"
-import { EVENT_SEVERITY_CONFIG, EVENT_TYPE_LABEL } from "@/lib/status"
+import { EVENT_SEVERITY_CONFIG } from "@/lib/status"
 import { useEvents, useMarkAllEventsRead } from "@/data/hooks"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,6 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function NotificationsBell() {
+  const { t } = useTranslation()
   const events = useEvents().data ?? []
   const markAllRead = useMarkAllEventsRead()
 
@@ -29,18 +31,20 @@ export function NotificationsBell() {
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
-          <span className="sr-only">Notifications</span>
+          <span className="sr-only">{t("topbar.notifications.aria")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-96 p-0">
         <div className="flex items-center justify-between border-b p-3">
-          <span className="text-sm font-medium">Notifications</span>
+          <span className="text-sm font-medium">
+            {t("topbar.notifications.title")}
+          </span>
           <Button
             variant="ghost"
             size="xs"
             onClick={() => markAllRead.mutate()}
           >
-            Mark all read
+            {t("common.markAllRead")}
           </Button>
         </div>
         <ScrollArea className="h-80">
@@ -48,7 +52,7 @@ export function NotificationsBell() {
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
               <BellOff className="size-6 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">
-                No notifications yet
+                {t("topbar.notifications.empty")}
               </p>
             </div>
           ) : (
@@ -77,7 +81,7 @@ export function NotificationsBell() {
                   </span>
                 </div>
                 <p className="pl-4 text-xs text-muted-foreground">
-                  {EVENT_TYPE_LABEL[event.type]} ·{" "}
+                  {t(`enums.eventType.${event.type}`)} ·{" "}
                   {formatRelativeTime(event.at)}
                 </p>
               </div>
