@@ -15,7 +15,11 @@ import {
   ESCALATION_TARGETS,
   ETHIOPIA_REGIONS,
   GPS_PROVIDERS,
+  INCIDENT_ROOT_CAUSES,
+  PERMISSION_ACTIONS,
+  PERMISSION_MODULES,
   VEHICLE_TYPES,
+  type AccidentRecord,
   type DB,
   type Entity,
   type EntityCategory,
@@ -23,8 +27,18 @@ import {
   type EventSeverity,
   type EventStatus,
   type EventType,
+  type Fine,
+  type FineStatus,
   type FleetEvent,
+  type IncidentSeverity,
+  type Permission,
+  type PermissionAction,
+  type PermissionModule,
   type ProviderTelemetry,
+  type Role,
+  type RoleType,
+  type WebUser,
+  type WebUserStatus,
   type ZoneRuleType,
   type Driver,
   type DriverStatus,
@@ -1595,6 +1609,327 @@ function buildMaintenance(
 }
 
 // ---------------------------------------------------------------------------
+// Accident / incident records (SRS Safety & Incident Dashboard)
+// ---------------------------------------------------------------------------
+
+function buildAccidents(
+  rng: Rng,
+  vehicles: Vehicle[],
+  drivers: Driver[],
+  now: number
+): AccidentRecord[] {
+  const driverById = new Map(drivers.map((d) => [d.id, d]))
+  const records: AccidentRecord[] = []
+  const count = 16
+
+  for (let i = 0; i < count; i++) {
+    const v = rng.pick(vehicles)
+    const driver = v.driverId ? (driverById.get(v.driverId) ?? null) : null
+    const roll = rng.next()
+    const severity: IncidentSeverity =
+      roll < 0.55 ? "minor" : roll < 0.85 ? "medium" : "major"
+    const place = rng.pick(PLACES)
+    const location = rng.jitter(place.position, 0.03)
+
+    let repairCostEtb: number
+    let insuranceClaimEtb: number
+    let casualties: number
+    if (severity === "minor") {
+      repairCostEtb = rng.int(8000, 40000)
+      insuranceClaimEtb = rng.bool(0.5) ? rng.int(2000, 20000) : 0
+      casualties = 0
+    } else if (severity === "medium") {
+      repairCostEtb = rng.int(40000, 150000)
+      insuranceClaimEtb = rng.int(20000, 90000)
+      casualties = rng.int(0, 2)
+    } else {
+      repairCostEtb = rng.int(150000, 600000)
+      insuranceClaimEtb = rng.int(80000, 320000)
+      casualties = rng.int(0, 5)
+    }
+
+    records.push({
+      id: `acc-${pad(i + 1, 3)}`,
+      vehicleId: v.id,
+      vehiclePlate: v.plate,
+      driverId: driver?.id ?? null,
+      driverName: driver ? `${driver.firstName} ${driver.lastName}` : null,
+      entityId: v.entityId,
+      severity,
+      rootCause: rng.pick(INCIDENT_ROOT_CAUSES),
+      location,
+      address: nearestPlaceName(location),
+      occurredAt: ago(rng.float(2 * DAY, 360 * DAY), now),
+      casualties,
+      policeReportNo: `FP-${pad(rng.int(10000, 99999), 5)}`,
+      repairCostEtb,
+      insuranceClaimEtb,
+      notes: "",
+      createdAt: ago(rng.float(1 * DAY, 360 * DAY), now),
+    })
+  }
+
+  records.sort((a, b) => +new Date(b.occurredAt) - +new Date(a.occurredAt))
+  records.forEach((r, i) => {
+    r.id = `acc-${pad(i + 1, 3)}`
+  })
+  return records
+}
+
+// ---------------------------------------------------------------------------
+// Fines (SRS Compliance & Fines Dashboard) — a subset link back to seeded
+// speeding events so the events → fines relationship is visible.
+// ---------------------------------------------------------------------------
+
+function buildFines(
+  rng: Rng,
+  vehicles: Vehicle[],
+  drivers: Driver[],
+  events: FleetEvent[],
+  now: number
+): Fine[] {
+  const driverById = new Map(drivers.map((d) => [d.id, d]))
+  const vehicleById = new Map(vehicles.map((v) => [v.id, v]))
+  const fines: Fine[] = []
+
+  const pickStatus = (): FineStatus => {
+    const r = rng.next()
+    return r < 0.5 ? "paid" : r < 0.85 ? "pending" : "disputed"
+  }
+  const driverOf = (
+    v: Vehicle | undefined
+  ): { id: string | null; name: string | null } => {
+    const d = v?.driverId ? (driverById.get(v.driverId) ?? null) : null
+    return { id: d?.id ?? null, name: d ? `${d.firstName} ${d.lastName}` : null }
+  }
+
+  // Speeding fines linked to seeded speeding events.
+  for (const e of events) {
+    if (e.type !== "speeding") continue
+    if (!rng.bool(0.7)) continue
+    const v = vehicleById.get(e.vehicleId)
+    const dn = driverOf(v)
+    const issuedMs = Math.min(
+      now - MIN,
+      new Date(e.at).getTime() + rng.float(5 * MIN, 2 * HOUR)
+    )
+    fines.push({
+      id: "fine-tmp",
+      vehicleId: e.vehicleId,
+      vehiclePlate: e.vehiclePlate,
+      driverId: dn.id,
+      driverName: dn.name,
+      entityId: e.entityId,
+      violationType: "speeding",
+      amountEtb: rng.int(1000, 5000),
+      issuedAt: new Date(issuedMs).toISOString(),
+      location: e.location,
+      address: e.geozoneName ?? nearestPlaceName(e.location),
+      status: pickStatus(),
+      eventId: e.id,
+      ticketNo: "",
+      notes: "",
+      createdAt: new Date(issuedMs).toISOString(),
+    })
+  }
+
+  // Standalone parking / overloading fines.
+  for (let i = 0; i < 18; i++) {
+    const v = rng.pick(vehicles)
+    const dn = driverOf(v)
+    const violationType = rng.bool(0.5) ? "parking" : "overloading"
+    const amountEtb =
+      violationType === "parking" ? rng.int(300, 1500) : rng.int(5000, 25000)
+    const place = rng.pick(PLACES)
+    const location = rng.jitter(place.position, 0.02)
+    const issuedAt = ago(rng.float(1 * DAY, 270 * DAY), now)
+    fines.push({
+      id: "fine-tmp",
+      vehicleId: v.id,
+      vehiclePlate: v.plate,
+      driverId: dn.id,
+      driverName: dn.name,
+      entityId: v.entityId,
+      violationType,
+      amountEtb,
+      issuedAt,
+      location,
+      address: nearestPlaceName(location),
+      status: pickStatus(),
+      eventId: null,
+      ticketNo: "",
+      notes: "",
+      createdAt: issuedAt,
+    })
+  }
+
+  // Newest first, then assign sequential ticket numbers + ids.
+  fines.sort((a, b) => +new Date(b.issuedAt) - +new Date(a.issuedAt))
+  fines.forEach((f, i) => {
+    f.id = `fine-${pad(i + 1, 3)}`
+    f.ticketNo = `TR-${pad(i + 1, 5)}`
+  })
+  return fines
+}
+
+// ---------------------------------------------------------------------------
+// Access control (RBAC) — roles & web users (SRS Admin Panel)
+// ---------------------------------------------------------------------------
+
+function permsFor(
+  modules: readonly PermissionModule[],
+  actions: readonly PermissionAction[]
+): Permission[] {
+  const out: Permission[] = []
+  for (const m of modules) for (const a of actions) out.push(`${m}:${a}`)
+  return out
+}
+
+function buildRoles(rng: Rng, now: number): Role[] {
+  const ALL = permsFor(PERMISSION_MODULES, PERMISSION_ACTIONS)
+  const OPS = PERMISSION_MODULES.filter((m) => m !== "admin")
+  const role = (
+    i: number,
+    name: string,
+    type: RoleType,
+    description: string,
+    permissions: Permission[],
+    systemFixed = false
+  ): Role => ({
+    id: `role-${pad(i, 2)}`,
+    name,
+    type,
+    description,
+    permissions,
+    systemFixed,
+    createdAt: ago(rng.float(120 * DAY, 360 * DAY), now),
+  })
+
+  return [
+    role(
+      1,
+      "System Administrator",
+      "admin",
+      "Full platform access including user and role administration.",
+      ALL,
+      true
+    ),
+    role(
+      2,
+      "Fleet Administrator",
+      "admin",
+      "Manages every fleet operations module; no user administration.",
+      [...permsFor(OPS, PERMISSION_ACTIONS), "admin:view"]
+    ),
+    role(
+      3,
+      "Fleet Operations Officer",
+      "fms",
+      "Day-to-day monitoring — view, create and edit operational records.",
+      [
+        ...permsFor(
+          ["fleet", "drivers", "events", "geozones", "routes", "maintenance", "providers"],
+          ["view", "create", "edit"]
+        ),
+        ...permsFor(["reports", "incidents", "fines"], ["view"]),
+      ]
+    ),
+    role(
+      4,
+      "Compliance Officer",
+      "fms",
+      "Owns the events, incidents, fines and reporting workflows.",
+      [
+        ...permsFor(OPS, ["view"]),
+        ...permsFor(["events", "incidents", "fines", "reports"], [
+          "create",
+          "edit",
+          "manage",
+        ]),
+      ]
+    ),
+    role(
+      5,
+      "Read-only Viewer",
+      "fms",
+      "Read-only visibility across all operational modules.",
+      permsFor(OPS, ["view"])
+    ),
+  ]
+}
+
+interface StaffName {
+  first: string
+  last: string
+}
+
+const STAFF_NAMES: StaffName[] = [
+  { first: "Tewodros", last: "Gizaw" },
+  { first: "Marta", last: "Wolde" },
+  { first: "Daniel", last: "Tefera" },
+  { first: "Lensa", last: "Dinka" },
+  { first: "Yohannes", last: "Bekele" },
+  { first: "Saron", last: "Habte" },
+  { first: "Abel", last: "Mamo" },
+  { first: "Kalkidan", last: "Belay" },
+  { first: "Nardos", last: "Getnet" },
+  { first: "Surafel", last: "Admasu" },
+  { first: "Hewan", last: "Solomon" },
+  { first: "Yared", last: "Tilahun" },
+]
+
+function buildWebUsers(
+  rng: Rng,
+  entities: Entity[],
+  now: number
+): WebUser[] {
+  // Distribution across the five seeded roles.
+  const rolePlan = [
+    "role-01",
+    "role-02",
+    "role-02",
+    "role-03",
+    "role-03",
+    "role-03",
+    "role-03",
+    "role-04",
+    "role-04",
+    "role-05",
+    "role-05",
+    "role-05",
+  ]
+
+  return rolePlan.map((roleId, i) => {
+    const nm = STAFF_NAMES[i % STAFF_NAMES.length]!
+    const entity = rng.pick(entities)
+    const domain = entity.email.split("@")[1] ?? "motl.gov.et"
+    const status: WebUserStatus =
+      i === 0 || rng.next() < 0.78
+        ? "active"
+        : rng.bool(0.5)
+          ? "inactive"
+          : "locked"
+    const lastLoginAt =
+      status === "active"
+        ? ago(rng.float(5 * MIN, 6 * DAY), now)
+        : status === "inactive"
+          ? ago(rng.float(30 * DAY, 200 * DAY), now)
+          : null
+    return {
+      id: `usr-${pad(i + 1, 2)}`,
+      name: `${nm.first} ${nm.last}`,
+      email: `${nm.first.toLowerCase()}.${nm.last.toLowerCase()}@${domain}`,
+      roleId,
+      status,
+      phone: `+2519${pad(rng.int(0, 99999999), 8)}`,
+      entityId: roleId === "role-01" ? null : entity.id,
+      lastLoginAt,
+      createdAt: ago(rng.float(60 * DAY, 360 * DAY), now),
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Assemble the DB
 // ---------------------------------------------------------------------------
 
@@ -1615,6 +1950,10 @@ export function createSeedDB(): DB {
   const providerTelemetry = buildProviderTelemetry(rng, entities, vehicles)
   const { tasks: maintenanceTasks, records: maintenanceServiceRecords } =
     buildMaintenance(rng, vehicles, now)
+  const accidents = buildAccidents(rng, vehicles, drivers, now)
+  const fines = buildFines(rng, vehicles, drivers, events, now)
+  const roles = buildRoles(rng, now)
+  const webUsers = buildWebUsers(rng, entities, now)
 
   return {
     entities,
@@ -1630,5 +1969,9 @@ export function createSeedDB(): DB {
     assignments,
     maintenanceTasks,
     maintenanceServiceRecords,
+    accidents,
+    fines,
+    roles,
+    webUsers,
   }
 }

@@ -6,15 +6,21 @@ import {
   DRIVER_STATUS_CONFIG,
   EVENT_SEVERITY_CONFIG,
   EVENT_STATUS_CONFIG,
+  FINE_STATUS_CONFIG,
+  INCIDENT_SEVERITY_CONFIG,
   MAINTENANCE_STATUS_CONFIG,
   VEHICLE_STATUS_CONFIG,
+  WEB_USER_STATUS_CONFIG,
 } from "@/lib/status"
 import type {
   DriverStatus,
   EventSeverity,
   EventStatus,
+  FineStatus,
+  IncidentSeverity,
   MaintenanceStatus,
   VehicleStatus,
+  WebUserStatus,
 } from "@/data/types"
 
 export function VehicleStatusBadge({ status }: { status: VehicleStatus }) {
@@ -70,6 +76,43 @@ export function EventStatusBadge({ status }: { status: EventStatus }) {
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
       <span className={cn("size-1.5 rounded-full", config.dotClass)} />
       {t(`enums.eventStatus.${status}`)}
+    </Badge>
+  )
+}
+
+export function IncidentSeverityBadge({
+  severity,
+}: {
+  severity: IncidentSeverity
+}) {
+  const { t } = useTranslation()
+  const config = INCIDENT_SEVERITY_CONFIG[severity]
+  return (
+    <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
+      <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+      {t(`enums.incidentSeverity.${severity}`)}
+    </Badge>
+  )
+}
+
+export function FineStatusBadge({ status }: { status: FineStatus }) {
+  const { t } = useTranslation()
+  const config = FINE_STATUS_CONFIG[status]
+  return (
+    <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
+      <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+      {t(`enums.fineStatus.${status}`)}
+    </Badge>
+  )
+}
+
+export function WebUserStatusBadge({ status }: { status: WebUserStatus }) {
+  const { t } = useTranslation()
+  const config = WEB_USER_STATUS_CONFIG[status]
+  return (
+    <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
+      <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+      {t(`enums.webUserStatus.${status}`)}
     </Badge>
   )
 }

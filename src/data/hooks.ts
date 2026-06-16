@@ -7,13 +7,17 @@ import { useSyncExternalStore } from "react"
 
 import * as api from "./api"
 import type {
+  AccidentInput,
   DriverInput,
   EventRuleInput,
+  FineInput,
   GeozoneInput,
   LogMaintenanceServiceInput,
   MaintenanceTaskInput,
+  RoleInput,
   RouteInput,
   VehicleInput,
+  WebUserInput,
 } from "./api"
 import { qk } from "./query-keys"
 import { getDB, getVersion, subscribe } from "./store"
@@ -437,6 +441,141 @@ export function useLogMaintenanceService() {
       qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
       qc.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
     },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Accidents / incidents
+// ---------------------------------------------------------------------------
+
+export function useAccidents() {
+  return useQuery({ queryKey: qk.accidents, queryFn: api.listAccidents })
+}
+
+export function useCreateAccident() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: AccidentInput) => api.createAccident(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.accidents }),
+  })
+}
+
+export function useUpdateAccident() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; patch: Partial<AccidentInput> }) =>
+      api.updateAccident(vars.id, vars.patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.accidents }),
+  })
+}
+
+export function useDeleteAccident() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteAccident(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.accidents }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Fines
+// ---------------------------------------------------------------------------
+
+export function useFines() {
+  return useQuery({ queryKey: qk.fines, queryFn: api.listFines })
+}
+
+export function useCreateFine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: FineInput) => api.createFine(input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.fines }),
+  })
+}
+
+export function useUpdateFine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; patch: Partial<FineInput> }) =>
+      api.updateFine(vars.id, vars.patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.fines }),
+  })
+}
+
+export function useDeleteFine() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteFine(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.fines }),
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Roles & web users (RBAC management). Role and user lists reference each
+// other (role names in the user table, user counts in the role table), so
+// every mutation refreshes both.
+// ---------------------------------------------------------------------------
+
+function invalidateRbac(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: qk.roles })
+  qc.invalidateQueries({ queryKey: qk.webUsers })
+}
+
+export function useRoles() {
+  return useQuery({ queryKey: qk.roles, queryFn: api.listRoles })
+}
+
+export function useCreateRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: RoleInput) => api.createRole(input),
+    onSuccess: () => invalidateRbac(qc),
+  })
+}
+
+export function useUpdateRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; patch: Partial<RoleInput> }) =>
+      api.updateRole(vars.id, vars.patch),
+    onSuccess: () => invalidateRbac(qc),
+  })
+}
+
+export function useDeleteRole() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteRole(id),
+    onSuccess: () => invalidateRbac(qc),
+  })
+}
+
+export function useWebUsers() {
+  return useQuery({ queryKey: qk.webUsers, queryFn: api.listWebUsers })
+}
+
+export function useCreateWebUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: WebUserInput) => api.createWebUser(input),
+    onSuccess: () => invalidateRbac(qc),
+  })
+}
+
+export function useUpdateWebUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars: { id: string; patch: Partial<WebUserInput> }) =>
+      api.updateWebUser(vars.id, vars.patch),
+    onSuccess: () => invalidateRbac(qc),
+  })
+}
+
+export function useDeleteWebUser() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => api.deleteWebUser(id),
+    onSuccess: () => invalidateRbac(qc),
   })
 }
 

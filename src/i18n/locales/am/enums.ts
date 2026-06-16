@@ -57,4 +57,34 @@ export default {
     container: "ኮንቴይነር",
     pickup: "ፒክአፕ",
   },
+  incidentSeverity: {
+    minor: "ቀላል",
+    medium: "መካከለኛ",
+    major: "ከባድ",
+  },
+  incidentRootCause: {
+    driver_error: "የአሽከርካሪ ስህተት",
+    weather: "የአየር ሁኔታ",
+    mechanical: "የቴክኒክ ብልሽት",
+    other: "ሌላ",
+  },
+  violationType: {
+    speeding: "ከመጠን በላይ ፍጥነት",
+    parking: "ማቆሚያ ጥሰት", // review: "Parking" violation
+    overloading: "ከመጠን በላይ ጭነት",
+  },
+  fineStatus: {
+    paid: "ተከፍሏል",
+    pending: "በመጠባበቅ ላይ",
+    disputed: "ክርክር ላይ", // review: "Disputed"
+  },
+  webUserStatus: {
+    active: "ንቁ",
+    inactive: "ንቁ ያልሆነ",
+    locked: "ተቆልፏል",
+  },
+  roleType: {
+    admin: "አስተዳዳሪ",
+    fms: "FMS",
+  },
 }

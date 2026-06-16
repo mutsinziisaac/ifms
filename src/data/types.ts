@@ -406,6 +406,142 @@ export interface MaintenanceServiceRecord {
 }
 
 // ---------------------------------------------------------------------------
+// Safety & incidents (accident records — SRS Safety & Incident Dashboard)
+// ---------------------------------------------------------------------------
+
+export const INCIDENT_SEVERITIES = ["minor", "medium", "major"] as const
+export type IncidentSeverity = (typeof INCIDENT_SEVERITIES)[number]
+
+export const INCIDENT_ROOT_CAUSES = [
+  "driver_error",
+  "weather",
+  "mechanical",
+  "other",
+] as const
+export type IncidentRootCause = (typeof INCIDENT_ROOT_CAUSES)[number]
+
+export interface AccidentRecord {
+  id: ID
+  vehicleId: ID
+  /** Denormalized plate so the record survives a since-deleted vehicle */
+  vehiclePlate: string
+  driverId: ID | null
+  driverName: string | null
+  entityId: ID
+  severity: IncidentSeverity
+  rootCause: IncidentRootCause
+  location: LatLng
+  address: string
+  /** ISO timestamp the accident occurred */
+  occurredAt: string
+  casualties: number
+  policeReportNo: string
+  /** Repair cost in Ethiopian Birr (ETB) */
+  repairCostEtb: number
+  /** Insurance claim in ETB */
+  insuranceClaimEtb: number
+  notes: string
+  createdAt: string
+}
+
+// ---------------------------------------------------------------------------
+// Compliance & fines (SRS Compliance & Fines Dashboard)
+// ---------------------------------------------------------------------------
+
+export const VIOLATION_TYPES = ["speeding", "parking", "overloading"] as const
+export type ViolationType = (typeof VIOLATION_TYPES)[number]
+
+export const FINE_STATUSES = ["paid", "pending", "disputed"] as const
+export type FineStatus = (typeof FINE_STATUSES)[number]
+
+export interface Fine {
+  id: ID
+  vehicleId: ID
+  vehiclePlate: string
+  driverId: ID | null
+  driverName: string | null
+  entityId: ID
+  violationType: ViolationType
+  /** Fine amount in Ethiopian Birr (ETB) */
+  amountEtb: number
+  /** ISO timestamp the fine was issued */
+  issuedAt: string
+  location: LatLng
+  address: string
+  status: FineStatus
+  /** Optional link to the speeding FleetEvent that generated this fine */
+  eventId: ID | null
+  ticketNo: string
+  notes: string
+  createdAt: string
+}
+
+// ---------------------------------------------------------------------------
+// Access control (RBAC) — web users & roles. Permissions are a fixed catalog
+// (SRS: predefined, not user-customizable): every module × action pair, stored
+// as the string `${module}:${action}`. These power the Administration
+// management screens; the current demo session keeps full access regardless.
+// ---------------------------------------------------------------------------
+
+export const PERMISSION_MODULES = [
+  "fleet",
+  "drivers",
+  "events",
+  "geozones",
+  "routes",
+  "maintenance",
+  "providers",
+  "reports",
+  "incidents",
+  "fines",
+  "admin",
+] as const
+export type PermissionModule = (typeof PERMISSION_MODULES)[number]
+
+export const PERMISSION_ACTIONS = [
+  "view",
+  "create",
+  "edit",
+  "delete",
+  "manage",
+] as const
+export type PermissionAction = (typeof PERMISSION_ACTIONS)[number]
+
+/** A single permission token, e.g. "fleet:view". */
+export type Permission = `${PermissionModule}:${PermissionAction}`
+
+export const ROLE_TYPES = ["admin", "fms"] as const
+export type RoleType = (typeof ROLE_TYPES)[number]
+
+export interface Role {
+  id: ID
+  name: string
+  type: RoleType
+  description: string
+  permissions: Permission[]
+  /** The single fixed System Admin role — read-only, cannot be edited/deleted */
+  systemFixed: boolean
+  createdAt: string
+}
+
+export const WEB_USER_STATUSES = ["active", "inactive", "locked"] as const
+export type WebUserStatus = (typeof WEB_USER_STATUSES)[number]
+
+export interface WebUser {
+  id: ID
+  name: string
+  email: string
+  roleId: ID
+  status: WebUserStatus
+  phone: string
+  /** Institution the user belongs to (null for ministry-wide accounts) */
+  entityId: ID | null
+  /** ISO timestamp of the last sign-in, or null if never signed in */
+  lastLoginAt: string | null
+  createdAt: string
+}
+
+// ---------------------------------------------------------------------------
 // Session (mock auth)
 // ---------------------------------------------------------------------------
 
@@ -433,4 +569,8 @@ export interface DB {
   assignments: VehicleDriverAssignment[]
   maintenanceTasks: MaintenanceTask[]
   maintenanceServiceRecords: MaintenanceServiceRecord[]
+  accidents: AccidentRecord[]
+  fines: Fine[]
+  roles: Role[]
+  webUsers: WebUser[]
 }

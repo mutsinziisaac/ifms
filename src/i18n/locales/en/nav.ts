@@ -6,7 +6,9 @@ export default {
 
   groups: {
     management: "Management",
+    analytics: "Analytics",
     configuration: "Configuration",
+    administration: "Administration",
   },
 
   items: {
@@ -16,8 +18,13 @@ export default {
     events: "Events",
     providers: "Providers",
     maintenance: "Maintenance",
+    reports: "Reports",
+    incidents: "Incidents",
+    fines: "Fines",
     geofencing: "Geofencing",
     routes: "Routes",
     eventRules: "Event Rules",
+    users: "Users",
+    roles: "Roles",
   },
 }

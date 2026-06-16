@@ -31,6 +31,17 @@ import type {
   VehicleDriverAssignment,
   VehicleType,
   Waypoint,
+  AccidentRecord,
+  Fine,
+  FineStatus,
+  IncidentRootCause,
+  IncidentSeverity,
+  Permission,
+  Role,
+  RoleType,
+  ViolationType,
+  WebUser,
+  WebUserStatus,
 } from "./types"
 import { centroidOf, isInsideGeozone, pathLengthKm } from "@/lib/maps"
 import { computeMaintenanceState } from "@/lib/status"
@@ -1200,4 +1211,357 @@ export async function logMaintenanceService(
     created = record
   })
   return created!
+}
+
+// ---------------------------------------------------------------------------
+// Accident / incident records
+// ---------------------------------------------------------------------------
+
+export interface AccidentInput {
+  vehicleId: ID
+  driverId: ID | null
+  severity: IncidentSeverity
+  rootCause: IncidentRootCause
+  address: string
+  /** ISO timestamp the accident occurred */
+  occurredAt: string
+  casualties: number
+  repairCostEtb: number
+  insuranceClaimEtb: number
+  policeReportNo: string
+  notes: string
+}
+
+/** Denormalize a vehicle + driver into the fields stored on accidents/fines. */
+function denormalizeParties(
+  db: ReturnType<typeof getDB>,
+  vehicleId: ID,
+  driverId: ID | null
+): {
+  vehiclePlate: string
+  entityId: ID
+  location: LatLng
+  driverName: string | null
+} {
+  const vehicle = findVehicle(db, vehicleId)
+  const driver = driverId ? findDriver(db, driverId) : undefined
+  return {
+    vehiclePlate: vehicle?.plate ?? "—",
+    entityId: vehicle?.entityId ?? "",
+    location: vehicle?.position ?? ADDIS,
+    driverName: driver ? `${driver.firstName} ${driver.lastName}` : null,
+  }
+}
+
+export async function listAccidents(): Promise<AccidentRecord[]> {
+  await latency()
+  return [...getDB().accidents]
+}
+
+export async function createAccident(
+  input: AccidentInput
+): Promise<AccidentRecord> {
+  await latency()
+  let created: AccidentRecord | null = null
+  mutate((db) => {
+    const parties = denormalizeParties(db, input.vehicleId, input.driverId)
+    const record: AccidentRecord = {
+      id: nextId("acc"),
+      vehicleId: input.vehicleId,
+      vehiclePlate: parties.vehiclePlate,
+      driverId: input.driverId,
+      driverName: parties.driverName,
+      entityId: parties.entityId,
+      severity: input.severity,
+      rootCause: input.rootCause,
+      location: parties.location,
+      address: input.address,
+      occurredAt: input.occurredAt,
+      casualties: input.casualties,
+      policeReportNo: input.policeReportNo,
+      repairCostEtb: input.repairCostEtb,
+      insuranceClaimEtb: input.insuranceClaimEtb,
+      notes: input.notes,
+      createdAt: nowIso(),
+    }
+    db.accidents.push(record)
+    created = record
+  })
+  return created!
+}
+
+export async function updateAccident(
+  id: ID,
+  patch: Partial<AccidentInput>
+): Promise<AccidentRecord> {
+  await latency()
+  let updated: AccidentRecord | null = null
+  mutate((db) => {
+    const record = db.accidents.find((a) => a.id === id)
+    if (!record) throw new Error(`Accident ${id} not found`)
+
+    if (patch.vehicleId !== undefined || patch.driverId !== undefined) {
+      const vehicleId = patch.vehicleId ?? record.vehicleId
+      const driverId =
+        patch.driverId !== undefined ? patch.driverId : record.driverId
+      const parties = denormalizeParties(db, vehicleId, driverId)
+      record.vehicleId = vehicleId
+      record.driverId = driverId
+      record.vehiclePlate = parties.vehiclePlate
+      record.entityId = parties.entityId
+      record.driverName = parties.driverName
+    }
+    if (patch.severity !== undefined) record.severity = patch.severity
+    if (patch.rootCause !== undefined) record.rootCause = patch.rootCause
+    if (patch.address !== undefined) record.address = patch.address
+    if (patch.occurredAt !== undefined) record.occurredAt = patch.occurredAt
+    if (patch.casualties !== undefined) record.casualties = patch.casualties
+    if (patch.repairCostEtb !== undefined)
+      record.repairCostEtb = patch.repairCostEtb
+    if (patch.insuranceClaimEtb !== undefined)
+      record.insuranceClaimEtb = patch.insuranceClaimEtb
+    if (patch.policeReportNo !== undefined)
+      record.policeReportNo = patch.policeReportNo
+    if (patch.notes !== undefined) record.notes = patch.notes
+
+    updated = record
+  })
+  return updated!
+}
+
+export async function deleteAccident(id: ID): Promise<void> {
+  await latency()
+  mutate((db) => {
+    db.accidents = db.accidents.filter((a) => a.id !== id)
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Fines
+// ---------------------------------------------------------------------------
+
+export interface FineInput {
+  vehicleId: ID
+  driverId: ID | null
+  violationType: ViolationType
+  amountEtb: number
+  /** ISO timestamp the fine was issued */
+  issuedAt: string
+  address: string
+  status: FineStatus
+  eventId: ID | null
+  notes: string
+}
+
+export async function listFines(): Promise<Fine[]> {
+  await latency()
+  return [...getDB().fines]
+}
+
+export async function createFine(input: FineInput): Promise<Fine> {
+  await latency()
+  let created: Fine | null = null
+  mutate((db) => {
+    const parties = denormalizeParties(db, input.vehicleId, input.driverId)
+    const fine: Fine = {
+      id: nextId("fine"),
+      vehicleId: input.vehicleId,
+      vehiclePlate: parties.vehiclePlate,
+      driverId: input.driverId,
+      driverName: parties.driverName,
+      entityId: parties.entityId,
+      violationType: input.violationType,
+      amountEtb: input.amountEtb,
+      issuedAt: input.issuedAt,
+      location: parties.location,
+      address: input.address,
+      status: input.status,
+      eventId: input.eventId,
+      ticketNo: `TR-${Math.round(randomBetween(10000, 99999))}`,
+      notes: input.notes,
+      createdAt: nowIso(),
+    }
+    db.fines.push(fine)
+    created = fine
+  })
+  return created!
+}
+
+export async function updateFine(
+  id: ID,
+  patch: Partial<FineInput>
+): Promise<Fine> {
+  await latency()
+  let updated: Fine | null = null
+  mutate((db) => {
+    const fine = db.fines.find((f) => f.id === id)
+    if (!fine) throw new Error(`Fine ${id} not found`)
+
+    if (patch.vehicleId !== undefined || patch.driverId !== undefined) {
+      const vehicleId = patch.vehicleId ?? fine.vehicleId
+      const driverId =
+        patch.driverId !== undefined ? patch.driverId : fine.driverId
+      const parties = denormalizeParties(db, vehicleId, driverId)
+      fine.vehicleId = vehicleId
+      fine.driverId = driverId
+      fine.vehiclePlate = parties.vehiclePlate
+      fine.entityId = parties.entityId
+      fine.driverName = parties.driverName
+    }
+    if (patch.violationType !== undefined)
+      fine.violationType = patch.violationType
+    if (patch.amountEtb !== undefined) fine.amountEtb = patch.amountEtb
+    if (patch.issuedAt !== undefined) fine.issuedAt = patch.issuedAt
+    if (patch.address !== undefined) fine.address = patch.address
+    if (patch.status !== undefined) fine.status = patch.status
+    if (patch.eventId !== undefined) fine.eventId = patch.eventId
+    if (patch.notes !== undefined) fine.notes = patch.notes
+
+    updated = fine
+  })
+  return updated!
+}
+
+export async function deleteFine(id: ID): Promise<void> {
+  await latency()
+  mutate((db) => {
+    db.fines = db.fines.filter((f) => f.id !== id)
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Roles & web users (RBAC management — CRUD only)
+// ---------------------------------------------------------------------------
+
+export interface RoleInput {
+  name: string
+  type: RoleType
+  description: string
+  permissions: Permission[]
+}
+
+export interface WebUserInput {
+  name: string
+  email: string
+  roleId: ID
+  status: WebUserStatus
+  phone: string
+  entityId: ID | null
+}
+
+export async function listRoles(): Promise<Role[]> {
+  await latency()
+  return [...getDB().roles]
+}
+
+export async function createRole(input: RoleInput): Promise<Role> {
+  await latency()
+  let created: Role | null = null
+  mutate((db) => {
+    const role: Role = {
+      id: nextId("role"),
+      name: input.name,
+      type: input.type,
+      description: input.description,
+      permissions: [...input.permissions],
+      systemFixed: false,
+      createdAt: nowIso(),
+    }
+    db.roles.push(role)
+    created = role
+  })
+  return created!
+}
+
+export async function updateRole(
+  id: ID,
+  patch: Partial<RoleInput>
+): Promise<Role> {
+  await latency()
+  let updated: Role | null = null
+  mutate((db) => {
+    const role = db.roles.find((r) => r.id === id)
+    if (!role) throw new Error(`Role ${id} not found`)
+    if (role.systemFixed) {
+      throw new Error("The System Administrator role cannot be edited")
+    }
+    if (patch.name !== undefined) role.name = patch.name
+    if (patch.type !== undefined) role.type = patch.type
+    if (patch.description !== undefined) role.description = patch.description
+    if (patch.permissions !== undefined)
+      role.permissions = [...patch.permissions]
+    updated = role
+  })
+  return updated!
+}
+
+export async function deleteRole(id: ID): Promise<void> {
+  await latency()
+  mutate((db) => {
+    const role = db.roles.find((r) => r.id === id)
+    if (!role) return
+    if (role.systemFixed) {
+      throw new Error("The System Administrator role cannot be deleted")
+    }
+    const assigned = db.webUsers.filter((u) => u.roleId === id).length
+    if (assigned > 0) {
+      throw new Error(
+        `This role is assigned to ${assigned} user${assigned === 1 ? "" : "s"} — reassign them first`
+      )
+    }
+    db.roles = db.roles.filter((r) => r.id !== id)
+  })
+}
+
+export async function listWebUsers(): Promise<WebUser[]> {
+  await latency()
+  return [...getDB().webUsers]
+}
+
+export async function createWebUser(input: WebUserInput): Promise<WebUser> {
+  await latency()
+  let created: WebUser | null = null
+  mutate((db) => {
+    const user: WebUser = {
+      id: nextId("usr"),
+      name: input.name,
+      email: input.email,
+      roleId: input.roleId,
+      status: input.status,
+      phone: input.phone,
+      entityId: input.entityId,
+      lastLoginAt: null,
+      createdAt: nowIso(),
+    }
+    db.webUsers.push(user)
+    created = user
+  })
+  return created!
+}
+
+export async function updateWebUser(
+  id: ID,
+  patch: Partial<WebUserInput>
+): Promise<WebUser> {
+  await latency()
+  let updated: WebUser | null = null
+  mutate((db) => {
+    const user = db.webUsers.find((u) => u.id === id)
+    if (!user) throw new Error(`User ${id} not found`)
+    if (patch.name !== undefined) user.name = patch.name
+    if (patch.email !== undefined) user.email = patch.email
+    if (patch.roleId !== undefined) user.roleId = patch.roleId
+    if (patch.status !== undefined) user.status = patch.status
+    if (patch.phone !== undefined) user.phone = patch.phone
+    if (patch.entityId !== undefined) user.entityId = patch.entityId
+    updated = user
+  })
+  return updated!
+}
+
+export async function deleteWebUser(id: ID): Promise<void> {
+  await latency()
+  mutate((db) => {
+    db.webUsers = db.webUsers.filter((u) => u.id !== id)
+  })
 }
