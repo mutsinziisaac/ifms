@@ -59,4 +59,34 @@ export default {
     container: "Container",
     pickup: "Pickup",
   },
+  incidentSeverity: {
+    minor: "Minor",
+    medium: "Medium",
+    major: "Major",
+  },
+  incidentRootCause: {
+    driver_error: "Driver error",
+    weather: "Weather",
+    mechanical: "Mechanical failure",
+    other: "Other",
+  },
+  violationType: {
+    speeding: "Speeding",
+    parking: "Parking",
+    overloading: "Overloading",
+  },
+  fineStatus: {
+    paid: "Paid",
+    pending: "Pending",
+    disputed: "Disputed",
+  },
+  webUserStatus: {
+    active: "Active",
+    inactive: "Inactive",
+    locked: "Locked",
+  },
+  roleType: {
+    admin: "Admin",
+    fms: "FMS",
+  },
 }

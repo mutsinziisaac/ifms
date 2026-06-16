@@ -6,7 +6,9 @@ export default {
 
   groups: {
     management: "አስተዳደር",
+    analytics: "ትንታኔ",
     configuration: "ውቅር",
+    administration: "ስርዓት አስተዳደር", // review: "Administration" (system/user admin)
   },
 
   items: {
@@ -16,8 +18,13 @@ export default {
     events: "ክስተቶች",
     providers: "አቅራቢዎች",
     maintenance: "ጥገና",
+    reports: "ሪፖርቶች",
+    incidents: "አደጋዎች", // review: "Incidents"
+    fines: "ቅጣቶች", // review: "Fines"
     geofencing: "ጂኦ-አጥር", // review: "Geofencing"
     routes: "መስመሮች",
     eventRules: "የክስተት ህጎች",
+    users: "ተጠቃሚዎች",
+    roles: "ሚናዎች",
   },
 }

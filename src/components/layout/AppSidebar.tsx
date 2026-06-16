@@ -1,14 +1,19 @@
 import { NavLink, useLocation } from "react-router-dom"
 import {
   ChevronDown,
+  FileText,
   Hexagon,
   IdCard,
   LayoutDashboard,
   RadioTower,
+  ReceiptText,
   Route,
+  Shield,
+  ShieldAlert,
   Siren,
   SlidersHorizontal,
   Truck,
+  Users,
   Wrench,
   type LucideIcon,
 } from "lucide-react"
@@ -66,6 +71,14 @@ const NAV_GROUPS = [
     ],
   },
   {
+    labelKey: "nav.groups.analytics",
+    items: [
+      { titleKey: "nav.items.reports", path: "/reports", icon: FileText },
+      { titleKey: "nav.items.incidents", path: "/incidents", icon: ShieldAlert },
+      { titleKey: "nav.items.fines", path: "/fines", icon: ReceiptText },
+    ],
+  },
+  {
     labelKey: "nav.groups.configuration",
     collapsible: true,
     items: [
@@ -76,6 +89,14 @@ const NAV_GROUPS = [
         path: "/config/events",
         icon: SlidersHorizontal,
       },
+    ],
+  },
+  {
+    labelKey: "nav.groups.administration",
+    collapsible: true,
+    items: [
+      { titleKey: "nav.items.users", path: "/admin/users", icon: Users },
+      { titleKey: "nav.items.roles", path: "/admin/roles", icon: Shield },
     ],
   },
 ] satisfies NavGroup[]

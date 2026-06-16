@@ -12,11 +12,16 @@ import type {
   EventSeverity,
   EventStatus,
   EventType,
+  FineStatus,
+  IncidentRootCause,
+  IncidentSeverity,
   MaintenanceStatus,
   MaintenanceTask,
   MaintenanceVehicleState,
   Vehicle,
   VehicleStatus,
+  ViolationType,
+  WebUserStatus,
 } from "@/data/types"
 
 // ---------------------------------------------------------------------------
@@ -266,4 +271,95 @@ function statusFromPct(remainingPct: number): MaintenanceStatus {
   if (remainingPct > 0.2) return "ok"
   if (remainingPct > 0) return "waiting"
   return "delay"
+}
+
+// ---------------------------------------------------------------------------
+// Safety & incidents / compliance & fines / web users — colors only; labels
+// are translated via t(`enums.<group>.${value}`) per the i18n convention.
+// ---------------------------------------------------------------------------
+
+interface BadgeColorConfig {
+  /** Hex used for chart cells */
+  color: string
+  badgeClass: string
+  dotClass: string
+}
+
+export const INCIDENT_SEVERITY_CONFIG: Record<
+  IncidentSeverity,
+  BadgeColorConfig
+> = {
+  minor: {
+    color: "#0ea5e9",
+    badgeClass:
+      "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30",
+    dotClass: "bg-sky-500",
+  },
+  medium: {
+    color: "#f59e0b",
+    badgeClass:
+      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    dotClass: "bg-amber-500",
+  },
+  major: {
+    color: "#f43f5e",
+    badgeClass:
+      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    dotClass: "bg-rose-500",
+  },
+}
+
+export const INCIDENT_ROOT_CAUSE_COLOR: Record<IncidentRootCause, string> = {
+  driver_error: "#f43f5e",
+  weather: "#0ea5e9",
+  mechanical: "#f59e0b",
+  other: "#64748b",
+}
+
+export const FINE_STATUS_CONFIG: Record<FineStatus, BadgeColorConfig> = {
+  paid: {
+    color: "#10b981",
+    badgeClass:
+      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    dotClass: "bg-emerald-500",
+  },
+  pending: {
+    color: "#f59e0b",
+    badgeClass:
+      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    dotClass: "bg-amber-500",
+  },
+  disputed: {
+    color: "#f43f5e",
+    badgeClass:
+      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    dotClass: "bg-rose-500",
+  },
+}
+
+export const VIOLATION_TYPE_COLOR: Record<ViolationType, string> = {
+  speeding: "#f43f5e",
+  parking: "#0ea5e9",
+  overloading: "#f59e0b",
+}
+
+export const WEB_USER_STATUS_CONFIG: Record<WebUserStatus, BadgeColorConfig> = {
+  active: {
+    color: "#10b981",
+    badgeClass:
+      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    dotClass: "bg-emerald-500",
+  },
+  inactive: {
+    color: "#64748b",
+    badgeClass:
+      "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30",
+    dotClass: "bg-slate-400",
+  },
+  locked: {
+    color: "#f43f5e",
+    badgeClass:
+      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    dotClass: "bg-rose-500",
+  },
 }
