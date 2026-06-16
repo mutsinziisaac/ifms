@@ -1,5 +1,13 @@
 import { useMemo } from "react"
-import { Activity, Fuel, Gauge, MapPin, Route as RouteIcon, Satellite } from "lucide-react"
+import {
+  Activity,
+  Fuel,
+  Gauge,
+  MapPin,
+  Route as RouteIcon,
+  Satellite,
+} from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { VehicleStatusBadge } from "@/components/common/status-badges"
@@ -32,6 +40,7 @@ function InfoRow({
 }
 
 export function VehicleLiveStatusCard({ vehicle }: { vehicle: Vehicle }) {
+  const { t } = useTranslation()
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
 
@@ -49,19 +58,23 @@ export function VehicleLiveStatusCard({ vehicle }: { vehicle: Vehicle }) {
     ? routes.find((r) => r.id === live.routeId)
     : undefined
 
-  const locationLabel = geozone ? geozone.name : "On the corridor"
+  const locationLabel = geozone
+    ? geozone.name
+    : t("vehicles.detail.live.onCorridor")
   const routeLabel = route ? route.name : "—"
 
   return (
     <Card className="h-full gap-0 p-5">
       <div className="mb-3 flex items-center gap-2">
         <Activity className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Live status</span>
+        <span className="text-sm font-medium">
+          {t("vehicles.detail.live.title")}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-8">
         <div className="divide-y">
-          <InfoRow label="Status">
+          <InfoRow label={t("vehicles.detail.live.status")}>
             <span className="inline-flex items-center gap-2">
               <VehicleStatusBadge status={live.status} />
               <span className="text-xs text-muted-foreground tabular-nums">
@@ -69,19 +82,19 @@ export function VehicleLiveStatusCard({ vehicle }: { vehicle: Vehicle }) {
               </span>
             </span>
           </InfoRow>
-          <InfoRow label="Location">
+          <InfoRow label={t("vehicles.detail.live.location")}>
             <span className="inline-flex items-center gap-1.5">
               <MapPin className="size-3.5 text-muted-foreground" />
               {locationLabel}
             </span>
           </InfoRow>
-          <InfoRow label="Route">
+          <InfoRow label={t("vehicles.detail.live.route")}>
             <span className="inline-flex items-center gap-1.5">
               <RouteIcon className="size-3.5 text-muted-foreground" />
               {routeLabel}
             </span>
           </InfoRow>
-          <InfoRow label="Coordinates">
+          <InfoRow label={t("vehicles.detail.live.coordinates")}>
             <span className="font-mono text-xs tabular-nums">
               {formatCoords(live.position)}
             </span>
@@ -89,18 +102,18 @@ export function VehicleLiveStatusCard({ vehicle }: { vehicle: Vehicle }) {
         </div>
 
         <div className="divide-y">
-          <InfoRow label="Speed">
+          <InfoRow label={t("vehicles.detail.live.speed")}>
             <span className="tabular-nums">
               {live.status === "moving" ? formatSpeed(live.speedKmh) : "—"}
             </span>
           </InfoRow>
-          <InfoRow label="Odometer">
+          <InfoRow label={t("vehicles.detail.live.odometer")}>
             <span className="inline-flex items-center gap-1.5 tabular-nums">
               <Gauge className="size-3.5 text-muted-foreground" />
               {formatKm(live.odometerKm)}
             </span>
           </InfoRow>
-          <InfoRow label="Last sync">
+          <InfoRow label={t("vehicles.detail.live.lastSync")}>
             <span className="inline-flex flex-col items-end">
               <span className="inline-flex items-center gap-1.5">
                 <Satellite className="size-3.5 text-muted-foreground" />
@@ -116,7 +129,7 @@ export function VehicleLiveStatusCard({ vehicle }: { vehicle: Vehicle }) {
             <div className="mb-2 flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Fuel className="size-3.5" />
-                Fuel level
+                {t("vehicles.detail.live.fuelLevel")}
               </span>
               <span className="text-sm font-medium tabular-nums">
                 {Math.round(live.fuelPct)}%

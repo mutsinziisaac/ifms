@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { MapPin, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
 
 import { FormDialog } from "@/components/common/FormDialog"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,7 @@ export function RouteFormDialog({
   onOpenChange,
   route,
 }: RouteFormDialogProps) {
+  const { t } = useTranslation()
   const isEdit = route !== undefined
 
   const [name, setName] = useState("")
@@ -90,7 +92,7 @@ export function RouteFormDialog({
   const handleSubmit = () => {
     const trimmedName = name.trim()
     if (trimmedName.length === 0) {
-      toast.error("Route name is required")
+      toast.error(t("routes.toast.nameRequired"))
       return
     }
 
@@ -101,7 +103,7 @@ export function RouteFormDialog({
       const lat = Number(row.lat)
       const lng = Number(row.lng)
       if (wpName.length === 0) {
-        toast.error("Each waypoint needs a name")
+        toast.error(t("routes.toast.waypointNameRequired"))
         return
       }
       if (
@@ -110,14 +112,14 @@ export function RouteFormDialog({
         Number.isNaN(lat) ||
         Number.isNaN(lng)
       ) {
-        toast.error(`Waypoint "${wpName}" has invalid coordinates`)
+        toast.error(t("routes.toast.waypointInvalidCoords", { name: wpName }))
         return
       }
       parsed.push({ name: wpName, position: { lat, lng } })
     }
 
     if (parsed.length < 2) {
-      toast.error("A route needs at least 2 waypoints")
+      toast.error(t("routes.toast.minWaypoints"))
       return
     }
 
@@ -133,7 +135,7 @@ export function RouteFormDialog({
         { id: route.id, patch: input },
         {
           onSuccess: () => {
-            toast.success(`Route "${trimmedName}" updated`)
+            toast.success(t("routes.toast.updated", { name: trimmedName }))
             onOpenChange(false)
           },
           onError: (error: Error) => toast.error(error.message),
@@ -142,7 +144,7 @@ export function RouteFormDialog({
     } else {
       createRoute.mutate(input, {
         onSuccess: () => {
-          toast.success(`Route "${trimmedName}" created`)
+          toast.success(t("routes.toast.created", { name: trimmedName }))
           onOpenChange(false)
         },
         onError: (error: Error) => toast.error(error.message),
@@ -154,35 +156,37 @@ export function RouteFormDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit route" : "Add route"}
+      title={isEdit ? t("routes.form.editTitle") : t("routes.form.addTitle")}
       description={
         isEdit
-          ? "Update the corridor itinerary and its waypoints."
-          : "Define a freight corridor as an ordered list of waypoints."
+          ? t("routes.form.editDescription")
+          : t("routes.form.addDescription")
       }
-      submitLabel={isEdit ? "Save changes" : "Create route"}
+      submitLabel={
+        isEdit ? t("routes.form.saveChanges") : t("routes.form.createRoute")
+      }
       onSubmit={handleSubmit}
       isPending={isPending}
       widthClass="sm:max-w-xl"
     >
       <div className="space-y-2">
-        <Label htmlFor="route-name">Name</Label>
+        <Label htmlFor="route-name">{t("forms.name")}</Label>
         <Input
           id="route-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Addis Ababa – Djibouti Mainline"
+          placeholder={t("routes.form.namePlaceholder")}
           autoComplete="off"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="route-description">Description</Label>
+        <Label htmlFor="route-description">{t("forms.description")}</Label>
         <Textarea
           id="route-description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Primary freight corridor serving the port of Djibouti."
+          placeholder={t("routes.form.descriptionPlaceholder")}
           rows={2}
         />
       </div>
@@ -190,11 +194,10 @@ export function RouteFormDialog({
       <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2.5">
         <div className="space-y-0.5">
           <Label htmlFor="route-active" className="cursor-pointer">
-            Active
+            {t("routes.active")}
           </Label>
           <p className="text-xs text-muted-foreground">
-            Inactive routes stay on existing assignments but cannot take new
-            vehicles.
+            {t("routes.form.activeHint")}
           </p>
         </div>
         <Switch
@@ -208,10 +211,10 @@ export function RouteFormDialog({
         <div className="flex items-center justify-between">
           <Label className="gap-1.5">
             <MapPin className="size-4 text-muted-foreground" />
-            Waypoints
+            {t("routes.form.waypoints")}
           </Label>
           <span className="text-xs text-muted-foreground tabular-nums">
-            {rows.length} stops
+            {t("routes.form.stops", { count: rows.length })}
           </span>
         </div>
 
@@ -226,25 +229,31 @@ export function RouteFormDialog({
               </span>
               <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
                 <Input
-                  aria-label={`Waypoint ${index + 1} name`}
+                  aria-label={t("routes.form.waypointName", {
+                    index: index + 1,
+                  })}
                   value={row.name}
                   onChange={(e) => updateRow(index, { name: e.target.value })}
-                  placeholder="Stop name"
+                  placeholder={t("routes.form.stopNamePlaceholder")}
                   autoComplete="off"
                 />
                 <Input
-                  aria-label={`Waypoint ${index + 1} latitude`}
+                  aria-label={t("routes.form.waypointLat", {
+                    index: index + 1,
+                  })}
                   value={row.lat}
                   onChange={(e) => updateRow(index, { lat: e.target.value })}
-                  placeholder="Lat"
+                  placeholder={t("routes.form.latPlaceholder")}
                   inputMode="decimal"
                   className="font-mono text-xs tabular-nums sm:w-28"
                 />
                 <Input
-                  aria-label={`Waypoint ${index + 1} longitude`}
+                  aria-label={t("routes.form.waypointLng", {
+                    index: index + 1,
+                  })}
                   value={row.lng}
                   onChange={(e) => updateRow(index, { lng: e.target.value })}
-                  placeholder="Lng"
+                  placeholder={t("routes.form.lngPlaceholder")}
                   inputMode="decimal"
                   className="font-mono text-xs tabular-nums sm:w-28"
                 />
@@ -256,7 +265,9 @@ export function RouteFormDialog({
                 className="mt-0.5 shrink-0 text-muted-foreground hover:text-destructive"
                 onClick={() => removeRow(index)}
                 disabled={rows.length <= 2}
-                aria-label={`Remove waypoint ${index + 1}`}
+                aria-label={t("routes.form.removeWaypoint", {
+                  index: index + 1,
+                })}
               >
                 <Trash2 className="size-4" />
               </Button>
@@ -272,7 +283,7 @@ export function RouteFormDialog({
           onClick={addRow}
         >
           <Plus className="size-4" />
-          Add waypoint
+          {t("routes.form.addWaypoint")}
         </Button>
       </div>
     </FormDialog>

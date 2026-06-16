@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { ArrowRight, Route as RouteIcon, X } from "lucide-react"
 
 import { EmptyState } from "@/components/common/EmptyState"
@@ -31,6 +32,7 @@ import { buildDriverColorMap, driverIdAt } from "./driver-attribution"
 const UNKNOWN_COLOR = "#908e86"
 
 export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
+  const { t } = useTranslation()
   const tripsQuery = useTripsForVehicle(vehicleId)
   const assignmentsQuery = useAssignmentsForVehicle(vehicleId)
   const driversQuery = useDrivers()
@@ -42,10 +44,7 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
   const drivers = useMemo(() => driversQuery.data ?? [], [driversQuery.data])
   const [selected, setSelected] = useState<Trip | null>(null)
 
-  const colorOf = useMemo(
-    () => buildDriverColorMap(assignments),
-    [assignments]
-  )
+  const colorOf = useMemo(() => buildDriverColorMap(assignments), [assignments])
 
   // Attribute each trip to the driver assigned at its start time.
   const attributed = useMemo(
@@ -59,7 +58,9 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
           trip,
           driverId,
           driverName: driver ? fullName(driver) : null,
-          color: driverId ? (colorOf.get(driverId) ?? UNKNOWN_COLOR) : UNKNOWN_COLOR,
+          color: driverId
+            ? (colorOf.get(driverId) ?? UNKNOWN_COLOR)
+            : UNKNOWN_COLOR,
         }
       }),
     [trips, assignments, drivers, colorOf]
@@ -72,13 +73,13 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
       const key = a.driverId ?? "unknown"
       if (!seen.has(key)) {
         seen.set(key, {
-          name: a.driverName ?? "Unattributed",
+          name: a.driverName ?? t("vehicles.detail.travel.unattributed"),
           color: a.color,
         })
       }
     }
     return [...seen.values()]
-  }, [attributed])
+  }, [attributed, t])
 
   const bounds = useMemo(() => {
     const raw = boundsOf(trips.flatMap((t) => t.path))
@@ -88,9 +89,11 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
   const header = (
     <div className="mb-3 flex items-center gap-2">
       <RouteIcon className="size-4 text-muted-foreground" />
-      <span className="text-sm font-medium">Travel history</span>
+      <span className="text-sm font-medium">
+        {t("vehicles.detail.travel.title")}
+      </span>
       <span className="text-xs text-muted-foreground">
-        · attributed by driver
+        {t("vehicles.detail.travel.attributedByDriver")}
       </span>
     </div>
   )
@@ -114,8 +117,8 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
         {header}
         <EmptyState
           icon={RouteIcon}
-          title="No trip history"
-          description="Completed trips for this vehicle will appear here for playback."
+          title={t("vehicles.detail.travel.emptyTitle")}
+          description={t("vehicles.detail.travel.emptyDescription")}
         />
       </Card>
     )
@@ -160,16 +163,16 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
           <TableHeader>
             <TableRow>
               <TableHead className="text-xs tracking-wider text-muted-foreground uppercase">
-                When
+                {t("vehicles.detail.travel.colWhen")}
               </TableHead>
               <TableHead className="text-xs tracking-wider text-muted-foreground uppercase">
-                Trip
+                {t("vehicles.detail.travel.colTrip")}
               </TableHead>
               <TableHead className="text-right text-xs tracking-wider text-muted-foreground uppercase">
-                Distance
+                {t("vehicles.detail.travel.colDistance")}
               </TableHead>
               <TableHead className="text-right text-xs tracking-wider text-muted-foreground uppercase">
-                Driver
+                {t("vehicles.detail.travel.colDriver")}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -219,7 +222,9 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
         <Card className="mt-4 gap-0 p-5">
           <div className="mb-3 flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-medium">Trip playback</p>
+              <p className="text-sm font-medium">
+                {t("vehicles.detail.travel.playbackTitle")}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {selected.startAddress} → {selected.endAddress} ·{" "}
                 {formatDateTime(selected.startAt)}
@@ -229,7 +234,7 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
               variant="ghost"
               size="icon-sm"
               onClick={() => setSelected(null)}
-              aria-label="Close playback"
+              aria-label={t("vehicles.detail.travel.closePlayback")}
             >
               <X className="size-4" />
             </Button>

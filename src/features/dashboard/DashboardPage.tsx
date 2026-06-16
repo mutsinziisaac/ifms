@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next"
+
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { useLiveVehicles } from "@/data/hooks"
@@ -9,6 +11,7 @@ import { KpiRow } from "./components/KpiRow"
 import { LiveFleetMapCard } from "./components/LiveFleetMapCard"
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const vehicles = useLiveVehicles()
 
   const latestSync = vehicles.reduce<string | null>((latest, v) => {
@@ -19,8 +22,8 @@ export function DashboardPage() {
   return (
     <div>
       <PageHeader
-        title="Overview"
-        description="Real-time visibility across the monitored fleet."
+        title={t("dashboard.title")}
+        description={t("dashboard.description")}
         actions={
           latestSync ? (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -28,7 +31,7 @@ export function DashboardPage() {
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
                 <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
               </span>
-              Last updated <RelativeTime iso={latestSync} />
+              {t("dashboard.lastUpdated")} <RelativeTime iso={latestSync} />
             </div>
           ) : undefined
         }

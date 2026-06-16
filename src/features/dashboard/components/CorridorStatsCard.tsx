@@ -7,6 +7,7 @@ import {
   TruckIcon,
   type LucideIcon,
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import {
   Card,
@@ -30,6 +31,7 @@ interface StatRow {
 }
 
 export function CorridorStatsCard() {
+  const { t } = useTranslation()
   const vehicles = useLiveVehicles()
   const routes = useRoutes().data ?? []
   const geozones = useGeozones().data ?? []
@@ -48,32 +50,35 @@ export function CorridorStatsCard() {
 
   const rows: StatRow[] = [
     {
-      label: "Monitored corridor length",
+      label: t("dashboard.corridor.monitoredLength"),
       value: formatKm(monitoredKm),
       icon: Ruler,
     },
     {
-      label: "Average fleet speed",
+      label: t("dashboard.corridor.averageFleetSpeed"),
       value: formatSpeed(avgSpeed),
       icon: Gauge,
     },
     {
-      label: "Vehicles on corridor routes",
-      value: `${onRoute} of ${vehicles.length}`,
+      label: t("dashboard.corridor.vehiclesOnRoutes"),
+      value: t("dashboard.corridor.ofCount", {
+        count: onRoute,
+        total: vehicles.length,
+      }),
       icon: TruckIcon,
     },
     {
-      label: "Active routes",
+      label: t("dashboard.corridor.activeRoutes"),
       value: String(activeRoutes.length),
       icon: RouteIcon,
     },
     {
-      label: "Active geozones",
+      label: t("dashboard.corridor.activeGeozones"),
       value: String(activeGeozones),
       icon: MapPin,
     },
     {
-      label: "Operating entities",
+      label: t("dashboard.corridor.operatingEntities"),
       value: String(entities.length),
       icon: Building2,
     },
@@ -82,8 +87,8 @@ export function CorridorStatsCard() {
   return (
     <Card className="gap-0">
       <CardHeader>
-        <CardTitle>Corridor overview</CardTitle>
-        <CardDescription>Addis Ababa – Djibouti</CardDescription>
+        <CardTitle>{t("dashboard.corridor.title")}</CardTitle>
+        <CardDescription>{t("dashboard.corridor.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent>
         <dl className="divide-y">

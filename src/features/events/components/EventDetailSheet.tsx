@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import {
   ArrowUpRight,
@@ -47,7 +48,6 @@ import {
 import { ESCALATION_TARGETS } from "@/data/types"
 import type { FleetEvent } from "@/data/types"
 import { formatCoords, formatDateTime } from "@/lib/format"
-import { EVENT_TYPE_LABEL } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 function InfoRow({
@@ -121,6 +121,7 @@ export function EventDetailSheet({
   open,
   onOpenChange,
 }: EventDetailSheetProps) {
+  const { t } = useTranslation()
   const { user } = useAuth()
   const entities = useEntities().data ?? []
 
@@ -150,10 +151,12 @@ export function EventDetailSheet({
     acknowledge.mutate(
       { id: event.id, by: userName },
       {
-        onSuccess: () => toast.success("Event acknowledged"),
+        onSuccess: () => toast.success(t("events.workflow.acknowledgeToast")),
         onError: (err) =>
           toast.error(
-            err instanceof Error ? err.message : "Could not acknowledge"
+            err instanceof Error
+              ? err.message
+              : t("events.workflow.acknowledgeError")
           ),
       }
     )
@@ -164,12 +167,16 @@ export function EventDetailSheet({
       { id: event.id, to: escalateTo, by: userName },
       {
         onSuccess: () => {
-          toast.success(`Escalated to ${escalateTo}`)
+          toast.success(
+            t("events.workflow.escalateToast", { target: escalateTo })
+          )
           setEscalateOpen(false)
         },
         onError: (err) =>
           toast.error(
-            err instanceof Error ? err.message : "Could not escalate"
+            err instanceof Error
+              ? err.message
+              : t("events.workflow.escalateError")
           ),
       }
     )
@@ -177,18 +184,20 @@ export function EventDetailSheet({
 
   const handleClose = () => {
     if (note.trim().length === 0) {
-      toast.error("A resolution note is required to close an event")
+      toast.error(t("events.workflow.noteRequired"))
       return
     }
     close.mutate(
       { id: event.id, by: userName, note: note.trim() },
       {
         onSuccess: () => {
-          toast.success("Event closed")
+          toast.success(t("events.workflow.closeToast"))
           setCloseOpen(false)
         },
         onError: (err) =>
-          toast.error(err instanceof Error ? err.message : "Could not close"),
+          toast.error(
+            err instanceof Error ? err.message : t("events.workflow.closeError")
+          ),
       }
     )
   }
@@ -202,13 +211,13 @@ export function EventDetailSheet({
               <EventSeverityBadge severity={event.severity} />
               <EventStatusBadge status={event.status} />
             </div>
-            <SheetTitle>{EVENT_TYPE_LABEL[event.type]}</SheetTitle>
+            <SheetTitle>{t(`enums.eventType.${event.type}`)}</SheetTitle>
             <SheetDescription>{event.message}</SheetDescription>
           </SheetHeader>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4">
             <div className="grid gap-4">
-              <InfoRow icon={Truck} label="Vehicle">
+              <InfoRow icon={Truck} label={t("events.detail.vehicle")}>
                 <Link
                   to={`/fleet/${event.vehicleId}`}
                   className="inline-flex items-center gap-1 text-primary hover:underline"
@@ -217,15 +226,15 @@ export function EventDetailSheet({
                   <ArrowUpRight className="size-3.5" />
                 </Link>
               </InfoRow>
-              <InfoRow icon={Building2} label="Provider">
+              <InfoRow icon={Building2} label={t("events.detail.provider")}>
                 {provider?.name ?? "—"}
               </InfoRow>
               {event.geozoneName ? (
-                <InfoRow icon={Hexagon} label="Geozone">
+                <InfoRow icon={Hexagon} label={t("events.detail.geozone")}>
                   {event.geozoneName}
                 </InfoRow>
               ) : null}
-              <InfoRow icon={MapPin} label="Location">
+              <InfoRow icon={MapPin} label={t("events.detail.location")}>
                 <span className="font-mono text-xs tabular-nums">
                   {formatCoords(event.location)}
                 </span>
@@ -236,12 +245,12 @@ export function EventDetailSheet({
 
             <div>
               <h3 className="mb-3 font-heading text-sm font-semibold">
-                Handling timeline
+                {t("events.detail.timelineTitle")}
               </h3>
               <ul className="space-y-3">
                 <TimelineStep
                   done
-                  title="Event recorded"
+                  title={t("events.detail.recorded")}
                   detail={
                     <>
                       {formatDateTime(event.at)} (
@@ -251,34 +260,43 @@ export function EventDetailSheet({
                 />
                 <TimelineStep
                   done={event.acknowledgedAt !== null}
-                  title="Acknowledged"
+                  title={t("events.detail.acknowledged")}
                   detail={
                     event.acknowledgedAt
-                      ? `${event.acknowledgedBy} · ${formatDateTime(event.acknowledgedAt)}`
-                      : "Awaiting review"
+                      ? t("events.detail.byAt", {
+                          by: event.acknowledgedBy,
+                          at: formatDateTime(event.acknowledgedAt),
+                        })
+                      : t("events.detail.awaitingReview")
                   }
                 />
                 {event.escalatedAt ? (
                   <TimelineStep
                     done
-                    title="Escalated"
-                    detail={`To ${event.escalatedTo} · ${formatDateTime(event.escalatedAt)}`}
+                    title={t("events.detail.escalated")}
+                    detail={t("events.detail.escalatedTo", {
+                      target: event.escalatedTo,
+                      at: formatDateTime(event.escalatedAt),
+                    })}
                   />
                 ) : null}
                 <TimelineStep
                   done={event.closedAt !== null}
-                  title="Closed"
+                  title={t("events.detail.closed")}
                   detail={
                     event.closedAt
-                      ? `${event.closedBy} · ${formatDateTime(event.closedAt)}`
-                      : "Open for handling"
+                      ? t("events.detail.byAt", {
+                          by: event.closedBy,
+                          at: formatDateTime(event.closedAt),
+                        })
+                      : t("events.detail.openForHandling")
                   }
                 />
               </ul>
               {event.resolutionNote ? (
                 <div className="mt-3 rounded-lg border bg-muted/30 p-3">
                   <p className="text-xs font-medium text-muted-foreground">
-                    Resolution note
+                    {t("events.detail.resolutionNote")}
                   </p>
                   <p className="mt-1 text-sm">{event.resolutionNote}</p>
                 </div>
@@ -296,7 +314,7 @@ export function EventDetailSheet({
                   disabled={acknowledge.isPending}
                 >
                   <Check className="size-4" />
-                  Acknowledge
+                  {t("events.workflow.acknowledge")}
                 </Button>
               ) : null}
               <Button
@@ -305,7 +323,7 @@ export function EventDetailSheet({
                 onClick={() => setEscalateOpen(true)}
               >
                 <TriangleAlert className="size-4" />
-                Escalate
+                {t("events.workflow.escalate")}
               </Button>
               <Button
                 size="sm"
@@ -313,7 +331,7 @@ export function EventDetailSheet({
                 onClick={() => setCloseOpen(true)}
               >
                 <CircleCheckBig className="size-4" />
-                Close event
+                {t("events.workflow.closeEvent")}
               </Button>
             </div>
           ) : null}
@@ -323,14 +341,16 @@ export function EventDetailSheet({
       <FormDialog
         open={escalateOpen}
         onOpenChange={setEscalateOpen}
-        title="Escalate event"
-        description="Forward this event to a higher authority for handling."
-        submitLabel="Escalate"
+        title={t("events.workflow.escalateTitle")}
+        description={t("events.workflow.escalateDescription")}
+        submitLabel={t("events.workflow.escalate")}
         onSubmit={handleEscalate}
         isPending={escalate.isPending}
       >
         <div className="space-y-2">
-          <Label htmlFor="escalate-to">Escalate to</Label>
+          <Label htmlFor="escalate-to">
+            {t("events.workflow.escalateToLabel")}
+          </Label>
           <Select value={escalateTo} onValueChange={setEscalateTo}>
             <SelectTrigger id="escalate-to" className="w-full">
               <SelectValue />
@@ -349,20 +369,22 @@ export function EventDetailSheet({
       <FormDialog
         open={closeOpen}
         onOpenChange={setCloseOpen}
-        title="Close event"
-        description="Record how this event was resolved. A note is required."
-        submitLabel="Close event"
+        title={t("events.workflow.closeTitle")}
+        description={t("events.workflow.closeDescription")}
+        submitLabel={t("events.workflow.closeEvent")}
         onSubmit={handleClose}
         isPending={close.isPending}
         disabled={note.trim().length === 0}
       >
         <div className="space-y-2">
-          <Label htmlFor="resolution-note">Resolution note</Label>
+          <Label htmlFor="resolution-note">
+            {t("events.workflow.resolutionNoteLabel")}
+          </Label>
           <Textarea
             id="resolution-note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="e.g. Driver contacted; warning issued and logged."
+            placeholder={t("events.workflow.resolutionNotePlaceholder")}
             rows={4}
           />
         </div>

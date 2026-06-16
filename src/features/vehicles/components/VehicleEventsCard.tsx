@@ -1,16 +1,18 @@
 import { useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Bell } from "lucide-react"
 
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useEvents } from "@/data/hooks"
-import { EVENT_SEVERITY_CONFIG, EVENT_TYPE_LABEL } from "@/lib/status"
+import { EVENT_SEVERITY_CONFIG } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 const MAX_EVENTS = 6
 
 export function VehicleEventsCard({ vehicleId }: { vehicleId: string }) {
+  const { t } = useTranslation()
   const eventsQuery = useEvents()
   const events = useMemo(
     () =>
@@ -24,7 +26,9 @@ export function VehicleEventsCard({ vehicleId }: { vehicleId: string }) {
     <div className="mb-3 flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Bell className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Recent events</span>
+        <span className="text-sm font-medium">
+          {t("vehicles.detail.events.title")}
+        </span>
       </div>
     </div>
   )
@@ -40,7 +44,7 @@ export function VehicleEventsCard({ vehicleId }: { vehicleId: string }) {
         </div>
       ) : events.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">
-          No geozone, speeding or signal events recorded.
+          {t("vehicles.detail.events.empty")}
         </p>
       ) : (
         <ul className="divide-y">
@@ -57,7 +61,7 @@ export function VehicleEventsCard({ vehicleId }: { vehicleId: string }) {
                   )}
                 />
                 <span className="truncate text-sm">
-                  {EVENT_TYPE_LABEL[event.type]}
+                  {t(`enums.eventType.${event.type}`)}
                   {event.geozoneName ? (
                     <span className="text-muted-foreground">
                       {" "}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Check, Copy, MapPin, Map as MapIcon, Navigation2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,6 +26,7 @@ import { boundsOf, padBounds } from "@/lib/maps"
 import { usePositionTrail } from "../hooks/usePositionTrail"
 
 export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
+  const { t } = useTranslation()
   const drivers = useDrivers().data ?? []
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
@@ -61,10 +63,10 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
       .writeText(`${vehicle.plate} — ${formatCoords(live.position)}`)
       .then(() => {
         setCopied(true)
-        toast.success("Location copied to clipboard")
+        toast.success(t("vehicles.detail.map.locationCopied"))
         setTimeout(() => setCopied(false), 2000)
       })
-      .catch(() => toast.error("Could not copy location"))
+      .catch(() => toast.error(t("vehicles.detail.map.copyFailed")))
   }
 
   return (
@@ -72,7 +74,9 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <MapIcon className="size-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Live map</span>
+          <span className="text-sm font-medium">
+            {t("vehicles.detail.map.title")}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -86,7 +90,7 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
               htmlFor="follow-vehicle"
               className="cursor-pointer text-xs font-medium"
             >
-              Follow
+              {t("vehicles.detail.map.follow")}
             </label>
           </div>
           <Button variant="outline" size="sm" onClick={handleShare}>
@@ -95,7 +99,7 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
             ) : (
               <Copy className="size-3.5" />
             )}
-            Share location
+            {t("vehicles.detail.map.shareLocation")}
           </Button>
         </div>
       </div>
@@ -138,7 +142,8 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
           </span>
         ) : null}
         <span className="ml-auto text-xs text-muted-foreground">
-          Synced <RelativeTime iso={live.lastSyncAt} />
+          {t("vehicles.detail.map.synced")}{" "}
+          <RelativeTime iso={live.lastSyncAt} />
         </span>
       </div>
     </Card>

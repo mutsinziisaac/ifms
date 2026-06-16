@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import { Gauge, Truck, Wind, Zap } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
@@ -6,10 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { useVehicles } from "@/data/hooks"
 import type { Driver } from "@/data/types"
+import type { TranslationKey } from "@/i18n"
 import { cn } from "@/lib/utils"
 
 interface ScoreTone {
-  label: string
+  /** Translation key for the qualitative band label. */
+  labelKey: TranslationKey
   text: string
   ring: string
   track: string
@@ -18,7 +21,7 @@ interface ScoreTone {
 function scoreTone(score: number): ScoreTone {
   if (score >= 85) {
     return {
-      label: "Excellent",
+      labelKey: "drivers.detail.safety.excellent",
       text: "text-emerald-600 dark:text-emerald-400",
       ring: "text-emerald-500",
       track: "text-emerald-500/15",
@@ -26,14 +29,14 @@ function scoreTone(score: number): ScoreTone {
   }
   if (score >= 70) {
     return {
-      label: "Fair",
+      labelKey: "drivers.detail.safety.fair",
       text: "text-amber-600 dark:text-amber-400",
       ring: "text-amber-500",
       track: "text-amber-500/15",
     }
   }
   return {
-    label: "Needs attention",
+    labelKey: "drivers.detail.safety.needsAttention",
     text: "text-rose-600 dark:text-rose-400",
     ring: "text-rose-500",
     track: "text-rose-500/15",
@@ -78,6 +81,7 @@ function MetricRow({
 }
 
 export function DriverSafetyPanel({ driver }: { driver: Driver }) {
+  const { t } = useTranslation()
   const vehicles = useVehicles().data ?? []
   const assignedVehicle = driver.assignedVehicleId
     ? (vehicles.find((v) => v.id === driver.assignedVehicleId) ?? null)
@@ -96,7 +100,7 @@ export function DriverSafetyPanel({ driver }: { driver: Driver }) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Gauge className="size-5 text-primary" />
-          Safety record
+          {t("drivers.detail.safety.title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -135,11 +139,13 @@ export function DriverSafetyPanel({ driver }: { driver: Driver }) {
               >
                 {score}
               </span>
-              <span className="text-xs text-muted-foreground">/ 100</span>
+              <span className="text-xs text-muted-foreground">
+                {t("drivers.detail.safety.outOf")}
+              </span>
             </div>
           </div>
           <span className={cn("text-sm font-medium", tone.text)}>
-            {tone.label}
+            {t(tone.labelKey)}
           </span>
         </div>
 
@@ -147,25 +153,25 @@ export function DriverSafetyPanel({ driver }: { driver: Driver }) {
 
         <div className="space-y-4">
           <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            Driving events
+            {t("drivers.detail.safety.drivingEvents")}
           </p>
           <MetricRow
             icon={Wind}
-            label="Harsh braking"
+            label={t("drivers.detail.safety.harshBraking")}
             count={driver.harshBrakingCount}
             ceiling={15}
             barClass="bg-amber-500"
           />
           <MetricRow
             icon={Zap}
-            label="Harsh acceleration"
+            label={t("drivers.detail.safety.harshAcceleration")}
             count={driver.harshAccelCount}
             ceiling={15}
             barClass="bg-orange-500"
           />
           <MetricRow
             icon={Gauge}
-            label="Speeding events"
+            label={t("drivers.detail.safety.speedingEvents")}
             count={driver.speedingCount}
             ceiling={10}
             barClass="bg-rose-500"
@@ -176,7 +182,7 @@ export function DriverSafetyPanel({ driver }: { driver: Driver }) {
 
         <div className="space-y-2">
           <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
-            Assigned vehicle
+            {t("drivers.detail.safety.assignedVehicle")}
           </p>
           {assignedVehicle ? (
             <Link
@@ -199,7 +205,7 @@ export function DriverSafetyPanel({ driver }: { driver: Driver }) {
                 <Truck className="size-4" />
               </div>
               <p className="text-sm text-muted-foreground">
-                No vehicle assigned to this driver.
+                {t("drivers.detail.safety.noVehicle")}
               </p>
             </div>
           )}

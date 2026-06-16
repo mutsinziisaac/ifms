@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Circle as CircleIcon, Hexagon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -46,6 +47,7 @@ export function GeozoneFormDialog({
   geozone,
   draft,
 }: GeozoneFormDialogProps) {
+  const { t } = useTranslation()
   const isEdit = geozone !== undefined
 
   const groups = useGeozoneGroups().data ?? []
@@ -126,7 +128,7 @@ export function GeozoneFormDialog({
   const buildInput = (): GeozoneInput | null => {
     const trimmedName = name.trim()
     if (!trimmedName) {
-      toast.error("Geozone name is required")
+      toast.error(t("geozones.toast.nameRequired"))
       return null
     }
 
@@ -140,7 +142,7 @@ export function GeozoneFormDialog({
 
     if (isPolygon) {
       if (!polygonPath || polygonPath.length < 3) {
-        toast.error("Draw the polygon on the map before saving")
+        toast.error(t("geozones.toast.drawPolygonFirst"))
         return null
       }
       return {
@@ -156,15 +158,15 @@ export function GeozoneFormDialog({
     const lngNum = Number(lng)
     const radiusNum = Number(radiusM)
     if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
-      toast.error("Enter a valid latitude (-90 to 90)")
+      toast.error(t("geozones.toast.invalidLatitude"))
       return null
     }
     if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) {
-      toast.error("Enter a valid longitude (-180 to 180)")
+      toast.error(t("geozones.toast.invalidLongitude"))
       return null
     }
     if (!Number.isFinite(radiusNum) || radiusNum <= 0) {
-      toast.error("Enter a radius greater than 0 metres")
+      toast.error(t("geozones.toast.invalidRadius"))
       return null
     }
     return {
@@ -185,19 +187,19 @@ export function GeozoneFormDialog({
         { id: geozone.id, patch: input },
         {
           onSuccess: () => {
-            toast.success("Geozone updated")
+            toast.success(t("geozones.toast.updated"))
             onOpenChange(false)
           },
-          onError: () => toast.error("Could not update geozone"),
+          onError: () => toast.error(t("geozones.toast.updateFailed")),
         }
       )
     } else {
       createGeozone.mutate(input, {
         onSuccess: () => {
-          toast.success("Geozone created")
+          toast.success(t("geozones.toast.created"))
           onOpenChange(false)
         },
-        onError: () => toast.error("Could not create geozone"),
+        onError: () => toast.error(t("geozones.toast.createFailed")),
       })
     }
   }
@@ -206,39 +208,45 @@ export function GeozoneFormDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit geozone" : "New geozone"}
+      title={
+        isEdit ? t("geozones.form.editTitle") : t("geozones.form.addTitle")
+      }
       description={
         isPolygon && isDrawnGeometry
-          ? "Polygon geometry was captured from the map. Add its details below."
-          : "Define a circular geofence by its centre and radius."
+          ? t("geozones.form.drawnDescription")
+          : t("geozones.form.circleDescription")
       }
-      submitLabel={isEdit ? "Save geozone" : "Create geozone"}
+      submitLabel={
+        isEdit
+          ? t("geozones.form.saveGeozone")
+          : t("geozones.form.createGeozone")
+      }
       onSubmit={handleSubmit}
       isPending={createGeozone.isPending || updateGeozone.isPending}
     >
       <div className="space-y-2">
-        <Label htmlFor="geozone-name">Name</Label>
+        <Label htmlFor="geozone-name">{t("forms.name")}</Label>
         <Input
           id="geozone-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Modjo Customs Yard"
+          placeholder={t("geozones.form.namePlaceholder")}
           autoFocus
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="geozone-address">Address</Label>
+        <Label htmlFor="geozone-address">{t("forms.address")}</Label>
         <Input
           id="geozone-address"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="Nearest landmark or town"
+          placeholder={t("geozones.form.addressPlaceholder")}
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Shape</Label>
+        <Label>{t("geozones.form.shape")}</Label>
         {isDrawnGeometry ? (
           <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-sm">
             {isPolygon ? (
@@ -246,11 +254,13 @@ export function GeozoneFormDialog({
             ) : (
               <CircleIcon className="size-4 text-muted-foreground" />
             )}
-            <span className="font-medium capitalize">{shape}</span>
+            <span className="font-medium">{t(`geozones.shapes.${shape}`)}</span>
             <span className="text-muted-foreground">
               {isPolygon
-                ? `${polygonPath?.length ?? 0} vertices`
-                : "from map drawing"}
+                ? t("geozones.form.shapeVertices", {
+                    count: polygonPath?.length ?? 0,
+                  })
+                : t("geozones.form.shapeFromMap")}
             </span>
           </div>
         ) : (
@@ -263,16 +273,18 @@ export function GeozoneFormDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="circle">Circle (centre + radius)</SelectItem>
+              <SelectItem value="circle">
+                {t("geozones.form.circleOption")}
+              </SelectItem>
               <SelectItem value="polygon" disabled>
-                Polygon (draw on map)
+                {t("geozones.form.polygonOption")}
               </SelectItem>
             </SelectContent>
           </Select>
         )}
         {!isDrawnGeometry && !isEdit ? (
           <p className="text-xs text-muted-foreground">
-            Use “Add geozone → Draw on map” for polygon shapes.
+            {t("geozones.form.polygonHint")}
           </p>
         ) : null}
       </div>
@@ -280,7 +292,7 @@ export function GeozoneFormDialog({
       {!isPolygon ? (
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-2">
-            <Label htmlFor="geozone-lat">Latitude</Label>
+            <Label htmlFor="geozone-lat">{t("geozones.form.latitude")}</Label>
             <Input
               id="geozone-lat"
               inputMode="decimal"
@@ -290,7 +302,7 @@ export function GeozoneFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="geozone-lng">Longitude</Label>
+            <Label htmlFor="geozone-lng">{t("geozones.form.longitude")}</Label>
             <Input
               id="geozone-lng"
               inputMode="decimal"
@@ -300,7 +312,7 @@ export function GeozoneFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="geozone-radius">Radius (m)</Label>
+            <Label htmlFor="geozone-radius">{t("geozones.form.radius")}</Label>
             <Input
               id="geozone-radius"
               inputMode="numeric"
@@ -313,13 +325,15 @@ export function GeozoneFormDialog({
       ) : null}
 
       <div className="space-y-2">
-        <Label htmlFor="geozone-group">Group</Label>
+        <Label htmlFor="geozone-group">{t("forms.group")}</Label>
         <Select value={groupId} onValueChange={setGroupId}>
           <SelectTrigger id="geozone-group" className="w-full">
-            <SelectValue placeholder="No group" />
+            <SelectValue placeholder={t("geozones.form.noGroup")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NO_GROUP}>No group</SelectItem>
+            <SelectItem value={NO_GROUP}>
+              {t("geozones.form.noGroup")}
+            </SelectItem>
             {groups.map((group) => (
               <SelectItem key={group.id} value={group.id}>
                 <span
@@ -334,12 +348,12 @@ export function GeozoneFormDialog({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="geozone-note">Note</Label>
+        <Label htmlFor="geozone-note">{t("forms.note")}</Label>
         <Textarea
           id="geozone-note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Optional notes for operators"
+          placeholder={t("geozones.form.notePlaceholder")}
           rows={2}
         />
       </div>

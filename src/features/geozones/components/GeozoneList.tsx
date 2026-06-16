@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import {
   Circle as CircleIcon,
   Eye,
@@ -44,6 +45,7 @@ export function GeozoneList({
   onToggleVisible,
   onEdit,
 }: GeozoneListProps) {
+  const { t } = useTranslation()
   const geozonesQuery = useGeozones()
   const groups = useGeozoneGroups().data ?? []
 
@@ -93,10 +95,10 @@ export function GeozoneList({
     if (!pendingDelete) return
     deleteGeozone.mutate(pendingDelete.id, {
       onSuccess: () => {
-        toast.success("Geozone deleted")
+        toast.success(t("geozones.toast.deleted"))
         setPendingDelete(null)
       },
-      onError: () => toast.error("Could not delete geozone"),
+      onError: () => toast.error(t("geozones.toast.deleteFailed")),
     })
   }
 
@@ -107,7 +109,7 @@ export function GeozoneList({
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search geozones…"
+          placeholder={t("geozones.list.searchPlaceholder")}
           className="pl-9"
         />
       </div>
@@ -121,11 +123,11 @@ export function GeozoneList({
       ) : buckets.length === 0 ? (
         <EmptyState
           icon={MapPin}
-          title="No geozones"
+          title={t("geozones.list.emptyTitle")}
           description={
             search
-              ? "No geozones match your search."
-              : "Add a geozone to start monitoring corridor points of interest."
+              ? t("geozones.list.emptyNoMatch")
+              : t("geozones.list.emptyDescription")
           }
         />
       ) : (
@@ -143,7 +145,7 @@ export function GeozoneList({
                     style={{ backgroundColor: color }}
                   />
                   <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    {bucket.group?.name ?? "Ungrouped"}
+                    {bucket.group?.name ?? t("geozones.list.ungrouped")}
                   </span>
                   <span className="text-xs text-muted-foreground/70 tabular-nums">
                     {bucket.zones.length}
@@ -209,7 +211,11 @@ export function GeozoneList({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            aria-label={hidden ? "Show on map" : "Hide on map"}
+                            aria-label={
+                              hidden
+                                ? t("geozones.list.showOnMap")
+                                : t("geozones.list.hideOnMap")
+                            }
                             className="text-muted-foreground hover:text-foreground"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -226,7 +232,7 @@ export function GeozoneList({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Edit geozone"
+                            aria-label={t("geozones.list.editGeozone")}
                             className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -239,7 +245,7 @@ export function GeozoneList({
                             type="button"
                             variant="ghost"
                             size="icon-sm"
-                            aria-label="Delete geozone"
+                            aria-label={t("geozones.list.deleteGeozone")}
                             className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
                             onClick={(e) => {
                               e.stopPropagation()
@@ -264,13 +270,13 @@ export function GeozoneList({
         onOpenChange={(open) => {
           if (!open) setPendingDelete(null)
         }}
-        title="Delete geozone?"
+        title={t("geozones.delete.title")}
         description={
           pendingDelete
-            ? `"${pendingDelete.name}" and its alert rules will be permanently removed.`
+            ? t("geozones.delete.description", { name: pendingDelete.name })
             : ""
         }
-        confirmLabel="Delete geozone"
+        confirmLabel={t("geozones.delete.confirm")}
         destructive
         onConfirm={confirmDelete}
         isPending={deleteGeozone.isPending}

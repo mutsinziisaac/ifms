@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { FormDialog } from "@/components/common/FormDialog"
@@ -15,7 +16,6 @@ import { useCreateDriver, useEntities, useUpdateDriver } from "@/data/hooks"
 import type { DriverInput } from "@/data/api"
 import type { Driver, DriverStatus, LicenseCategory } from "@/data/types"
 import { DRIVER_STATUSES, LICENSE_CATEGORIES } from "@/data/types"
-import { DRIVER_STATUS_CONFIG } from "@/lib/status"
 
 interface DriverFormState {
   firstName: string
@@ -79,6 +79,7 @@ export function DriverFormDialog({
   onOpenChange: (open: boolean) => void
   driver?: Driver
 }) {
+  const { t } = useTranslation()
   const entities = useEntities().data ?? []
   const createDriver = useCreateDriver()
   const updateDriver = useUpdateDriver()
@@ -120,7 +121,7 @@ export function DriverFormDialog({
 
   function handleSubmit(): void {
     if (!canSubmit) {
-      toast.error("First name, last name and license number are required.")
+      toast.error(t("drivers.toast.requiredFields"))
       return
     }
 
@@ -143,12 +144,16 @@ export function DriverFormDialog({
         { id: driver.id, patch: update },
         {
           onSuccess: () => {
-            toast.success(`Saved ${trimmedFirst} ${trimmedLast}.`)
+            toast.success(
+              t("drivers.toast.saved", {
+                name: `${trimmedFirst} ${trimmedLast}`,
+              })
+            )
             onOpenChange(false)
           },
           onError: (err: unknown) =>
             toast.error(
-              err instanceof Error ? err.message : "Could not save driver."
+              err instanceof Error ? err.message : t("drivers.toast.saveError")
             ),
         }
       )
@@ -172,12 +177,14 @@ export function DriverFormDialog({
     }
     createDriver.mutate(input, {
       onSuccess: () => {
-        toast.success(`Added ${trimmedFirst} ${trimmedLast}.`)
+        toast.success(
+          t("drivers.toast.added", { name: `${trimmedFirst} ${trimmedLast}` })
+        )
         onOpenChange(false)
       },
       onError: (err: unknown) =>
         toast.error(
-          err instanceof Error ? err.message : "Could not add driver."
+          err instanceof Error ? err.message : t("drivers.toast.addError")
         ),
     })
   }
@@ -186,13 +193,15 @@ export function DriverFormDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit driver" : "Add driver"}
+      title={isEdit ? t("drivers.form.editTitle") : t("drivers.form.addTitle")}
       description={
         isEdit
-          ? "Update this driver's profile and license details."
-          : "Register a new driver. Vehicle assignment is handled separately."
+          ? t("drivers.form.editDescription")
+          : t("drivers.form.addDescription")
       }
-      submitLabel={isEdit ? "Save changes" : "Add driver"}
+      submitLabel={
+        isEdit ? t("drivers.form.saveChanges") : t("drivers.form.addTitle")
+      }
       onSubmit={handleSubmit}
       isPending={isPending}
       disabled={!canSubmit}
@@ -200,7 +209,7 @@ export function DriverFormDialog({
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label htmlFor="driver-first">First name</Label>
+          <Label htmlFor="driver-first">{t("forms.firstName")}</Label>
           <Input
             id="driver-first"
             value={form.firstName}
@@ -210,7 +219,7 @@ export function DriverFormDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="driver-last">Last name</Label>
+          <Label htmlFor="driver-last">{t("forms.lastName")}</Label>
           <Input
             id="driver-last"
             value={form.lastName}
@@ -221,7 +230,9 @@ export function DriverFormDialog({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="driver-license-no">License number</Label>
+          <Label htmlFor="driver-license-no">
+            {t("drivers.form.licenseNumber")}
+          </Label>
           <Input
             id="driver-license-no"
             value={form.licenseNo}
@@ -232,7 +243,7 @@ export function DriverFormDialog({
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label>Category</Label>
+            <Label>{t("drivers.form.category")}</Label>
             <Select
               value={form.licenseCategory}
               onValueChange={(v) =>
@@ -252,7 +263,9 @@ export function DriverFormDialog({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="driver-license-expiry">Expiry</Label>
+            <Label htmlFor="driver-license-expiry">
+              {t("drivers.form.expiry")}
+            </Label>
             <Input
               id="driver-license-expiry"
               type="date"
@@ -263,7 +276,7 @@ export function DriverFormDialog({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="driver-phone">Phone</Label>
+          <Label htmlFor="driver-phone">{t("forms.phone")}</Label>
           <Input
             id="driver-phone"
             value={form.phone}
@@ -273,7 +286,7 @@ export function DriverFormDialog({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="driver-email">Email</Label>
+          <Label htmlFor="driver-email">{t("forms.email")}</Label>
           <Input
             id="driver-email"
             type="email"
@@ -285,13 +298,13 @@ export function DriverFormDialog({
         </div>
 
         <div className="space-y-1.5">
-          <Label>Entity</Label>
+          <Label>{t("forms.entity")}</Label>
           <Select
             value={form.entityId}
             onValueChange={(v) => patch("entityId", v)}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select entity" />
+              <SelectValue placeholder={t("drivers.form.selectEntity")} />
             </SelectTrigger>
             <SelectContent>
               {entities.map((entity) => (
@@ -303,7 +316,7 @@ export function DriverFormDialog({
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>Status</Label>
+          <Label>{t("forms.status")}</Label>
           <Select
             value={form.status}
             onValueChange={(v) => patch("status", v as DriverStatus)}
@@ -314,7 +327,7 @@ export function DriverFormDialog({
             <SelectContent>
               {DRIVER_STATUSES.map((status) => (
                 <SelectItem key={status} value={status}>
-                  {DRIVER_STATUS_CONFIG[status].label}
+                  {t(`enums.driverStatus.${status}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -322,7 +335,7 @@ export function DriverFormDialog({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="driver-hire-date">Hire date</Label>
+          <Label htmlFor="driver-hire-date">{t("drivers.form.hireDate")}</Label>
           <Input
             id="driver-hire-date"
             type="date"
@@ -333,17 +346,21 @@ export function DriverFormDialog({
         <div className="hidden sm:block" />
 
         <div className="space-y-1.5">
-          <Label htmlFor="driver-ec-name">Emergency contact</Label>
+          <Label htmlFor="driver-ec-name">
+            {t("drivers.form.emergencyContact")}
+          </Label>
           <Input
             id="driver-ec-name"
             value={form.emergencyContactName}
             onChange={(e) => patch("emergencyContactName", e.target.value)}
-            placeholder="Contact name"
+            placeholder={t("drivers.form.emergencyContactPlaceholder")}
             autoComplete="off"
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="driver-ec-phone">Emergency phone</Label>
+          <Label htmlFor="driver-ec-phone">
+            {t("drivers.form.emergencyPhone")}
+          </Label>
           <Input
             id="driver-ec-phone"
             value={form.emergencyContactPhone}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Gauge, PauseCircle, Plus, SatelliteDish, Trash2 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { toast } from "sonner"
@@ -25,7 +26,6 @@ import {
   useUpsertEventRule,
 } from "@/data/hooks"
 import type { EventRule, EventRuleType, EventSeverity } from "@/data/types"
-import { EVENT_RULE_TYPE_LABEL, EVENT_SEVERITY_CONFIG } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 import { EventRuleFormDialog } from "./components/EventRuleFormDialog"
@@ -41,7 +41,6 @@ const GLOBAL_RULE_META: Record<
   GlobalRuleType,
   {
     icon: LucideIcon
-    description: string
     unit: string
     defaultThreshold: number
     defaultSeverity: EventSeverity
@@ -49,24 +48,18 @@ const GLOBAL_RULE_META: Record<
 > = {
   global_speeding: {
     icon: Gauge,
-    description:
-      "Fires a speeding event when any vehicle exceeds this limit anywhere on the corridor.",
     unit: "km/h",
     defaultThreshold: 100,
     defaultSeverity: "warning",
   },
   idle: {
     icon: PauseCircle,
-    description:
-      "Fires when a vehicle keeps its engine running while stationary beyond this duration.",
     unit: "min",
     defaultThreshold: 45,
     defaultSeverity: "info",
   },
   no_signal: {
     icon: SatelliteDish,
-    description:
-      "Fires when a device stops transmitting for longer than this window.",
     unit: "min",
     defaultThreshold: 30,
     defaultSeverity: "warning",
@@ -80,6 +73,7 @@ function GlobalRuleCard({
   type: GlobalRuleType
   rule: EventRule | undefined
 }) {
+  const { t } = useTranslation()
   const meta = GLOBAL_RULE_META[type]
   const Icon = meta.icon
   const upsert = useUpsertEventRule()
@@ -110,7 +104,7 @@ function GlobalRuleCard({
         active: patch.active ?? active,
       },
       {
-        onError: () => toast.error("Could not update rule"),
+        onError: () => toast.error(t("events.rules.toast.updateError")),
       }
     )
   }
@@ -118,7 +112,7 @@ function GlobalRuleCard({
   const commitThreshold = () => {
     const parsed = Number(thresholdDraft)
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      toast.error("Enter a valid threshold")
+      toast.error(t("events.rules.toast.invalidThreshold"))
       setThresholdDraft(String(threshold))
       return
     }
@@ -142,26 +136,30 @@ function GlobalRuleCard({
           </div>
           <div>
             <p className="text-sm font-semibold">
-              {EVENT_RULE_TYPE_LABEL[type]}
+              {t(`enums.eventRuleType.${type}`)}
             </p>
             <p className="text-xs text-muted-foreground">
-              {active ? "Active" : "Inactive"}
+              {active
+                ? t("events.rules.fleetWide.active")
+                : t("events.rules.fleetWide.inactive")}
             </p>
           </div>
         </div>
         <Switch
           checked={active}
           onCheckedChange={(checked) => save({ active: checked })}
-          aria-label={`Toggle ${EVENT_RULE_TYPE_LABEL[type]} rule`}
+          aria-label={t("events.rules.fleetWide.toggleAria", {
+            name: t(`enums.eventRuleType.${type}`),
+          })}
         />
       </div>
       <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-        {meta.description}
+        {t(`events.rules.descriptions.${type}`)}
       </p>
       <div className="mt-4 flex items-end gap-3">
         <div className="space-y-1">
           <span className="text-xs font-medium text-muted-foreground">
-            Threshold ({meta.unit})
+            {t("events.rules.fleetWide.thresholdLabel", { unit: meta.unit })}
           </span>
           <Input
             inputMode="numeric"
@@ -176,7 +174,7 @@ function GlobalRuleCard({
         </div>
         <div className="space-y-1">
           <span className="text-xs font-medium text-muted-foreground">
-            Severity
+            {t("forms.severity")}
           </span>
           <Select
             value={severity}
@@ -190,7 +188,7 @@ function GlobalRuleCard({
             <SelectContent>
               {SEVERITIES.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {EVENT_SEVERITY_CONFIG[s].label}
+                  {t(`enums.eventSeverity.${s}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -202,6 +200,7 @@ function GlobalRuleCard({
 }
 
 export function EventRulesPage() {
+  const { t } = useTranslation()
   const rules = useEventRules().data ?? []
   const geozones = useGeozones().data ?? []
   const upsert = useUpsertEventRule()
@@ -232,14 +231,14 @@ export function EventRulesPage() {
         severity: rule.severity,
         active,
       },
-      { onError: () => toast.error("Could not update rule") }
+      { onError: () => toast.error(t("events.rules.toast.updateError")) }
     )
   }
 
   const columns: DataTableColumn<EventRule>[] = [
     {
       key: "zone",
-      header: "Geozone",
+      header: t("events.rules.columns.geozone"),
       render: (r) => (
         <span className="text-sm font-medium">
           {(r.geozoneId && zoneName.get(r.geozoneId)) ?? "—"}
@@ -248,14 +247,14 @@ export function EventRulesPage() {
     },
     {
       key: "type",
-      header: "Trigger",
+      header: t("events.rules.columns.trigger"),
       render: (r) => (
-        <span className="text-sm">{EVENT_RULE_TYPE_LABEL[r.type]}</span>
+        <span className="text-sm">{t(`enums.eventRuleType.${r.type}`)}</span>
       ),
     },
     {
       key: "threshold",
-      header: "Threshold",
+      header: t("events.rules.columns.threshold"),
       render: (r) => (
         <span className="text-sm text-muted-foreground tabular-nums">
           {r.speedLimitKmh !== null ? `${r.speedLimitKmh} km/h` : "—"}
@@ -264,18 +263,18 @@ export function EventRulesPage() {
     },
     {
       key: "severity",
-      header: "Severity",
+      header: t("events.rules.columns.severity"),
       render: (r) => <EventSeverityBadge severity={r.severity} />,
     },
     {
       key: "active",
-      header: "Active",
+      header: t("events.rules.columns.active"),
       render: (r) => (
         <span onClick={(e) => e.stopPropagation()}>
           <Switch
             checked={r.active}
             onCheckedChange={(checked) => toggleZoneRule(r, checked)}
-            aria-label="Toggle rule"
+            aria-label={t("events.rules.toggleAria")}
           />
         </span>
       ),
@@ -289,7 +288,7 @@ export function EventRulesPage() {
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Delete rule"
+          aria-label={t("events.rules.deleteAria")}
           className="text-muted-foreground hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation()
@@ -305,8 +304,8 @@ export function EventRulesPage() {
   return (
     <div>
       <PageHeader
-        title="Event Rules"
-        description="Violation rules that generate events across the monitored fleet."
+        title={t("events.rules.title")}
+        description={t("events.rules.description")}
         actions={
           <Button
             onClick={() => {
@@ -315,7 +314,7 @@ export function EventRulesPage() {
             }}
           >
             <Plus className="size-4" />
-            New geozone rule
+            {t("events.rules.newGeozoneRule")}
           </Button>
         }
       />
@@ -324,10 +323,10 @@ export function EventRulesPage() {
         <section className="space-y-3">
           <div>
             <h2 className="font-heading text-base font-semibold">
-              Fleet-wide rules
+              {t("events.rules.fleetWide.title")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Apply to every monitored vehicle, independent of geozones.
+              {t("events.rules.fleetWide.description")}
             </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
@@ -343,11 +342,10 @@ export function EventRulesPage() {
         <section className="space-y-3">
           <div>
             <h2 className="font-heading text-base font-semibold">
-              Geozone rules
+              {t("events.rules.geozone.title")}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Entry, exit and zone speed rules — also editable per zone on the
-              Geozones page.
+              {t("events.rules.geozone.description")}
             </p>
           </div>
           <DataTable
@@ -358,8 +356,8 @@ export function EventRulesPage() {
               setFormOpen(true)
             }}
             pageSize={10}
-            emptyTitle="No geozone rules"
-            emptyDescription="Create a rule to start generating geozone events."
+            emptyTitle={t("events.rules.geozone.emptyTitle")}
+            emptyDescription={t("events.rules.geozone.emptyDescription")}
           />
         </section>
       </div>
@@ -378,26 +376,28 @@ export function EventRulesPage() {
         onOpenChange={(open) => {
           if (!open) setDeleteTarget(null)
         }}
-        title="Delete rule?"
-        confirmLabel="Delete"
+        title={t("events.rules.deleteTitle")}
+        confirmLabel={t("common.delete")}
         destructive
         description={
           deleteTarget
-            ? `The ${EVENT_RULE_TYPE_LABEL[deleteTarget.type]} rule for ${
-                (deleteTarget.geozoneId &&
-                  zoneName.get(deleteTarget.geozoneId)) ??
-                "this zone"
-              } will stop generating events.`
+            ? t("events.rules.deleteDescription", {
+                type: t(`enums.eventRuleType.${deleteTarget.type}`),
+                zone:
+                  (deleteTarget.geozoneId &&
+                    zoneName.get(deleteTarget.geozoneId)) ||
+                  t("events.rules.deleteFallbackZone"),
+              })
             : ""
         }
         onConfirm={() => {
           if (!deleteTarget) return
           deleteRule.mutate(deleteTarget.id, {
             onSuccess: () => {
-              toast.success("Rule deleted")
+              toast.success(t("events.rules.toast.deleted"))
               setDeleteTarget(null)
             },
-            onError: () => toast.error("Could not delete rule"),
+            onError: () => toast.error(t("events.rules.toast.deleteError")),
           })
         }}
         isPending={deleteRule.isPending}

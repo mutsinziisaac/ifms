@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { FormDialog } from "@/components/common/FormDialog"
@@ -15,7 +16,6 @@ import { Switch } from "@/components/ui/switch"
 import { useGeozones, useUpsertEventRule } from "@/data/hooks"
 import { ZONE_RULE_TYPES } from "@/data/types"
 import type { EventRule, EventSeverity, ZoneRuleType } from "@/data/types"
-import { EVENT_RULE_TYPE_LABEL, EVENT_SEVERITY_CONFIG } from "@/lib/status"
 
 const SEVERITIES: EventSeverity[] = ["info", "warning", "critical"]
 
@@ -31,6 +31,7 @@ export function EventRuleFormDialog({
   onOpenChange,
   rule,
 }: EventRuleFormDialogProps) {
+  const { t } = useTranslation()
   const geozones = useGeozones().data ?? []
   const upsert = useUpsertEventRule()
 
@@ -52,14 +53,14 @@ export function EventRuleFormDialog({
 
   const handleSubmit = () => {
     if (!geozoneId) {
-      toast.error("Choose a geozone for this rule")
+      toast.error(t("events.rules.toast.chooseGeozone"))
       return
     }
     let speedLimitKmh: number | null = null
     if (type === "speeding") {
       const parsed = Number(speedLimit)
       if (!Number.isFinite(parsed) || parsed <= 0) {
-        toast.error("Enter a valid speed limit")
+        toast.error(t("events.rules.toast.invalidSpeedLimit"))
         return
       }
       speedLimitKmh = Math.round(parsed)
@@ -76,12 +77,18 @@ export function EventRuleFormDialog({
       },
       {
         onSuccess: () => {
-          toast.success(rule ? "Rule updated" : "Rule created")
+          toast.success(
+            rule
+              ? t("events.rules.toast.updated")
+              : t("events.rules.toast.created")
+          )
           onOpenChange(false)
         },
         onError: (err) =>
           toast.error(
-            err instanceof Error ? err.message : "Could not save rule"
+            err instanceof Error
+              ? err.message
+              : t("events.rules.toast.saveError")
           ),
       }
     )
@@ -91,15 +98,25 @@ export function EventRuleFormDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={rule ? "Edit geozone rule" : "New geozone rule"}
-      description="Generates an event when a vehicle triggers this condition."
-      submitLabel={rule ? "Save changes" : "Create rule"}
+      title={
+        rule
+          ? t("events.rules.form.editTitle")
+          : t("events.rules.form.createTitle")
+      }
+      description={t("events.rules.form.description")}
+      submitLabel={
+        rule
+          ? t("events.rules.form.saveChanges")
+          : t("events.rules.form.createRule")
+      }
       onSubmit={handleSubmit}
       isPending={upsert.isPending}
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="rule-type">Trigger</Label>
+          <Label htmlFor="rule-type">
+            {t("events.rules.form.triggerLabel")}
+          </Label>
           <Select
             value={type}
             onValueChange={(value) => setType(value as ZoneRuleType)}
@@ -108,19 +125,23 @@ export function EventRuleFormDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {ZONE_RULE_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {EVENT_RULE_TYPE_LABEL[t]}
+              {ZONE_RULE_TYPES.map((rt) => (
+                <SelectItem key={rt} value={rt}>
+                  {t(`enums.eventRuleType.${rt}`)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="rule-zone">Geozone</Label>
+          <Label htmlFor="rule-zone">
+            {t("events.rules.form.geozoneLabel")}
+          </Label>
           <Select value={geozoneId} onValueChange={setGeozoneId}>
             <SelectTrigger id="rule-zone" className="w-full">
-              <SelectValue placeholder="Choose a geozone" />
+              <SelectValue
+                placeholder={t("events.rules.form.geozonePlaceholder")}
+              />
             </SelectTrigger>
             <SelectContent>
               {geozones.map((zone) => (
@@ -133,7 +154,9 @@ export function EventRuleFormDialog({
         </div>
         {type === "speeding" ? (
           <div className="space-y-2">
-            <Label htmlFor="rule-speed">Speed limit (km/h)</Label>
+            <Label htmlFor="rule-speed">
+              {t("events.rules.form.speedLimitLabel")}
+            </Label>
             <Input
               id="rule-speed"
               inputMode="numeric"
@@ -144,7 +167,9 @@ export function EventRuleFormDialog({
           </div>
         ) : null}
         <div className="space-y-2">
-          <Label htmlFor="rule-severity">Severity</Label>
+          <Label htmlFor="rule-severity">
+            {t("events.rules.form.severityLabel")}
+          </Label>
           <Select
             value={severity}
             onValueChange={(value) => setSeverity(value as EventSeverity)}
@@ -155,7 +180,7 @@ export function EventRuleFormDialog({
             <SelectContent>
               {SEVERITIES.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {EVENT_SEVERITY_CONFIG[s].label}
+                  {t(`enums.eventSeverity.${s}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -164,7 +189,7 @@ export function EventRuleFormDialog({
       </div>
       <div className="flex items-center gap-2">
         <Switch id="rule-active" checked={active} onCheckedChange={setActive} />
-        <Label htmlFor="rule-active">Rule is active</Label>
+        <Label htmlFor="rule-active">{t("events.rules.form.ruleActive")}</Label>
       </div>
     </FormDialog>
   )

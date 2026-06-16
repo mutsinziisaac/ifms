@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Check, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -27,6 +28,7 @@ export function GeozoneGroupDialog({
   onOpenChange,
   group,
 }: GeozoneGroupDialogProps) {
+  const { t } = useTranslation()
   const isEdit = group !== undefined
 
   const [name, setName] = useState("")
@@ -47,7 +49,7 @@ export function GeozoneGroupDialog({
   const handleSubmit = () => {
     const trimmed = name.trim()
     if (!trimmed) {
-      toast.error("Group name is required")
+      toast.error(t("geozones.toast.groupNameRequired"))
       return
     }
     if (isEdit && group) {
@@ -55,10 +57,10 @@ export function GeozoneGroupDialog({
         { id: group.id, patch: { name: trimmed, color } },
         {
           onSuccess: () => {
-            toast.success("Group updated")
+            toast.success(t("geozones.toast.groupUpdated"))
             onOpenChange(false)
           },
-          onError: () => toast.error("Could not update group"),
+          onError: () => toast.error(t("geozones.toast.groupUpdateFailed")),
         }
       )
     } else {
@@ -66,10 +68,10 @@ export function GeozoneGroupDialog({
         { name: trimmed, color },
         {
           onSuccess: () => {
-            toast.success("Group created")
+            toast.success(t("geozones.toast.groupCreated"))
             onOpenChange(false)
           },
-          onError: () => toast.error("Could not create group"),
+          onError: () => toast.error(t("geozones.toast.groupCreateFailed")),
         }
       )
     }
@@ -79,11 +81,11 @@ export function GeozoneGroupDialog({
     if (!group) return
     deleteGroup.mutate(group.id, {
       onSuccess: () => {
-        toast.success("Group deleted")
+        toast.success(t("geozones.toast.groupDeleted"))
         setConfirmOpen(false)
         onOpenChange(false)
       },
-      onError: () => toast.error("Could not delete group"),
+      onError: () => toast.error(t("geozones.toast.groupDeleteFailed")),
     })
   }
 
@@ -92,25 +94,31 @@ export function GeozoneGroupDialog({
       <FormDialog
         open={open}
         onOpenChange={onOpenChange}
-        title={isEdit ? "Edit group" : "New geozone group"}
-        description="Groups colour-code related geozones on the map."
-        submitLabel={isEdit ? "Save group" : "Create group"}
+        title={
+          isEdit ? t("geozones.group.editTitle") : t("geozones.group.addTitle")
+        }
+        description={t("geozones.group.description")}
+        submitLabel={
+          isEdit
+            ? t("geozones.group.saveGroup")
+            : t("geozones.group.createGroup")
+        }
         onSubmit={handleSubmit}
         isPending={createGroup.isPending || updateGroup.isPending}
       >
         <div className="space-y-2">
-          <Label htmlFor="group-name">Name</Label>
+          <Label htmlFor="group-name">{t("forms.name")}</Label>
           <Input
             id="group-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Customs Yards"
+            placeholder={t("geozones.group.namePlaceholder")}
             autoFocus
           />
         </div>
 
         <div className="space-y-2">
-          <Label>Colour</Label>
+          <Label>{t("geozones.group.colour")}</Label>
           <div className="flex flex-wrap gap-2">
             {GEOZONE_GROUP_COLORS.map((swatch) => {
               const active = swatch === color
@@ -119,7 +127,7 @@ export function GeozoneGroupDialog({
                   key={swatch}
                   type="button"
                   onClick={() => setColor(swatch)}
-                  aria-label={`Colour ${swatch}`}
+                  aria-label={t("geozones.group.colourSwatch", { swatch })}
                   className={cn(
                     "grid size-8 place-items-center rounded-lg ring-offset-2 ring-offset-background transition-transform hover:scale-105",
                     active && "ring-2 ring-ring"
@@ -146,7 +154,7 @@ export function GeozoneGroupDialog({
             className="w-full"
           >
             <Trash2 className="size-4" />
-            Delete group
+            {t("geozones.group.deleteGroup")}
           </Button>
         ) : null}
       </FormDialog>
@@ -155,9 +163,11 @@ export function GeozoneGroupDialog({
         <ConfirmDialog
           open={confirmOpen}
           onOpenChange={setConfirmOpen}
-          title="Delete group?"
-          description={`"${group.name}" will be removed. Geozones in this group keep their geometry but become ungrouped.`}
-          confirmLabel="Delete group"
+          title={t("geozones.group.deleteTitle")}
+          description={t("geozones.group.deleteDescription", {
+            name: group.name,
+          })}
+          confirmLabel={t("geozones.group.deleteConfirm")}
           destructive
           onConfirm={handleDelete}
           isPending={deleteGroup.isPending}

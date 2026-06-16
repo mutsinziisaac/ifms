@@ -1,6 +1,7 @@
 import * as React from "react"
 import { useNavigate } from "react-router-dom"
 import { Hexagon, IdCard, Route, Search, Truck } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 import { fullName } from "@/lib/format"
 import { useDrivers, useGeozones, useRoutes, useVehicles } from "@/data/hooks"
@@ -19,6 +20,7 @@ import { Kbd } from "@/components/ui/kbd"
 const MAX_PER_GROUP = 5
 
 export function GlobalSearch() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -84,24 +86,24 @@ export function GlobalSearch() {
         onClick={() => setOpen(true)}
       >
         <Search className="size-4" />
-        Search fleet...
+        {t("common.search.trigger")}
         <Kbd className="ml-auto">⌘K</Kbd>
       </Button>
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search vehicles, drivers, geozones, routes..."
+            placeholder={t("common.search.placeholder")}
             value={query}
             onValueChange={setQuery}
           />
           <CommandList>
             {!enough ? (
-              <CommandEmpty>Type at least 3 characters to search.</CommandEmpty>
+              <CommandEmpty>{t("common.search.minChars")}</CommandEmpty>
             ) : (
               <>
                 {vehicleMatches.length > 0 ? (
-                  <CommandGroup heading="Vehicles">
+                  <CommandGroup heading={t("common.search.groups.vehicles")}>
                     {vehicleMatches.map((v) => (
                       <CommandItem
                         key={v.id}
@@ -119,7 +121,7 @@ export function GlobalSearch() {
                 ) : null}
 
                 {driverMatches.length > 0 ? (
-                  <CommandGroup heading="Drivers">
+                  <CommandGroup heading={t("common.search.groups.drivers")}>
                     {driverMatches.map((d) => (
                       <CommandItem
                         key={d.id}
@@ -134,7 +136,7 @@ export function GlobalSearch() {
                 ) : null}
 
                 {geozoneMatches.length > 0 ? (
-                  <CommandGroup heading="Geozones">
+                  <CommandGroup heading={t("common.search.groups.geozones")}>
                     {geozoneMatches.map((g) => (
                       <CommandItem
                         key={g.id}
@@ -149,7 +151,7 @@ export function GlobalSearch() {
                 ) : null}
 
                 {routeMatches.length > 0 ? (
-                  <CommandGroup heading="Routes">
+                  <CommandGroup heading={t("common.search.groups.routes")}>
                     {routeMatches.map((r) => (
                       <CommandItem
                         key={r.id}
@@ -167,7 +169,7 @@ export function GlobalSearch() {
                 driverMatches.length === 0 &&
                 geozoneMatches.length === 0 &&
                 routeMatches.length === 0 ? (
-                  <CommandEmpty>No results found.</CommandEmpty>
+                  <CommandEmpty>{t("common.search.noResults")}</CommandEmpty>
                 ) : null}
               </>
             )}

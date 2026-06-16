@@ -1,0 +1,167 @@
+// Geozones feature: the map workspace page, the geozone list/sidebar, the
+// geozone and group form dialogs, the CSV import dialog and the per-zone event
+// rules panel. Shared terms (actions, form fields, rule-type enums) live under
+// common/forms/enums and are reused, not redefined here.
+export default {
+  title: "Geozones",
+  description: "Geofenced corridor points of interest and zone event rules.",
+
+  toolbar: {
+    importCsv: "Import CSV",
+    newGroup: "New group",
+    addGeozone: "Add geozone",
+    manualCircle: "Manual (circle)",
+    drawCircle: "Draw circle on map",
+    drawPolygon: "Draw polygon on map",
+    liveVehicles: "Live vehicles",
+    clearSelection: "Clear selection",
+  },
+
+  list: {
+    panelTitle: "Geozones",
+    searchPlaceholder: "Search geozones…",
+    ungrouped: "Ungrouped",
+    emptyTitle: "No geozones",
+    emptyNoMatch: "No geozones match your search.",
+    emptyDescription:
+      "Add a geozone to start monitoring corridor points of interest.",
+    showOnMap: "Show on map",
+    hideOnMap: "Hide on map",
+    editGeozone: "Edit geozone",
+    deleteGeozone: "Delete geozone",
+    shapeGeozone: "{{shape}} geozone",
+  },
+
+  map: {
+    emptyTitle: "No geozones yet",
+    emptyDescription: "Draw on the map, add one manually, or import from CSV.",
+    drawHint: "Draw a {{shape}} on the map",
+  },
+
+  shapes: {
+    circle: "Circle",
+    polygon: "Polygon",
+  },
+
+  form: {
+    editTitle: "Edit geozone",
+    addTitle: "New geozone",
+    drawnDescription:
+      "Polygon geometry was captured from the map. Add its details below.",
+    circleDescription: "Define a circular geofence by its centre and radius.",
+    saveGeozone: "Save geozone",
+    createGeozone: "Create geozone",
+    namePlaceholder: "e.g. Modjo Customs Yard",
+    addressPlaceholder: "Nearest landmark or town",
+    shape: "Shape",
+    shapeVertices: "{{count}} vertices",
+    shapeFromMap: "from map drawing",
+    circleOption: "Circle (centre + radius)",
+    polygonOption: "Polygon (draw on map)",
+    polygonHint: "Use “Add geozone → Draw on map” for polygon shapes.",
+    latitude: "Latitude",
+    longitude: "Longitude",
+    radius: "Radius (m)",
+    noGroup: "No group",
+    notePlaceholder: "Optional notes for operators",
+  },
+
+  group: {
+    editTitle: "Edit group",
+    addTitle: "New geozone group",
+    description: "Groups colour-code related geozones on the map.",
+    saveGroup: "Save group",
+    createGroup: "Create group",
+    namePlaceholder: "e.g. Customs Yards",
+    colour: "Colour",
+    colourSwatch: "Colour {{swatch}}",
+    deleteGroup: "Delete group",
+    deleteTitle: "Delete group?",
+    deleteDescription:
+      "“{{name}}” will be removed. Geozones in this group keep their geometry but become ungrouped.",
+    deleteConfirm: "Delete group",
+  },
+
+  csv: {
+    title: "Import geozones from CSV",
+    description:
+      "Each row is one lat/lng point. Rows sharing a zone name form a polygon (minimum 3 points).",
+    importButton: "Import",
+    importCount_one: "Import {{count}} zone",
+    importCount_other: "Import {{count}} zones",
+    downloadTemplate: "Download template",
+    chooseFile: "Choose CSV file",
+    contentsLabel: "CSV contents",
+    preview: "Preview",
+    validZones_one: "{{count}} valid zone",
+    validZones_other: "{{count}} valid zones",
+    pts: "{{count}} pts",
+    moreZones: "+{{count}} more",
+    noneFound: "No valid zones found yet.",
+    issues_one: "{{count}} issue",
+    issues_other: "{{count}} issues",
+    errors: {
+      empty: "The file is empty.",
+      missingHeader: 'Missing header row — expected "zone_name,lat,lng".',
+      columns: "Row {{row}}: expected 3 columns, got {{count}}.",
+      missingName: "Row {{row}}: missing zone name.",
+      invalidLat: 'Row {{row}}: invalid latitude "{{value}}".',
+      invalidLng: 'Row {{row}}: invalid longitude "{{value}}".',
+      tooFewPoints:
+        'Zone "{{name}}": needs at least 3 points to form a polygon (has {{count}}).',
+    },
+  },
+
+  delete: {
+    title: "Delete geozone?",
+    description: "“{{name}}” and its alert rules will be permanently removed.",
+    confirm: "Delete geozone",
+  },
+
+  toast: {
+    created: "Geozone created",
+    updated: "Geozone updated",
+    deleted: "Geozone deleted",
+    nameRequired: "Geozone name is required",
+    drawPolygonFirst: "Draw the polygon on the map before saving",
+    invalidLatitude: "Enter a valid latitude (-90 to 90)",
+    invalidLongitude: "Enter a valid longitude (-180 to 180)",
+    invalidRadius: "Enter a radius greater than 0 metres",
+    createFailed: "Could not create geozone",
+    updateFailed: "Could not update geozone",
+    deleteFailed: "Could not delete geozone",
+    imported_one: "{{count}} geozone imported",
+    imported_other: "{{count}} geozones imported",
+    importFailed: "Import failed",
+    groupNameRequired: "Group name is required",
+    groupCreated: "Group created",
+    groupUpdated: "Group updated",
+    groupDeleted: "Group deleted",
+    groupCreateFailed: "Could not create group",
+    groupUpdateFailed: "Could not update group",
+    groupDeleteFailed: "Could not delete group",
+    invalidSpeedLimit: "Enter a valid speed limit",
+    ruleAdded: "Event rule added",
+    ruleRemoved: "Rule removed",
+    ruleAddFailed: "Could not add rule",
+    ruleRemoveFailed: "Could not remove rule",
+    ruleUpdateFailed: "Could not update rule",
+  },
+
+  rules: {
+    title: "Event rules",
+    count_one: "{{count}} rule",
+    count_other: "{{count}} rules",
+    empty: "No event rules yet for this zone.",
+    addRule: "Add rule",
+    overSpeed: "Over {{speed}} km/h",
+    toggleRule: "Toggle {{type}} rule",
+    deleteRule: "Delete rule",
+    allRules: "All event rules",
+    description: {
+      entry: "Vehicle enters this zone",
+      exit: "Vehicle leaves this zone",
+      speeding: "Speed exceeds the limit inside this zone",
+    },
+  },
+}

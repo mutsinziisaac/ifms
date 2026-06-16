@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Search, TriangleAlert, Truck } from "lucide-react"
 import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { FormDialog } from "@/components/common/FormDialog"
@@ -27,6 +28,7 @@ export function AssignVehiclesDialog({
   onOpenChange,
   route,
 }: AssignVehiclesDialogProps) {
+  const { t } = useTranslation()
   const vehicles = useVehicles().data ?? []
   const entities = useEntities().data ?? []
   const assign = useAssignVehiclesToRoute()
@@ -73,9 +75,7 @@ export function AssignVehiclesDialog({
 
   const handleSubmit = () => {
     if (!route.active) {
-      toast.error(
-        "This route is deactivated and cannot take new vehicle assignments"
-      )
+      toast.error(t("routes.toast.deactivatedReject"))
       return
     }
     assign.mutate(
@@ -83,7 +83,10 @@ export function AssignVehiclesDialog({
       {
         onSuccess: () => {
           toast.success(
-            `${selected.size} vehicle${selected.size === 1 ? "" : "s"} assigned to "${route.name}"`
+            t("routes.toast.assigned", {
+              count: selected.size,
+              name: route.name,
+            })
           )
           onOpenChange(false)
         },
@@ -96,9 +99,9 @@ export function AssignVehiclesDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Assign vehicles"
-      description={`Select the vehicles that run the "${route.name}" corridor.`}
-      submitLabel={`Assign (${selected.size})`}
+      title={t("routes.assign.title")}
+      description={t("routes.assign.description", { name: route.name })}
+      submitLabel={t("routes.assign.submitLabel", { count: selected.size })}
       onSubmit={handleSubmit}
       isPending={assign.isPending}
       disabled={!route.active}
@@ -107,11 +110,9 @@ export function AssignVehiclesDialog({
       {!route.active ? (
         <Alert variant="destructive">
           <TriangleAlert />
-          <AlertTitle>Route deactivated</AlertTitle>
+          <AlertTitle>{t("routes.assign.deactivatedTitle")}</AlertTitle>
           <AlertDescription>
-            Deactivated routes remain effective for vehicles already assigned,
-            but cannot be added to new itineraries. Reactivate the route to
-            assign vehicles.
+            {t("routes.assign.deactivatedDescription")}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -121,7 +122,7 @@ export function AssignVehiclesDialog({
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by plate, model or entity…"
+          placeholder={t("routes.assign.searchPlaceholder")}
           className="pl-8"
           autoComplete="off"
         />
@@ -131,8 +132,8 @@ export function AssignVehiclesDialog({
         {filtered.length === 0 ? (
           <EmptyState
             icon={Truck}
-            title="No vehicles found"
-            description="Try a different search term."
+            title={t("routes.assign.noVehiclesTitle")}
+            description={t("routes.assign.noVehiclesDescription")}
             className="py-10"
           />
         ) : (
@@ -162,11 +163,11 @@ export function AssignVehiclesDialog({
                         </span>
                         {onThisRoute ? (
                           <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
-                            On route
+                            {t("routes.assign.onRoute")}
                           </span>
                         ) : onOtherRoute ? (
                           <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                            Other route
+                            {t("routes.assign.otherRoute")}
                           </span>
                         ) : null}
                       </div>

@@ -5,6 +5,7 @@
 import { addDays, differenceInCalendarDays } from "date-fns"
 
 import { formatDate, formatKm } from "@/lib/format"
+import i18n from "@/i18n"
 import type {
   DriverStatus,
   EventRuleType,
@@ -237,9 +238,9 @@ export function computeMaintenanceState(
       remainingPct,
       remainingLabel:
         remaining >= 0
-          ? `${formatKm(remaining)} left`
-          : `Overdue by ${formatKm(-remaining)}`,
-      dueLabel: `Due at ${formatKm(dueKm)}`,
+          ? i18n.t("maintenance.kmLeft", { km: formatKm(remaining) })
+          : i18n.t("maintenance.overdueKm", { km: formatKm(-remaining) }),
+      dueLabel: i18n.t("maintenance.dueAtKm", { km: formatKm(dueKm) }),
     }
   }
 
@@ -253,9 +254,11 @@ export function computeMaintenanceState(
     remainingPct,
     remainingLabel:
       remaining >= 0
-        ? `${remaining} day${remaining === 1 ? "" : "s"} left`
-        : `Overdue by ${-remaining} day${remaining === -1 ? "" : "s"}`,
-    dueLabel: `Due on ${formatDate(dueDate.toISOString())}`,
+        ? i18n.t("maintenance.daysLeft", { count: remaining })
+        : i18n.t("maintenance.overdueDays", { count: -remaining }),
+    dueLabel: i18n.t("maintenance.dueOnDate", {
+      date: formatDate(dueDate.toISOString()),
+    }),
   }
 }
 

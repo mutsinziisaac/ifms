@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { Link } from "react-router-dom"
 import {
+  Bell,
   CalendarClock,
   CheckCircle2,
-  ChevronDown,
+  ChevronRight,
   Gauge,
   MoreVertical,
   Pencil,
@@ -16,11 +19,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -33,24 +31,22 @@ import {
   useVehicles,
 } from "@/data/hooks"
 import type { MaintenanceTask, Vehicle } from "@/data/types"
+import { formatKm } from "@/lib/format"
 import { computeMaintenanceState } from "@/lib/status"
-import { cn } from "@/lib/utils"
 
 import { MaintenanceStatusPie } from "./MaintenanceStatusPie"
 import { MaintenanceTaskFormDialog } from "./MaintenanceTaskFormDialog"
 
 interface PerVehicle {
   vehicleId: string
-  plate: string
   status: ReturnType<typeof computeMaintenanceState>["status"]
-  remainingLabel: string
   remainingPct: number
 }
 
 export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
+  const { t } = useTranslation()
   const [editOpen, setEditOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [expanded, setExpanded] = useState(false)
 
   const { data: vehicles } = useVehicles()
   const confirmTask = useConfirmMaintenanceTask()
@@ -69,9 +65,7 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
         const comp = computeMaintenanceState(task, state, vehicle)
         return {
           vehicleId: state.vehicleId,
-          plate: vehicle?.plate ?? "Unknown vehicle",
           status: comp.status,
-          remainingLabel: comp.remainingLabel,
           remainingPct: comp.remainingPct,
         }
       })
@@ -93,22 +87,15 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
       {
         onSuccess: () => {
           toast.success(
-            `${dueCount} vehicle${dueCount === 1 ? "" : "s"} confirmed serviced`
+            t("maintenance.toast.confirmedServiced", { count: dueCount })
           )
         },
         onError: (err) =>
-          toast.error(err instanceof Error ? err.message : "Operation failed"),
-      }
-    )
-  }
-
-  function handleConfirmOne(vehicleId: string) {
-    confirmTask.mutate(
-      { taskId: task.id, vehicleIds: [vehicleId] },
-      {
-        onSuccess: () => toast.success("Vehicle confirmed serviced"),
-        onError: (err) =>
-          toast.error(err instanceof Error ? err.message : "Operation failed"),
+          toast.error(
+            err instanceof Error
+              ? err.message
+              : t("maintenance.toast.operationFailed")
+          ),
       }
     )
   }
@@ -116,18 +103,29 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
   function handleDelete() {
     deleteTask.mutate(task.id, {
       onSuccess: () => {
-        toast.success("Maintenance task deleted")
+        toast.success(t("maintenance.toast.deleted"))
         setDeleteOpen(false)
       },
       onError: (err) =>
-        toast.error(err instanceof Error ? err.message : "Operation failed"),
+        toast.error(
+          err instanceof Error
+            ? err.message
+            : t("maintenance.toast.operationFailed")
+        ),
     })
   }
 
   const intervalLabel =
     task.paramType === "mileage"
-      ? `Every ${(task.intervalKm ?? 0).toLocaleString("en-US")} km`
-      : `Every ${task.intervalDays ?? 0} day${task.intervalDays === 1 ? "" : "s"}`
+      ? t("maintenance.card.everyKm", {
+          km: (task.intervalKm ?? 0).toLocaleString("en-US"),
+        })
+      : t("maintenance.card.everyDays", { count: task.intervalDays ?? 0 })
+
+  const alertLabel =
+    task.paramType === "mileage"
+      ? t("maintenance.card.warnsKmBefore", { km: formatKm(task.alertBefore) })
+      : t("maintenance.card.warnsDaysBefore", { count: task.alertBefore })
 
   const ParamIcon = task.paramType === "mileage" ? Gauge : CalendarClock
 
@@ -135,9 +133,12 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
     <Card className="gap-0 py-0">
       <CardHeader className="flex-row items-start justify-between gap-2 pt-5">
         <div className="min-w-0 space-y-1.5">
-          <h3 className="truncate font-heading text-base font-semibold">
+          <Link
+            to={`/maintenance/${task.id}`}
+            className="block truncate font-heading text-base font-semibold hover:underline"
+          >
             {task.title}
-          </h3>
+          </Link>
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline" className="gap-1 font-normal">
               <ParamIcon className="size-3" />
@@ -145,9 +146,13 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
             </Badge>
             {task.repeat && (
               <Badge variant="outline" className="font-normal">
-                Recurring
+                {t("maintenance.card.recurring")}
               </Badge>
             )}
+            <Badge variant="outline" className="gap-1 font-normal">
+              <Bell className="size-3" />
+              {alertLabel}
+            </Badge>
           </div>
         </div>
         <DropdownMenu>
@@ -155,7 +160,7 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Task actions"
+              aria-label={t("maintenance.card.taskActions")}
               className="-mt-1 -mr-1"
             >
               <MoreVertical className="size-4" />
@@ -164,7 +169,7 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
           <DropdownMenuContent align="end" className="w-40">
             <DropdownMenuItem onSelect={() => setEditOpen(true)}>
               <Pencil className="size-4" />
-              Edit
+              {t("common.edit")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
@@ -172,7 +177,7 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
               onSelect={() => setDeleteOpen(true)}
             >
               <Trash2 className="size-4" />
-              Delete
+              {t("common.delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -192,10 +197,7 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
           />
           <div className="min-w-0 flex-1 space-y-2">
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground tabular-nums">
-                {rows.length}
-              </span>{" "}
-              vehicle{rows.length === 1 ? "" : "s"}
+              {t("maintenance.card.vehiclesCount", { count: rows.length })}
             </p>
             <ul className="space-y-1.5 text-sm">
               {(["ok", "waiting", "delay"] as const).map((status) => (
@@ -220,59 +222,23 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
           onClick={handleConfirm}
         >
           <CheckCircle2 className="size-4" />
-          {dueCount > 0 ? `Confirm ${dueCount} due` : "All vehicles up to date"}
+          {dueCount > 0
+            ? t("maintenance.card.confirmDue", { count: dueCount })
+            : t("maintenance.card.allUpToDate")}
         </Button>
 
         {rows.length > 0 && (
-          <Collapsible open={expanded} onOpenChange={setExpanded}>
-            <CollapsibleTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mt-2 w-full justify-between text-muted-foreground"
-              >
-                {expanded ? "Hide vehicles" : "View vehicles"}
-                <ChevronDown
-                  className={cn(
-                    "size-4 transition-transform",
-                    expanded && "rotate-180"
-                  )}
-                />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <ul className="mt-2 divide-y rounded-lg border">
-                {rows.map((row) => {
-                  const due = row.status !== "ok"
-                  return (
-                    <li
-                      key={row.vehicleId}
-                      className="flex items-center gap-2 px-3 py-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium tabular-nums">
-                          {row.plate}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {row.remainingLabel}
-                        </p>
-                      </div>
-                      <MaintenanceStatusBadge status={row.status} />
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Confirm serviced"
-                        disabled={!due || confirmTask.isPending}
-                        onClick={() => handleConfirmOne(row.vehicleId)}
-                      >
-                        <CheckCircle2 className="size-4" />
-                      </Button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </CollapsibleContent>
-          </Collapsible>
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="mt-2 w-full justify-between text-muted-foreground"
+          >
+            <Link to={`/maintenance/${task.id}`}>
+              {t("maintenance.card.viewVehicles", { count: rows.length })}
+              <ChevronRight className="size-4" />
+            </Link>
+          </Button>
         )}
       </CardContent>
 
@@ -284,11 +250,12 @@ export function MaintenanceTaskCard({ task }: { task: MaintenanceTask }) {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete maintenance task"
-        description={`“${task.title}” and its schedule for ${rows.length} vehicle${
-          rows.length === 1 ? "" : "s"
-        } will be removed. This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t("maintenance.detail.deleteTitle")}
+        description={t("maintenance.detail.deleteDescription", {
+          title: task.title,
+          count: rows.length,
+        })}
+        confirmLabel={t("common.delete")}
         destructive
         onConfirm={handleDelete}
         isPending={deleteTask.isPending}

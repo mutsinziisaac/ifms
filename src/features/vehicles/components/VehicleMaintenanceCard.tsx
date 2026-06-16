@@ -1,17 +1,22 @@
 import { useMemo } from "react"
+import { useTranslation } from "react-i18next"
 import { Wrench } from "lucide-react"
 
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMaintenanceTasks } from "@/data/hooks"
 import type { Vehicle } from "@/data/types"
-import { computeMaintenanceState, MAINTENANCE_STATUS_CONFIG } from "@/lib/status"
+import {
+  computeMaintenanceState,
+  MAINTENANCE_STATUS_CONFIG,
+} from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 // Worst-first so problems surface at the top.
 const STATUS_ORDER = { delay: 0, waiting: 1, ok: 2 } as const
 
 export function VehicleMaintenanceCard({ vehicle }: { vehicle: Vehicle }) {
+  const { t } = useTranslation()
   const tasksQuery = useMaintenanceTasks()
 
   const items = useMemo(() => {
@@ -29,7 +34,9 @@ export function VehicleMaintenanceCard({ vehicle }: { vehicle: Vehicle }) {
   const header = (
     <div className="mb-3 flex items-center gap-2">
       <Wrench className="size-4 text-muted-foreground" />
-      <span className="text-sm font-medium">Maintenance</span>
+      <span className="text-sm font-medium">
+        {t("vehicles.detail.maintenance.title")}
+      </span>
     </div>
   )
 
@@ -44,7 +51,7 @@ export function VehicleMaintenanceCard({ vehicle }: { vehicle: Vehicle }) {
         </div>
       ) : items.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">
-          This vehicle is not enrolled in any maintenance schedule.
+          {t("vehicles.detail.maintenance.empty")}
         </p>
       ) : (
         <ul className="divide-y">
@@ -67,7 +74,7 @@ export function VehicleMaintenanceCard({ vehicle }: { vehicle: Vehicle }) {
                     config.badgeClass
                   )}
                 >
-                  {config.label}
+                  {t(`enums.maintenanceStatus.${comp.status}`)}
                 </span>
               </li>
             )

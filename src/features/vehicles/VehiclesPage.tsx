@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import {
   Building2,
   Navigation,
@@ -30,22 +31,13 @@ import {
   VEHICLE_TYPES,
 } from "@/data/types"
 import { fullName, formatSpeed } from "@/lib/format"
-import { VEHICLE_STATUS_CONFIG } from "@/lib/status"
 
 import { VehicleFormDialog } from "./components/VehicleFormDialog"
 
 const ALL = "all"
 
-const VEHICLE_TYPE_LABEL: Record<string, string> = {
-  truck: "Truck",
-  trailer: "Trailer",
-  tanker: "Tanker",
-  bus: "Bus",
-  container: "Container",
-  pickup: "Pickup",
-}
-
 export function VehiclesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const vehiclesQuery = useVehicles()
@@ -111,43 +103,45 @@ export function VehiclesPage() {
   const columns: DataTableColumn<Vehicle>[] = [
     {
       key: "plate",
-      header: "Plate",
+      header: t("vehicles.table.plate"),
       render: (v) => (
         <div className="min-w-0">
           <div className="font-medium">{v.plate}</div>
           <div className="text-xs text-muted-foreground">
-            {VEHICLE_TYPE_LABEL[v.type] ?? v.type}
+            {t(`enums.vehicleType.${v.type}`)}
           </div>
         </div>
       ),
     },
     {
       key: "entity",
-      header: "Entity",
+      header: t("vehicles.table.entity"),
       render: (v) => (
         <EntityBadge name={entityById.get(v.entityId)?.shortName ?? "—"} />
       ),
     },
     {
       key: "driver",
-      header: "Driver",
+      header: t("vehicles.table.driver"),
       render: (v) => {
         const driver = v.driverId ? driverById.get(v.driverId) : undefined
         return driver ? (
           <span>{fullName(driver)}</span>
         ) : (
-          <span className="text-muted-foreground">Unassigned</span>
+          <span className="text-muted-foreground">
+            {t("common.unassigned")}
+          </span>
         )
       },
     },
     {
       key: "status",
-      header: "Status",
+      header: t("vehicles.table.status"),
       render: (v) => <VehicleStatusBadge status={v.status} />,
     },
     {
       key: "speed",
-      header: "Speed",
+      header: t("vehicles.table.speed"),
       className: "tabular-nums",
       render: (v) =>
         v.status === "moving" ? (
@@ -158,14 +152,14 @@ export function VehiclesPage() {
     },
     {
       key: "lastSync",
-      header: "Last sync",
+      header: t("vehicles.table.lastSync"),
       render: (v) => (
         <RelativeTime iso={v.lastSyncAt} className="text-muted-foreground" />
       ),
     },
     {
       key: "region",
-      header: "Region",
+      header: t("vehicles.table.region"),
       render: (v) => <span className="text-muted-foreground">{v.region}</span>,
     },
   ]
@@ -173,41 +167,41 @@ export function VehiclesPage() {
   const filters: DataTableFilter[] = [
     {
       key: "status",
-      label: "Status",
+      label: t("vehicles.filters.status"),
       value: statusFilter,
       onChange: setStatusFilter,
       options: VEHICLE_STATUSES.map((s) => ({
         value: s,
-        label: VEHICLE_STATUS_CONFIG[s].label,
+        label: t(`enums.vehicleStatus.${s}`),
       })),
     },
     {
       key: "type",
-      label: "Type",
+      label: t("vehicles.filters.type"),
       value: typeFilter,
       onChange: setTypeFilter,
-      options: VEHICLE_TYPES.map((t) => ({
-        value: t,
-        label: VEHICLE_TYPE_LABEL[t] ?? t,
+      options: VEHICLE_TYPES.map((vt) => ({
+        value: vt,
+        label: t(`enums.vehicleType.${vt}`),
       })),
     },
     {
       key: "entity",
-      label: "Entity",
+      label: t("vehicles.filters.entity"),
       value: entityFilter,
       onChange: setEntityFilter,
       options: entities.map((e) => ({ value: e.id, label: e.shortName })),
     },
     {
       key: "region",
-      label: "Region",
+      label: t("vehicles.filters.region"),
       value: regionFilter,
       onChange: setRegionFilter,
       options: ETHIOPIA_REGIONS.map((r) => ({ value: r, label: r })),
     },
     {
       key: "gps",
-      label: "GPS",
+      label: t("vehicles.filters.gps"),
       value: gpsFilter,
       onChange: setGpsFilter,
       options: GPS_PROVIDERS.map((p) => ({ value: p, label: p })),
@@ -217,39 +211,47 @@ export function VehiclesPage() {
   return (
     <div>
       <PageHeader
-        title="Fleet"
-        description="Vehicles operated by monitored entities across the corridor."
+        title={t("vehicles.title")}
+        description={t("vehicles.description")}
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" />
-            Add vehicle
+            {t("vehicles.addVehicle")}
           </Button>
         }
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="Total vehicles" value={vehicles.length} icon={Truck} />
         <StatCard
-          label="Moving"
+          label={t("vehicles.stats.total")}
+          value={vehicles.length}
+          icon={Truck}
+        />
+        <StatCard
+          label={t("vehicles.stats.moving")}
           value={movingCount}
           icon={Navigation}
           intent="success"
         />
         <StatCard
-          label="Idling"
+          label={t("vehicles.stats.idling")}
           value={idlingCount}
           icon={PauseCircle}
           intent="warning"
         />
-        <StatCard label="Stopped" value={stoppedCount} icon={PowerOff} />
         <StatCard
-          label="No signal"
+          label={t("vehicles.stats.stopped")}
+          value={stoppedCount}
+          icon={PowerOff}
+        />
+        <StatCard
+          label={t("vehicles.stats.noSignal")}
           value={noSignalCount}
           icon={WifiOff}
           intent="danger"
         />
         <StatCard
-          label="Entities monitored"
+          label={t("vehicles.stats.entitiesMonitored")}
           value={entities.length}
           icon={Building2}
         />
@@ -261,11 +263,11 @@ export function VehiclesPage() {
         isLoading={vehiclesQuery.isLoading}
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search plate, model or entity…"
+        searchPlaceholder={t("vehicles.searchPlaceholder")}
         filters={filters}
         onRowClick={(v) => navigate(`/fleet/${v.id}`)}
-        emptyTitle="No vehicles found"
-        emptyDescription="Try adjusting your search or filters."
+        emptyTitle={t("vehicles.emptyTitle")}
+        emptyDescription={t("vehicles.emptyDescription")}
       />
 
       <VehicleFormDialog open={createOpen} onOpenChange={setCreateOpen} />

@@ -9,6 +9,7 @@ import {
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -35,25 +36,10 @@ import type {
 } from "@/data/types"
 import { cn } from "@/lib/utils"
 
-const RULE_META: Record<
-  ZoneRuleType,
-  { label: string; icon: LucideIcon; description: string }
-> = {
-  entry: {
-    label: "Entry",
-    icon: ArrowRightToLine,
-    description: "Vehicle enters this zone",
-  },
-  exit: {
-    label: "Exit",
-    icon: ArrowRightFromLine,
-    description: "Vehicle leaves this zone",
-  },
-  speeding: {
-    label: "Speeding",
-    icon: Gauge,
-    description: "Speed exceeds the limit inside this zone",
-  },
+const RULE_ICON: Record<ZoneRuleType, LucideIcon> = {
+  entry: ArrowRightToLine,
+  exit: ArrowRightFromLine,
+  speeding: Gauge,
 }
 
 const DEFAULT_SEVERITY: Record<ZoneRuleType, EventSeverity> = {
@@ -67,6 +53,7 @@ export interface ZoneRulesPanelProps {
 }
 
 export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
+  const { t } = useTranslation()
   const rules = (useEventRules().data ?? []).filter(
     (rule) => rule.geozoneId === geozone.id
   )
@@ -89,15 +76,15 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
         active,
       },
       {
-        onError: () => toast.error("Could not update rule"),
+        onError: () => toast.error(t("geozones.toast.ruleUpdateFailed")),
       }
     )
   }
 
   const removeRule = (rule: EventRule) => {
     deleteRule.mutate(rule.id, {
-      onSuccess: () => toast.success("Rule removed"),
-      onError: () => toast.error("Could not remove rule"),
+      onSuccess: () => toast.success(t("geozones.toast.ruleRemoved")),
+      onError: () => toast.error(t("geozones.toast.ruleRemoveFailed")),
     })
   }
 
@@ -106,7 +93,7 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
     if (newType === "speeding") {
       const parsed = Number(newSpeed)
       if (!Number.isFinite(parsed) || parsed <= 0) {
-        toast.error("Enter a valid speed limit")
+        toast.error(t("geozones.toast.invalidSpeedLimit"))
         return
       }
       speedLimitKmh = Math.round(parsed)
@@ -122,11 +109,11 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
       },
       {
         onSuccess: () => {
-          toast.success("Event rule added")
+          toast.success(t("geozones.toast.ruleAdded"))
           setNewType("entry")
           setNewSpeed("60")
         },
-        onError: () => toast.error("Could not add rule"),
+        onError: () => toast.error(t("geozones.toast.ruleAddFailed")),
       }
     )
   }
@@ -134,21 +121,24 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="font-heading text-sm font-semibold">Event rules</h3>
+        <h3 className="font-heading text-sm font-semibold">
+          {t("geozones.rules.title")}
+        </h3>
         <span className="text-xs text-muted-foreground tabular-nums">
-          {rules.length} rule{rules.length === 1 ? "" : "s"}
+          {t("geozones.rules.count", { count: rules.length })}
         </span>
       </div>
 
       <div className="space-y-2">
         {rules.length === 0 ? (
           <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-muted-foreground">
-            No event rules yet for this zone.
+            {t("geozones.rules.empty")}
           </p>
         ) : (
           rules.map((rule) => {
-            const meta = RULE_META[rule.type as ZoneRuleType]
-            const Icon = meta.icon
+            const ruleType = rule.type as ZoneRuleType
+            const Icon = RULE_ICON[ruleType]
+            const label = t(`enums.eventRuleType.${ruleType}`)
             return (
               <div
                 key={rule.id}
@@ -161,24 +151,26 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{meta.label}</p>
+                  <p className="text-sm font-medium">{label}</p>
                   <p className="text-xs text-muted-foreground">
                     {rule.type === "speeding" && rule.speedLimitKmh != null
-                      ? `Over ${rule.speedLimitKmh} km/h`
-                      : meta.description}
+                      ? t("geozones.rules.overSpeed", {
+                          speed: rule.speedLimitKmh,
+                        })
+                      : t(`geozones.rules.description.${ruleType}`)}
                   </p>
                 </div>
                 <Switch
                   checked={rule.active}
                   onCheckedChange={(checked) => toggleActive(rule, checked)}
-                  aria-label={`Toggle ${meta.label} rule`}
+                  aria-label={t("geozones.rules.toggleRule", { type: label })}
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => removeRule(rule)}
-                  aria-label="Delete rule"
+                  aria-label={t("geozones.rules.deleteRule")}
                   className="text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="size-4" />
@@ -192,7 +184,7 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
       <div className="flex items-end gap-2 rounded-lg border bg-muted/30 p-2.5">
         <div className="flex-1 space-y-1">
           <span className="text-xs font-medium text-muted-foreground">
-            Add rule
+            {t("geozones.rules.addRule")}
           </span>
           <Select
             value={newType}
@@ -204,7 +196,7 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
             <SelectContent>
               {ZONE_RULE_TYPES.map((type) => (
                 <SelectItem key={type} value={type}>
-                  {RULE_META[type].label}
+                  {t(`enums.eventRuleType.${type}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -230,7 +222,7 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
           disabled={upsertRule.isPending}
         >
           <Plus className="size-4" />
-          Add
+          {t("common.add")}
         </Button>
       </div>
 
@@ -238,7 +230,7 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
         to="/config/events"
         className="flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
       >
-        All event rules
+        {t("geozones.rules.allRules")}
         <ArrowUpRight className="size-3.5" />
       </Link>
     </div>

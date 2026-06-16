@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { FormDialog } from "@/components/common/FormDialog"
@@ -25,6 +26,7 @@ export function AssignVehicleDialog({
   onOpenChange: (open: boolean) => void
   driver: Driver
 }) {
+  const { t } = useTranslation()
   const vehicles = useVehicles().data ?? []
   const assign = useAssignVehicleToDriver()
 
@@ -55,17 +57,22 @@ export function AssignVehicleDialog({
       {
         onSuccess: () => {
           if (vehicleId === null) {
-            toast.success(`Unassigned vehicle from ${fullName(driver)}.`)
+            toast.success(
+              t("drivers.toast.unassigned", { name: fullName(driver) })
+            )
           } else {
             const plate =
-              vehicles.find((v) => v.id === vehicleId)?.plate ?? "vehicle"
-            toast.success(`Assigned ${plate} to ${fullName(driver)}.`)
+              vehicles.find((v) => v.id === vehicleId)?.plate ??
+              t("drivers.toast.fallbackVehicle")
+            toast.success(
+              t("drivers.toast.assigned", { plate, name: fullName(driver) })
+            )
           }
           onOpenChange(false)
         },
         onError: (err: unknown) =>
           toast.error(
-            err instanceof Error ? err.message : "Could not update assignment."
+            err instanceof Error ? err.message : t("drivers.toast.assignError")
           ),
       }
     )
@@ -75,20 +82,22 @@ export function AssignVehicleDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Assign vehicle"
-      description={`Choose the vehicle ${fullName(driver)} will operate.`}
-      submitLabel="Save assignment"
+      title={t("drivers.assign.title")}
+      description={t("drivers.assign.description", { name: fullName(driver) })}
+      submitLabel={t("drivers.assign.saveAssignment")}
       onSubmit={handleSubmit}
       isPending={isPending}
     >
       <div className="space-y-1.5">
-        <Label>Vehicle</Label>
+        <Label>{t("drivers.assign.vehicle")}</Label>
         <Select value={selected} onValueChange={setSelected}>
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select a vehicle" />
+            <SelectValue placeholder={t("drivers.assign.selectVehicle")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={UNASSIGN_VALUE}>Unassigned</SelectItem>
+            <SelectItem value={UNASSIGN_VALUE}>
+              {t("common.unassigned")}
+            </SelectItem>
             {selectableVehicles.map((vehicle) => (
               <SelectItem key={vehicle.id} value={vehicle.id}>
                 {vehicle.plate} · {vehicle.description}
@@ -97,8 +106,7 @@ export function AssignVehicleDialog({
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">
-          Only vehicles without a driver are shown. Assigning here detaches any
-          previous link automatically.
+          {t("drivers.assign.hint")}
         </p>
       </div>
     </FormDialog>

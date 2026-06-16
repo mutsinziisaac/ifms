@@ -22,6 +22,7 @@ import type {
   LicenseCategory,
   MaintenanceConfirmation,
   MaintenanceParamType,
+  MaintenanceServiceRecord,
   MaintenanceTask,
   MaintenanceVehicleState,
   RouteDef,
@@ -137,6 +138,18 @@ export interface MaintenanceTaskInput {
   vehicleIds: ID[]
   lastServiceKm: number | null
   lastServiceDate: string | null
+}
+
+export interface LogMaintenanceServiceInput {
+  taskId: ID
+  vehicleId: ID
+  /** ISO timestamp the service was performed */
+  servicedAt: string
+  odometerKm: number | null
+  cost: number
+  workshop: string
+  technician: string | null
+  notes: string
 }
 
 // ---------------------------------------------------------------------------
@@ -966,6 +979,28 @@ export async function listMaintenanceTasks(): Promise<MaintenanceTask[]> {
   return [...getDB().maintenanceTasks]
 }
 
+/** Service-history records, newest first. Pass a taskId to scope to one task. */
+export async function listMaintenanceServiceRecords(
+  taskId?: ID
+): Promise<MaintenanceServiceRecord[]> {
+  await latency()
+  const all = getDB().maintenanceServiceRecords
+  const scoped = taskId ? all.filter((r) => r.taskId === taskId) : all
+  return [...scoped].sort((a, b) => (a.servicedAt < b.servicedAt ? 1 : -1))
+}
+
+/** A sensible default work-order cost (ETB) for bulk/automatic confirmations. */
+export function defaultServiceCost(task: MaintenanceTask): number {
+  const t = task.title.toLowerCase()
+  if (t.includes("brake")) return 18000
+  if (t.includes("insurance")) return 30000
+  if (t.includes("tire") || t.includes("tyre")) return 2500
+  if (t.includes("oil")) return 5000
+  if (t.includes("inspection") || t.includes("bolo")) return 2000
+  if (t.includes("quarterly") || t.includes("preventive")) return 6000
+  return task.paramType === "mileage" ? 6000 : 5000
+}
+
 function buildMaintenanceStates(
   db: ReturnType<typeof getDB>,
   paramType: MaintenanceParamType,
@@ -1098,14 +1133,71 @@ export async function confirmMaintenanceTask(
         .map((state) => state.vehicleId)
 
     const targetSet = new Set(targets)
+    const cost = defaultServiceCost(task)
+    const at = nowIso()
     for (const state of task.vehicles) {
       if (!targetSet.has(state.vehicleId)) continue
       const vehicle = findVehicle(db, state.vehicleId)
+      const odo = vehicle?.odometerKm ?? state.lastServiceKm ?? 0
       if (task.paramType === "mileage") {
-        state.lastServiceKm = vehicle?.odometerKm ?? state.lastServiceKm ?? 0
+        state.lastServiceKm = odo
       } else {
         state.lastServiceDate = todayIso()
       }
+      // Bulk confirm still writes a work order so spend/history stay honest.
+      db.maintenanceServiceRecords.push({
+        id: nextId("mnt-rec"),
+        taskId: task.id,
+        vehicleId: state.vehicleId,
+        servicedAt: at,
+        odometerKm: task.paramType === "mileage" ? odo : null,
+        cost,
+        workshop: "MoTL Central Workshop, Kality",
+        technician: null,
+        notes: "Bulk confirmation.",
+      })
     }
   })
+}
+
+export async function logMaintenanceService(
+  input: LogMaintenanceServiceInput
+): Promise<MaintenanceServiceRecord> {
+  await latency()
+  let created: MaintenanceServiceRecord | null = null
+  mutate((db) => {
+    const task = db.maintenanceTasks.find((t) => t.id === input.taskId)
+    if (!task) throw new Error(`Maintenance task ${input.taskId} not found`)
+    const state = task.vehicles.find((s) => s.vehicleId === input.vehicleId)
+    if (!state) {
+      throw new Error(
+        `Vehicle ${input.vehicleId} is not covered by task ${input.taskId}`
+      )
+    }
+    const vehicle = findVehicle(db, input.vehicleId)
+    const odo =
+      input.odometerKm ?? vehicle?.odometerKm ?? state.lastServiceKm ?? 0
+
+    const record: MaintenanceServiceRecord = {
+      id: nextId("mnt-rec"),
+      taskId: input.taskId,
+      vehicleId: input.vehicleId,
+      servicedAt: input.servicedAt,
+      odometerKm: task.paramType === "mileage" ? odo : null,
+      cost: input.cost,
+      workshop: input.workshop,
+      technician: input.technician,
+      notes: input.notes,
+    }
+    db.maintenanceServiceRecords.push(record)
+
+    // Logging a service confirms it — reset the counter for that vehicle.
+    if (task.paramType === "mileage") {
+      state.lastServiceKm = odo
+    } else {
+      state.lastServiceDate = input.servicedAt.slice(0, 10)
+    }
+    created = record
+  })
+  return created!
 }

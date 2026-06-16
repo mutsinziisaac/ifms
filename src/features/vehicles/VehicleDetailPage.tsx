@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { ChevronLeft, Pencil, Trash2, Truck } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,6 +21,7 @@ import { VehicleReportExport } from "./components/VehicleReportExport"
 import { VehicleTravelHistory } from "./components/VehicleTravelHistory"
 
 export function VehicleDetailPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
 
@@ -47,13 +49,13 @@ export function VehicleDetailPage() {
       <div>
         <EmptyState
           icon={Truck}
-          title="Vehicle not found"
-          description="This vehicle may have been removed from the fleet."
+          title={t("vehicles.detail.notFoundTitle")}
+          description={t("vehicles.detail.notFoundDescription")}
           action={
             <Button asChild variant="outline">
               <Link to="/fleet">
                 <ChevronLeft className="size-4" />
-                Back to fleet
+                {t("vehicles.detail.backToFleet")}
               </Link>
             </Button>
           }
@@ -67,12 +69,14 @@ export function VehicleDetailPage() {
   const handleDelete = () => {
     deleteVehicle.mutate(vehicle.id, {
       onSuccess: () => {
-        toast.success(`Vehicle ${vehicle.plate} deleted`)
+        toast.success(t("vehicles.toast.deleted", { plate: vehicle.plate }))
         navigate("/fleet")
       },
       onError: (error) =>
         toast.error(
-          error instanceof Error ? error.message : "Failed to delete vehicle"
+          error instanceof Error
+            ? error.message
+            : t("vehicles.toast.deleteFailed")
         ),
     })
   }
@@ -87,14 +91,11 @@ export function VehicleDetailPage() {
             <>
               <Button variant="outline" onClick={() => setEditOpen(true)}>
                 <Pencil className="size-4" />
-                Edit
+                {t("common.edit")}
               </Button>
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
                 <Trash2 className="size-4" />
-                Delete
+                {t("common.delete")}
               </Button>
             </>
           }
@@ -126,9 +127,11 @@ export function VehicleDetailPage() {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete vehicle"
-        description={`Permanently remove ${vehicle.plate} from the fleet? This cannot be undone.`}
-        confirmLabel="Delete vehicle"
+        title={t("vehicles.detail.deleteTitle")}
+        description={t("vehicles.detail.deleteDescription", {
+          plate: vehicle.plate,
+        })}
+        confirmLabel={t("vehicles.detail.deleteConfirm")}
         destructive
         onConfirm={handleDelete}
         isPending={deleteVehicle.isPending}

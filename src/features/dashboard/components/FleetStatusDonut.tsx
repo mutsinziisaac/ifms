@@ -1,4 +1,5 @@
 import { Cell, Label, Pie, PieChart } from "recharts"
+import { useTranslation } from "react-i18next"
 
 import {
   Card,
@@ -28,12 +29,13 @@ const chartConfig: ChartConfig = VEHICLE_STATUSES.reduce((acc, status) => {
 }, {} as ChartConfig)
 
 export function FleetStatusDonut() {
+  const { t } = useTranslation()
   const vehicles = useLiveVehicles()
   const total = vehicles.length
 
   const data = VEHICLE_STATUSES.map((status) => ({
     status,
-    label: VEHICLE_STATUS_CONFIG[status].label,
+    label: t(`enums.vehicleStatus.${status}`),
     count: vehicles.filter((v) => v.status === status).length,
     color: VEHICLE_STATUS_CONFIG[status].color,
   })).filter((d) => d.count > 0)
@@ -41,8 +43,8 @@ export function FleetStatusDonut() {
   return (
     <Card className="gap-0">
       <CardHeader>
-        <CardTitle>Fleet status</CardTitle>
-        <CardDescription>Live distribution across the fleet</CardDescription>
+        <CardTitle>{t("dashboard.fleetStatus.title")}</CardTitle>
+        <CardDescription>{t("dashboard.fleetStatus.subtitle")}</CardDescription>
       </CardHeader>
       <CardContent>
         {total === 0 ? (
@@ -104,7 +106,7 @@ export function FleetStatusDonut() {
                             y={(viewBox.cy ?? 0) + 22}
                             className="fill-muted-foreground text-xs"
                           >
-                            Vehicles
+                            {t("dashboard.fleetStatus.centerLabel")}
                           </tspan>
                         </text>
                       )
@@ -133,7 +135,7 @@ export function FleetStatusDonut() {
                         }}
                       />
                       <span className="truncate text-muted-foreground">
-                        {VEHICLE_STATUS_CONFIG[status].label}
+                        {t(`enums.vehicleStatus.${status}`)}
                       </span>
                     </span>
                     <span className="font-medium tabular-nums">{count}</span>

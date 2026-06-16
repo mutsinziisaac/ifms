@@ -3,6 +3,7 @@
 // transitions, evaluates event rules (geofencing + fleet-wide) and emits
 // events — all inside ONE store.mutate so consumers re-render once per tick.
 
+import { defaultServiceCost } from "@/data/api"
 import { qk } from "@/data/query-keys"
 import { mutate } from "@/data/store"
 import type {
@@ -16,6 +17,7 @@ import type {
 } from "@/data/types"
 import { queryClient } from "@/lib/query-client"
 import { interpolateAlongPath, isInsideGeozone } from "@/lib/maps"
+import { computeMaintenanceState } from "@/lib/status"
 
 const TICK_MS = 1500
 // At 1x: 1.5 real s * 1 * 40 = 60 simulated seconds per tick.
@@ -41,6 +43,15 @@ function nextEventId(): string {
     suffix += ID_CHARS[Math.floor(Math.random() * ID_CHARS.length)]
   }
   return `evt-${suffix}${(Date.now() + simIdCounter).toString(36).slice(-2)}`
+}
+
+function nextRecordId(): string {
+  simIdCounter++
+  let suffix = ""
+  for (let i = 0; i < 4; i++) {
+    suffix += ID_CHARS[Math.floor(Math.random() * ID_CHARS.length)]
+  }
+  return `mnt-rec-${suffix}${(Date.now() + simIdCounter).toString(36).slice(-2)}`
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -106,6 +117,7 @@ export function startSimulation(): SimulationHandle {
       (TICK_MS / 1000) * speedMultiplier * SIM_SECONDS_PER_REAL_SECOND
     const simElapsedHours = simElapsedSeconds / 3600
     const now = new Date().toISOString()
+    let autoConfirmed = false
 
     mutate((db) => {
       const routesById = new Map<string, RouteDef>(
@@ -148,10 +160,48 @@ export function startSimulation(): SimulationHandle {
         t.messagesTotal += sample
         t.history = [...t.history.slice(-(TELEMETRY_HISTORY_MAX - 1)), sample]
       }
+
+      // Automatic maintenance — tasks set to "automatic" self-confirm any
+      // vehicle that has crossed into delay (overdue). Resetting the counter
+      // immediately returns it to OK, so this fires at most once per cycle.
+      const vehiclesById = new Map(db.vehicles.map((v) => [v.id, v]))
+      for (const task of db.maintenanceTasks) {
+        if (task.confirmation !== "automatic") continue
+        for (const state of task.vehicles) {
+          const vehicle = vehiclesById.get(state.vehicleId)
+          if (
+            computeMaintenanceState(task, state, vehicle).status !== "delay"
+          ) {
+            continue
+          }
+          const odo = vehicle?.odometerKm ?? state.lastServiceKm ?? 0
+          if (task.paramType === "mileage") {
+            state.lastServiceKm = odo
+          } else {
+            state.lastServiceDate = now.slice(0, 10)
+          }
+          db.maintenanceServiceRecords.push({
+            id: nextRecordId(),
+            taskId: task.id,
+            vehicleId: state.vehicleId,
+            servicedAt: now,
+            odometerKm: task.paramType === "mileage" ? odo : null,
+            cost: defaultServiceCost(task),
+            workshop: "MoTL Central Workshop, Kality",
+            technician: null,
+            notes: "Automatic service confirmation.",
+          })
+          autoConfirmed = true
+        }
+      }
     })
 
     queryClient.invalidateQueries({ queryKey: qk.vehicles })
     queryClient.invalidateQueries({ queryKey: qk.events })
+    queryClient.invalidateQueries({ queryKey: qk.maintenanceTasks })
+    if (autoConfirmed) {
+      queryClient.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
+    }
   }, TICK_MS)
 
   return {

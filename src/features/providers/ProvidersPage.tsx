@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { Activity, Building2, MessagesSquare, RadioTower } from "lucide-react"
 
@@ -43,6 +44,7 @@ function OnlineBar({ stats }: { stats: ProviderStats }) {
 }
 
 export function ProvidersPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const entities = useEntities().data ?? []
   const vehicles = useLiveVehicles()
@@ -78,7 +80,7 @@ export function ProvidersPage() {
   const columns: DataTableColumn<ProviderRow>[] = [
     {
       key: "name",
-      header: "Provider",
+      header: t("providers.table.provider"),
       render: (row) => (
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -93,17 +95,17 @@ export function ProvidersPage() {
     },
     {
       key: "category",
-      header: "Type",
+      header: t("providers.table.type"),
       render: (row) => <ProviderCategoryBadge category={row.category} />,
     },
     {
       key: "region",
-      header: "Region",
+      header: t("providers.table.region"),
       render: (row) => <span className="text-sm">{row.region}</span>,
     },
     {
       key: "devices",
-      header: "Devices",
+      header: t("providers.table.devices"),
       render: (row) => (
         <span className="text-sm font-medium tabular-nums">
           {row.stats.deviceCount}
@@ -112,12 +114,12 @@ export function ProvidersPage() {
     },
     {
       key: "online",
-      header: "Transmitting",
+      header: t("providers.table.transmitting"),
       render: (row) => <OnlineBar stats={row.stats} />,
     },
     {
       key: "lastSync",
-      header: "Last sync",
+      header: t("providers.table.lastSync"),
       render: (row) =>
         row.stats.lastSyncAt ? (
           <RelativeTime
@@ -130,7 +132,7 @@ export function ProvidersPage() {
     },
     {
       key: "messages",
-      header: "Messages",
+      header: t("providers.table.messages"),
       render: (row) => (
         <span className="text-sm tabular-nums">
           {row.stats.messagesTotal.toLocaleString()}
@@ -139,7 +141,7 @@ export function ProvidersPage() {
     },
     {
       key: "trend",
-      header: "Activity",
+      header: t("providers.table.activity"),
       render: (row) => (
         <div className="h-8 w-24 text-primary">
           <Sparkline data={row.stats.history} />
@@ -151,37 +153,39 @@ export function ProvidersPage() {
   return (
     <div>
       <PageHeader
-        title="Providers"
-        description="Government ministries and institutions transmitting device data to the MoTL platform."
+        title={t("providers.title")}
+        description={t("providers.description")}
       />
 
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label="Providers"
+            label={t("providers.stats.providers")}
             value={entities.length}
             icon={Building2}
-            hint="Ministries, agencies & enterprises"
+            hint={t("providers.stats.providersHint")}
           />
           <StatCard
-            label="Devices transmitting"
+            label={t("providers.stats.devicesTransmitting")}
             value={onlineDevices}
             icon={RadioTower}
             intent="success"
-            hint={`of ${totalDevices} registered devices`}
+            hint={t("providers.stats.devicesTransmittingHint", {
+              count: totalDevices,
+            })}
           />
           <StatCard
-            label="Fleet online"
+            label={t("providers.stats.fleetOnline")}
             value={`${onlinePct}%`}
             icon={Activity}
             intent={onlinePct >= 90 ? "success" : "warning"}
-            hint="Devices with an active signal"
+            hint={t("providers.stats.fleetOnlineHint")}
           />
           <StatCard
-            label="Messages received"
+            label={t("providers.stats.messagesReceived")}
             value={messagesTotal.toLocaleString()}
             icon={MessagesSquare}
-            hint="Position reports this session"
+            hint={t("providers.stats.messagesReceivedHint")}
           />
         </div>
 
@@ -190,10 +194,10 @@ export function ProvidersPage() {
           columns={columns}
           searchValue={search}
           onSearchChange={setSearch}
-          searchPlaceholder="Search providers…"
+          searchPlaceholder={t("providers.searchPlaceholder")}
           onRowClick={(row) => navigate(`/providers/${row.id}`)}
-          emptyTitle="No providers found"
-          emptyDescription="Try a different search."
+          emptyTitle={t("providers.emptyTitle")}
+          emptyDescription={t("providers.emptyDescription")}
         />
       </div>
     </div>

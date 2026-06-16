@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FleetMap } from "@/components/map/FleetMap"
@@ -18,6 +19,7 @@ import { VEHICLE_STATUS_CONFIG } from "@/lib/status"
 import { VEHICLE_STATUSES, type Vehicle } from "@/data/types"
 
 export function LiveFleetMapCard() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const vehicles = useLiveVehicles()
   const drivers = useDrivers().data ?? []
@@ -50,7 +52,7 @@ export function LiveFleetMapCard() {
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
             <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
           </span>
-          Live fleet
+          {t("dashboard.liveFleet.title")}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
           {VEHICLE_STATUSES.map((status) => (
@@ -62,7 +64,7 @@ export function LiveFleetMapCard() {
                 className="size-2 rounded-full"
                 style={{ backgroundColor: VEHICLE_STATUS_CONFIG[status].color }}
               />
-              {VEHICLE_STATUS_CONFIG[status].label}
+              {t(`enums.vehicleStatus.${status}`)}
             </span>
           ))}
         </div>

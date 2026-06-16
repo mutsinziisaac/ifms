@@ -9,6 +9,7 @@ import {
   Truck,
 } from "lucide-react"
 import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog"
 import { EmptyState } from "@/components/common/EmptyState"
@@ -50,6 +51,7 @@ type DialogState =
   | { kind: "assign"; route: RouteDef }
 
 export function RoutesPage() {
+  const { t } = useTranslation()
   const routesQuery = useRoutes()
   const routes = useMemo(() => routesQuery.data ?? [], [routesQuery.data])
   const isLoading = routesQuery.isLoading
@@ -116,12 +118,12 @@ export function RoutesPage() {
   return (
     <div className="flex h-[calc(100vh-7rem)] min-h-[640px] flex-col">
       <PageHeader
-        title="Routes"
-        description="Freight corridors and vehicle itineraries."
+        title={t("routes.title")}
+        description={t("routes.description")}
         actions={
           <Button onClick={() => setDialog({ kind: "create" })}>
             <Plus className="size-4" />
-            Add route
+            {t("routes.addRoute")}
           </Button>
         }
       />
@@ -135,7 +137,7 @@ export function RoutesPage() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search routes or stops…"
+                placeholder={t("routes.searchPlaceholder")}
                 className="pl-8"
                 autoComplete="off"
               />
@@ -153,12 +155,14 @@ export function RoutesPage() {
               <EmptyState
                 icon={RouteIcon}
                 title={
-                  routes.length === 0 ? "No routes yet" : "No matching routes"
+                  routes.length === 0
+                    ? t("routes.empty.noRoutesTitle")
+                    : t("routes.empty.noMatchTitle")
                 }
                 description={
                   routes.length === 0
-                    ? "Create your first freight corridor to start monitoring itineraries."
-                    : "Try a different search term."
+                    ? t("routes.empty.noRoutesDescription")
+                    : t("routes.empty.noMatchDescription")
                 }
                 action={
                   routes.length === 0 ? (
@@ -167,7 +171,7 @@ export function RoutesPage() {
                       onClick={() => setDialog({ kind: "create" })}
                     >
                       <Plus className="size-4" />
-                      Add route
+                      {t("routes.addRoute")}
                     </Button>
                   ) : undefined
                 }
@@ -200,8 +204,10 @@ export function RoutesPage() {
                           <div className="min-w-0">
                             <p className="truncate font-medium">{route.name}</p>
                             <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                              {route.distanceKm} km · {route.waypoints.length}{" "}
-                              stops
+                              {route.distanceKm} km ·{" "}
+                              {t("routes.list.stops", {
+                                count: route.waypoints.length,
+                              })}
                             </p>
                           </div>
                           <Badge
@@ -211,7 +217,9 @@ export function RoutesPage() {
                               !route.active && "text-muted-foreground"
                             )}
                           >
-                            {route.active ? "Active" : "Inactive"}
+                            {route.active
+                              ? t("routes.active")
+                              : t("routes.inactive")}
                           </Badge>
                         </div>
 
@@ -230,18 +238,24 @@ export function RoutesPage() {
                                     onSuccess: () =>
                                       toast.success(
                                         checked
-                                          ? `"${route.name}" activated`
-                                          : `"${route.name}" deactivated — existing assignments stay effective`
+                                          ? t("routes.toast.activated", {
+                                              name: route.name,
+                                            })
+                                          : t("routes.toast.deactivated", {
+                                              name: route.name,
+                                            })
                                       ),
                                     onError: (error: Error) =>
                                       toast.error(error.message),
                                   }
                                 )
                               }
-                              aria-label="Toggle route active"
+                              aria-label={t("routes.list.toggleActive")}
                             />
                             <span className="text-xs text-muted-foreground">
-                              {route.active ? "Active" : "Inactive"}
+                              {route.active
+                                ? t("routes.active")
+                                : t("routes.inactive")}
                             </span>
                           </div>
 
@@ -250,8 +264,8 @@ export function RoutesPage() {
                             size="icon-sm"
                             className="text-muted-foreground hover:text-foreground"
                             onClick={() => setDialog({ kind: "assign", route })}
-                            aria-label="Assign vehicles"
-                            title="Assign vehicles"
+                            aria-label={t("routes.list.assignVehicles")}
+                            title={t("routes.list.assignVehicles")}
                           >
                             <Truck className="size-4" />
                           </Button>
@@ -260,8 +274,8 @@ export function RoutesPage() {
                             size="icon-sm"
                             className="text-muted-foreground hover:text-foreground"
                             onClick={() => setDialog({ kind: "edit", route })}
-                            aria-label="Edit route"
-                            title="Edit route"
+                            aria-label={t("routes.list.editRoute")}
+                            title={t("routes.list.editRoute")}
                           >
                             <Pencil className="size-4" />
                           </Button>
@@ -270,8 +284,8 @@ export function RoutesPage() {
                             size="icon-sm"
                             className="text-muted-foreground hover:text-destructive"
                             onClick={() => setDialog({ kind: "delete", route })}
-                            aria-label="Delete route"
-                            title="Delete route"
+                            aria-label={t("routes.list.deleteRoute")}
+                            title={t("routes.list.deleteRoute")}
                           >
                             <Trash2 className="size-4" />
                           </Button>
@@ -361,20 +375,21 @@ function DeleteRouteDialog({
   onClose: () => void
   onDeleted: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const deleteRoute = useDeleteRoute()
   return (
     <ConfirmDialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title="Delete route"
-      description={`Delete "${route.name}"? Vehicles on this corridor will be unassigned. This cannot be undone.`}
-      confirmLabel="Delete route"
+      title={t("routes.delete.title")}
+      description={t("routes.delete.description", { name: route.name })}
+      confirmLabel={t("routes.delete.confirm")}
       destructive
       isPending={deleteRoute.isPending}
       onConfirm={() =>
         deleteRoute.mutate(route.id, {
           onSuccess: () => {
-            toast.success(`Route "${route.name}" deleted`)
+            toast.success(t("routes.toast.deleted", { name: route.name }))
             onDeleted(route.id)
             onClose()
           },

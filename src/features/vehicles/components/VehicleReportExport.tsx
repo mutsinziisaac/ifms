@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { FileSpreadsheet } from "lucide-react"
 import { toast } from "sonner"
 
@@ -12,11 +13,6 @@ import {
 import type { Vehicle } from "@/data/types"
 import { downloadTextFile, toCsv } from "@/lib/csv"
 import { formatDateTime, fullName } from "@/lib/format"
-import {
-  EVENT_SEVERITY_CONFIG,
-  EVENT_STATUS_CONFIG,
-  EVENT_TYPE_LABEL,
-} from "@/lib/status"
 
 import { driverIdAt } from "./driver-attribution"
 
@@ -26,6 +22,7 @@ function slug(plate: string): string {
 }
 
 export function VehicleReportExport({ vehicle }: { vehicle: Vehicle }) {
+  const { t } = useTranslation()
   const events = useEvents().data ?? []
   const trips = useTripsForVehicle(vehicle.id).data ?? []
   const assignments = useAssignmentsForVehicle(vehicle.id).data ?? []
@@ -35,78 +32,87 @@ export function VehicleReportExport({ vehicle }: { vehicle: Vehicle }) {
     const rows = events
       .filter((e) => e.vehicleId === vehicle.id)
       .map((e) => [
-        EVENT_SEVERITY_CONFIG[e.severity].label,
-        EVENT_TYPE_LABEL[e.type],
-        EVENT_STATUS_CONFIG[e.status].label,
+        t(`enums.eventSeverity.${e.severity}`),
+        t(`enums.eventType.${e.type}`),
+        t(`enums.eventStatus.${e.status}`),
         e.message,
         e.geozoneName ?? "",
         formatDateTime(e.at),
       ])
     if (rows.length === 0) {
-      toast.info("No events to export for this vehicle")
+      toast.info(t("vehicles.detail.report.noEvents"))
       return
     }
     const csv = toCsv(
-      ["Severity", "Event", "Status", "Message", "Geozone", "At"],
+      [
+        t("vehicles.detail.report.eventHeaders.severity"),
+        t("vehicles.detail.report.eventHeaders.event"),
+        t("vehicles.detail.report.eventHeaders.status"),
+        t("vehicles.detail.report.eventHeaders.message"),
+        t("vehicles.detail.report.eventHeaders.geozone"),
+        t("vehicles.detail.report.eventHeaders.at"),
+      ],
       rows
     )
     downloadTextFile(`${slug(vehicle.plate)}-events.csv`, csv)
-    toast.success("Events report exported")
+    toast.success(t("vehicles.detail.report.eventsExported"))
   }
 
   const exportTravel = () => {
     if (trips.length === 0) {
-      toast.info("No travel history to export for this vehicle")
+      toast.info(t("vehicles.detail.report.noTravel"))
       return
     }
-    const rows = trips.map((t) => {
-      const driverId = driverIdAt(assignments, t.startAt)
+    const rows = trips.map((trip) => {
+      const driverId = driverIdAt(assignments, trip.startAt)
       const driver = driverId
         ? drivers.find((d) => d.id === driverId)
         : undefined
       return [
-        formatDateTime(t.startAt),
-        formatDateTime(t.endAt),
-        t.startAddress,
-        t.endAddress,
-        t.distanceKm,
-        t.avgSpeedKmh,
-        t.maxSpeedKmh,
-        driver ? fullName(driver) : "Unattributed",
+        formatDateTime(trip.startAt),
+        formatDateTime(trip.endAt),
+        trip.startAddress,
+        trip.endAddress,
+        trip.distanceKm,
+        trip.avgSpeedKmh,
+        trip.maxSpeedKmh,
+        driver ? fullName(driver) : t("vehicles.detail.report.unattributed"),
       ]
     })
     const csv = toCsv(
       [
-        "Start",
-        "End",
-        "From",
-        "To",
-        "Distance (km)",
-        "Avg speed (km/h)",
-        "Max speed (km/h)",
-        "Driver",
+        t("vehicles.detail.report.travelHeaders.start"),
+        t("vehicles.detail.report.travelHeaders.end"),
+        t("vehicles.detail.report.travelHeaders.from"),
+        t("vehicles.detail.report.travelHeaders.to"),
+        t("vehicles.detail.report.travelHeaders.distance"),
+        t("vehicles.detail.report.travelHeaders.avgSpeed"),
+        t("vehicles.detail.report.travelHeaders.maxSpeed"),
+        t("vehicles.detail.report.travelHeaders.driver"),
       ],
       rows
     )
     downloadTextFile(`${slug(vehicle.plate)}-travel.csv`, csv)
-    toast.success("Travel history exported")
+    toast.success(t("vehicles.detail.report.travelExported"))
   }
 
   return (
     <Card className="flex-row flex-wrap items-center justify-between gap-4 p-5">
       <div className="flex items-center gap-2">
         <FileSpreadsheet className="size-4 text-muted-foreground" />
-        <span className="text-sm font-medium">Reports</span>
+        <span className="text-sm font-medium">
+          {t("vehicles.detail.report.title")}
+        </span>
         <span className="text-xs text-muted-foreground">
-          Events &amp; travel history (CSV / Excel)
+          {t("vehicles.detail.report.subtitle")}
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" onClick={exportEvents}>
-          Events (CSV)
+          {t("vehicles.detail.report.eventsCsv")}
         </Button>
         <Button variant="outline" size="sm" onClick={exportTravel}>
-          Travel history (CSV)
+          {t("vehicles.detail.report.travelCsv")}
         </Button>
       </div>
     </Card>

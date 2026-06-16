@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { FormDialog } from "@/components/common/FormDialog"
@@ -85,6 +86,7 @@ export function MaintenanceTaskFormDialog({
   onOpenChange: (open: boolean) => void
   task?: MaintenanceTask
 }) {
+  const { t } = useTranslation()
   const [form, setForm] = useState<FormState>(() => initialState(task))
   const create = useCreateMaintenanceTask()
   const update = useUpdateMaintenanceTask()
@@ -110,19 +112,19 @@ export function MaintenanceTaskFormDialog({
 
   function handleSubmit() {
     if (!titleValid) {
-      toast.error("Give the task a title.")
+      toast.error(t("maintenance.toast.titleRequired"))
       return
     }
     if (!intervalValid) {
       toast.error(
         isMileage
-          ? "Enter a positive mileage interval."
-          : "Enter a positive day interval."
+          ? t("maintenance.toast.mileageIntervalRequired")
+          : t("maintenance.toast.dayIntervalRequired")
       )
       return
     }
     if (!hasVehicles) {
-      toast.error("Select at least one vehicle.")
+      toast.error(t("maintenance.toast.selectVehicle"))
       return
     }
 
@@ -153,24 +155,28 @@ export function MaintenanceTaskFormDialog({
         { id: task.id, patch: input },
         {
           onSuccess: () => {
-            toast.success("Maintenance task updated")
+            toast.success(t("maintenance.toast.updated"))
             onOpenChange(false)
           },
           onError: (err) =>
             toast.error(
-              err instanceof Error ? err.message : "Failed to save task"
+              err instanceof Error
+                ? err.message
+                : t("maintenance.toast.saveFailed")
             ),
         }
       )
     } else {
       create.mutate(input, {
         onSuccess: () => {
-          toast.success("Maintenance task created")
+          toast.success(t("maintenance.toast.created"))
           onOpenChange(false)
         },
         onError: (err) =>
           toast.error(
-            err instanceof Error ? err.message : "Failed to save task"
+            err instanceof Error
+              ? err.message
+              : t("maintenance.toast.saveFailed")
           ),
       })
     }
@@ -180,38 +186,48 @@ export function MaintenanceTaskFormDialog({
     <FormDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "Edit maintenance task" : "New maintenance task"}
-      description="Schedule preventive maintenance and pick the vehicles it covers."
-      submitLabel={isEdit ? "Save changes" : "Create task"}
+      title={
+        isEdit
+          ? t("maintenance.form.editTitle")
+          : t("maintenance.form.addTitle")
+      }
+      description={t("maintenance.form.description")}
+      submitLabel={
+        isEdit
+          ? t("maintenance.form.saveChanges")
+          : t("maintenance.form.createTask")
+      }
       onSubmit={handleSubmit}
       isPending={isPending}
       disabled={!canSubmit}
       widthClass="sm:max-w-2xl"
     >
       <div className="space-y-2">
-        <Label htmlFor="mnt-title">Title</Label>
+        <Label htmlFor="mnt-title">{t("maintenance.form.title")}</Label>
         <Input
           id="mnt-title"
           value={form.title}
           onChange={(e) => set("title", e.target.value)}
-          placeholder="e.g. Engine oil & filter change"
+          placeholder={t("maintenance.form.titlePlaceholder")}
           autoFocus
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="mnt-description">Description</Label>
+        <Label htmlFor="mnt-description">
+          {t("maintenance.form.descriptionLabel")}
+        </Label>
         <Textarea
           id="mnt-description"
           value={form.description}
           onChange={(e) => set("description", e.target.value)}
-          placeholder="Optional notes on what the service involves."
+          placeholder={t("maintenance.form.descriptionPlaceholder")}
           rows={2}
         />
       </div>
 
       <div className="space-y-2">
-        <Label>Trigger by</Label>
+        <Label>{t("maintenance.form.triggerBy")}</Label>
         <RadioGroup
           value={form.paramType}
           onValueChange={(v) => set("paramType", v as MaintenanceParamType)}
@@ -221,10 +237,14 @@ export function MaintenanceTaskFormDialog({
             [
               {
                 value: "mileage",
-                label: "Mileage",
-                hint: "Service every N km",
+                label: t("maintenance.form.mileage"),
+                hint: t("maintenance.form.mileageHint"),
               },
-              { value: "date", label: "Date", hint: "Service every N days" },
+              {
+                value: "date",
+                label: t("maintenance.form.date"),
+                hint: t("maintenance.form.dateHint"),
+              },
             ] as const
           ).map((opt) => (
             <Label
@@ -254,7 +274,9 @@ export function MaintenanceTaskFormDialog({
       {isMileage ? (
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="mnt-interval-km">Interval (km)</Label>
+            <Label htmlFor="mnt-interval-km">
+              {t("maintenance.form.intervalKm")}
+            </Label>
             <Input
               id="mnt-interval-km"
               type="number"
@@ -265,7 +287,9 @@ export function MaintenanceTaskFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="mnt-alert-km">Alert before (km)</Label>
+            <Label htmlFor="mnt-alert-km">
+              {t("maintenance.form.alertBeforeKm")}
+            </Label>
             <Input
               id="mnt-alert-km"
               type="number"
@@ -276,21 +300,25 @@ export function MaintenanceTaskFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="mnt-last-km">Last service (km)</Label>
+            <Label htmlFor="mnt-last-km">
+              {t("maintenance.form.lastServiceKm")}
+            </Label>
             <Input
               id="mnt-last-km"
               type="number"
               min={0}
               value={form.lastServiceKm}
               onChange={(e) => set("lastServiceKm", e.target.value)}
-              placeholder="Vehicle odometer"
+              placeholder={t("maintenance.form.lastServiceKmPlaceholder")}
             />
           </div>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="mnt-interval-days">Interval (days)</Label>
+            <Label htmlFor="mnt-interval-days">
+              {t("maintenance.form.intervalDays")}
+            </Label>
             <Input
               id="mnt-interval-days"
               type="number"
@@ -301,7 +329,9 @@ export function MaintenanceTaskFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="mnt-alert-days">Alert before (days)</Label>
+            <Label htmlFor="mnt-alert-days">
+              {t("maintenance.form.alertBeforeDays")}
+            </Label>
             <Input
               id="mnt-alert-days"
               type="number"
@@ -312,7 +342,9 @@ export function MaintenanceTaskFormDialog({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="mnt-last-date">Last service date</Label>
+            <Label htmlFor="mnt-last-date">
+              {t("maintenance.form.lastServiceDate")}
+            </Label>
             <Input
               id="mnt-last-date"
               type="date"
@@ -324,13 +356,15 @@ export function MaintenanceTaskFormDialog({
       )}
       <p className="-mt-2 text-xs text-muted-foreground">
         {isMileage
-          ? "Leave “last service” blank to start each vehicle from its current odometer."
-          : "Leave “last service date” blank to start each vehicle from today."}
+          ? t("maintenance.form.mileageHelp")
+          : t("maintenance.form.dateHelp")}
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="mnt-confirmation">Confirmation</Label>
+          <Label htmlFor="mnt-confirmation">
+            {t("maintenance.form.confirmation")}
+          </Label>
           <Select
             value={form.confirmation}
             onValueChange={(v) =>
@@ -341,23 +375,29 @@ export function MaintenanceTaskFormDialog({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="manual">Manual confirmation</SelectItem>
-              <SelectItem value="automatic">Automatic confirmation</SelectItem>
+              <SelectItem value="manual">
+                {t("maintenance.form.manualConfirmation")}
+              </SelectItem>
+              <SelectItem value="automatic">
+                {t("maintenance.form.automaticConfirmation")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
-          <Label className="leading-none">Options</Label>
+          <Label className="leading-none">
+            {t("maintenance.form.options")}
+          </Label>
           <div className="flex flex-col gap-2.5 pt-1.5">
             <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
-              <span>Repeat after each service</span>
+              <span>{t("maintenance.form.repeatAfterService")}</span>
               <Switch
                 checked={form.repeat}
                 onCheckedChange={(v) => set("repeat", v)}
               />
             </label>
             <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
-              <span>Email notifications</span>
+              <span>{t("maintenance.form.emailNotifications")}</span>
               <Switch
                 checked={form.emailNotifications}
                 onCheckedChange={(v) => set("emailNotifications", v)}
@@ -369,9 +409,11 @@ export function MaintenanceTaskFormDialog({
 
       <div className="space-y-2">
         <Label>
-          Vehicles{" "}
+          {t("maintenance.form.vehicles")}{" "}
           <span className="font-normal text-muted-foreground">
-            ({form.vehicleIds.length} selected)
+            {t("maintenance.form.vehiclesSelected", {
+              count: form.vehicleIds.length,
+            })}
           </span>
         </Label>
         <VehicleMultiSelect
