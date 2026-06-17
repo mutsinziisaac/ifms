@@ -38,9 +38,17 @@ export default {
     provider: "Provider",
     vehicle: "Vehicle",
     geozone: "Geozone",
+    location: "Location",
     when: "When",
     emptyTitle: "No events match",
     emptyDescription: "Adjust the filters or wait for the live feed.",
+  },
+
+  alertBanner: {
+    message_one: "{{count}} critical alert needs attention",
+    message_other: "{{count}} critical alerts need attention",
+    action: "Review",
+    dismiss: "Dismiss",
   },
 
   toast: {
@@ -54,6 +62,7 @@ export default {
     vehicle: "Vehicle",
     provider: "Provider",
     geozone: "Geozone",
+    route: "Route",
     location: "Location",
     timelineTitle: "Handling timeline",
     recorded: "Event recorded",
@@ -92,74 +101,141 @@ export default {
   rules: {
     title: "Event Rules",
     description:
-      "Violation rules that generate events across the monitored fleet.",
-    newGeozoneRule: "New geozone rule",
+      "Triggers that watch the fleet for violations and raise alerts when they happen.",
+    newRule: "New rule",
 
-    fleetWide: {
-      title: "Fleet-wide rules",
-      description: "Apply to every monitored vehicle, independent of geozones.",
-      active: "Active",
-      inactive: "Inactive",
-      thresholdLabel: "Threshold ({{unit}})",
-      toggleAria: "Toggle {{name}} rule",
-    },
-
-    descriptions: {
-      global_speeding:
-        "Fires a speeding event when any vehicle exceeds this limit anywhere on the corridor.",
-      idle: "Fires when a vehicle keeps its engine running while stationary beyond this duration.",
-      no_signal:
-        "Fires when a device stops transmitting for longer than this window.",
-    },
-
-    geozone: {
-      title: "Geozone rules",
+    targeted: {
+      title: "Triggers",
       description:
-        "Entry, exit and zone speed rules — also editable per zone on the Geozones page.",
-      emptyTitle: "No geozone rules",
-      emptyDescription: "Create a rule to start generating geozone events.",
+        "Geozone and route triggers, optionally scoped to specific vehicles.",
+      emptyTitle: "No triggers yet",
+      emptyDescription: "Create a trigger to start raising alerts.",
     },
 
     columns: {
-      geozone: "Geozone",
-      trigger: "Trigger",
+      name: "Trigger",
+      scope: "Scope",
+      vehicles: "Vehicles",
       threshold: "Threshold",
       severity: "Severity",
+      notify: "Notify",
       active: "Active",
     },
+
+    scopeFleet: "Fleet-wide",
+    vehiclesAll: "All vehicles",
+    vehiclesCount_one: "{{count}} vehicle",
+    vehiclesCount_other: "{{count}} vehicles",
+    notifyInAppOnly: "In-app only",
 
     toggleAria: "Toggle rule",
     deleteAria: "Delete rule",
 
     deleteTitle: "Delete rule?",
-    deleteDescription:
-      "The {{type}} rule for {{zone}} will stop generating events.",
-    deleteFallbackZone: "this zone",
+    deleteDescription: "The “{{name}}” trigger will stop raising alerts.",
 
     toast: {
-      created: "Rule created",
-      updated: "Rule updated",
+      created: "Event rule created",
+      updated: "Event rule updated",
       deleted: "Rule deleted",
-      saveError: "Could not save rule",
+      saveError: "Could not save the rule",
       updateError: "Could not update rule",
       deleteError: "Could not delete rule",
       invalidThreshold: "Enter a valid threshold",
       invalidSpeedLimit: "Enter a valid speed limit",
-      chooseGeozone: "Choose a geozone for this rule",
+      invalidDeviation: "Enter a valid deviation distance",
+      nameRequired: "Give the trigger a name",
+      chooseGeozone: "Choose a geozone for this trigger",
+      chooseRoute: "Choose a route for this trigger",
+      chooseVehicles: "Select at least one vehicle",
+      notFound: "That rule no longer exists",
     },
 
-    form: {
-      editTitle: "Edit geozone rule",
-      createTitle: "New geozone rule",
-      description: "Generates an event when a vehicle triggers this condition.",
+    wizard: {
+      createTitle: "New event rule",
+      editTitle: "Edit event rule",
+      createDescription:
+        "Define a violation to watch for and what should happen when it fires.",
+      editDescription: "Update this trigger and what happens when it fires.",
+      back: "Back",
+      next: "Next",
+      cancel: "Cancel",
+      save: "Create rule",
       saveChanges: "Save changes",
-      createRule: "Create rule",
-      triggerLabel: "Trigger",
-      geozoneLabel: "Geozone",
-      geozonePlaceholder: "Choose a geozone",
-      speedLimitLabel: "Speed limit (km/h)",
-      severityLabel: "Severity",
-      ruleActive: "Rule is active",
+
+      steps: {
+        trigger: "Trigger",
+        where: "Where",
+        vehicles: "Vehicles",
+        action: "Action",
+      },
+
+      step1: {
+        title: "What should this trigger watch for?",
+        description: "Pick the kind of violation that fires this alert.",
+        nameLabel: "Trigger name",
+        namePlaceholder: "e.g. Awash checkpoint speeding",
+        locationGroup: "Location-based",
+        fleetGroup: "Fleet-wide",
+      },
+
+      step2: {
+        title: "Where does it apply?",
+        geozoneLabel: "Geozone",
+        geozonePlaceholder: "Choose a geozone",
+        routeLabel: "Route",
+        routePlaceholder: "Choose a route",
+        speedLimitLabel: "Speed limit (km/h)",
+        deviationLabel: "Deviation distance (m)",
+        idleLabel: "Idle threshold (min)",
+        noSignalLabel: "Signal timeout (min)",
+        fleetSpeedLabel: "Fleet speed limit (km/h)",
+        fleetNote:
+          "This trigger applies across the whole corridor — no area to pick.",
+        previewTitle: "Preview",
+        previewEmpty: "Pick an area to preview it on the map.",
+      },
+
+      step3: {
+        title: "Which vehicles does it watch?",
+        description:
+          "Watch the whole fleet, or limit the trigger to specific vehicles.",
+        allLabel: "All vehicles",
+        allHint: "Every monitored vehicle is watched.",
+        specificLabel: "Specific vehicles",
+        specificHint: "Only the vehicles you pick are watched.",
+      },
+
+      step4: {
+        title: "Alert & notifications",
+        description: "Set the alert severity and who gets notified.",
+        severityLabel: "Severity",
+        notifyTitle: "Notifications",
+        inApp: "In-app alert",
+        inAppHint: "Always on — shows in the Events feed.",
+        email: "Email",
+        emailPlaceholder: "ops@example.gov.et",
+        sms: "SMS",
+        smsPlaceholder: "+251…",
+        reviewTitle: "Review",
+        reviewType: "Trigger",
+        reviewScope: "Scope",
+        reviewVehicles: "Vehicles",
+        reviewSeverity: "Severity",
+        reviewNotify: "Notify",
+      },
+
+      triggerDescriptions: {
+        entry: "Fires when a vehicle enters the geozone.",
+        exit: "Fires when a vehicle leaves the geozone.",
+        speeding: "Fires when a vehicle speeds inside the geozone.",
+        route_deviation: "Fires when a vehicle strays off its route corridor.",
+        global_speeding:
+          "Fires when a vehicle exceeds the fleet speed limit anywhere.",
+        idle: "Fires when a vehicle idles beyond the threshold.",
+        no_signal:
+          "Fires when a device stops transmitting beyond the threshold.",
+      },
     },
   },
 

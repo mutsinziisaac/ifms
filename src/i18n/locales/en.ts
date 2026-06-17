@@ -7,11 +7,9 @@ import dashboard from "./en/dashboard"
 import drivers from "./en/drivers"
 import enums from "./en/enums"
 import events from "./en/events"
-import fines from "./en/fines"
 import forms from "./en/forms"
 import geozones from "./en/geozones"
 import incidents from "./en/incidents"
-import maintenance from "./en/maintenance"
 import nav from "./en/nav"
 import providers from "./en/providers"
 import reports from "./en/reports"
@@ -33,10 +31,8 @@ export const en = {
   providers,
   geozones,
   routes,
-  maintenance,
   reports,
   incidents,
-  fines,
   admin,
 }
 

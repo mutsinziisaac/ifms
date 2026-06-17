@@ -1,7 +1,10 @@
+import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
+import { Map as MapIcon } from "lucide-react"
 
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { PageHeader } from "@/components/layout/PageHeader"
+import { Button } from "@/components/ui/button"
 import { useLiveVehicles } from "@/data/hooks"
 
 import { EventsFeedCard } from "./components/EventsFeedCard"
@@ -25,15 +28,23 @@ export function DashboardPage() {
         title={t("dashboard.title")}
         description={t("dashboard.description")}
         actions={
-          latestSync ? (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="relative flex size-1.5">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-              </span>
-              {t("dashboard.lastUpdated")} <RelativeTime iso={latestSync} />
-            </div>
-          ) : undefined
+          <div className="flex items-center gap-4">
+            {latestSync ? (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span className="relative flex size-1.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                </span>
+                {t("dashboard.lastUpdated")} <RelativeTime iso={latestSync} />
+              </div>
+            ) : null}
+            <Button asChild>
+              <Link to="/live-map">
+                <MapIcon className="size-4" />
+                {t("dashboard.liveFleet.open")}
+              </Link>
+            </Button>
+          </div>
         }
       />
 

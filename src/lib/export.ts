@@ -1,7 +1,7 @@
 // Shared report-export helpers — real PDF (jsPDF + autotable) and Excel
 // (SheetJS), plus a CSV convenience that reuses the existing csv.ts plumbing.
-// Used by the Reports module and the Incidents / Fines dashboards so all three
-// share one tabular-export call site.
+// Used by the Reports module and the Incidents dashboard so they share one
+// tabular-export call site.
 
 import { jsPDF } from "jspdf"
 import autoTable from "jspdf-autotable"

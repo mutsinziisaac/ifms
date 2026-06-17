@@ -8,6 +8,7 @@ import {
   CircleCheckBig,
   Hexagon,
   MapPin,
+  Waypoints,
   TriangleAlert,
   Truck,
 } from "lucide-react"
@@ -146,6 +147,7 @@ export function EventDetailSheet({
 
   const userName = user?.name ?? "Operator"
   const provider = entities.find((e) => e.id === event.entityId)
+  const alerting = event.severity === "critical" && event.status === "open"
 
   const handleAcknowledge = () => {
     acknowledge.mutate(
@@ -206,8 +208,19 @@ export function EventDetailSheet({
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="flex w-full flex-col gap-0 sm:max-w-md">
-          <SheetHeader className="space-y-2">
+          <SheetHeader
+            className={cn(
+              "space-y-2",
+              alerting && "border-l-2 border-l-rose-500 bg-rose-500/5"
+            )}
+          >
             <div className="flex items-center gap-2">
+              {alerting && (
+                <span className="relative flex size-2.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-rose-500 opacity-75" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-rose-500" />
+                </span>
+              )}
               <EventSeverityBadge severity={event.severity} />
               <EventStatusBadge status={event.status} />
             </div>
@@ -232,6 +245,11 @@ export function EventDetailSheet({
               {event.geozoneName ? (
                 <InfoRow icon={Hexagon} label={t("events.detail.geozone")}>
                   {event.geozoneName}
+                </InfoRow>
+              ) : null}
+              {event.routeName ? (
+                <InfoRow icon={Waypoints} label={t("events.detail.route")}>
+                  {event.routeName}
                 </InfoRow>
               ) : null}
               <InfoRow icon={MapPin} label={t("events.detail.location")}>

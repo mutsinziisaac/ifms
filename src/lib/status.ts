@@ -1,26 +1,16 @@
-// Display config for every status enum in the domain + the SRS maintenance
-// status rule. Single source of truth for status colors across tables,
-// badges, map markers and charts.
+// Display config for every status enum in the domain. Single source of truth
+// for status colors across tables, badges, map markers and charts.
 
-import { addDays, differenceInCalendarDays } from "date-fns"
-
-import { formatDate, formatKm } from "@/lib/format"
-import i18n from "@/i18n"
 import type {
   DriverStatus,
   EventRuleType,
   EventSeverity,
   EventStatus,
   EventType,
-  FineStatus,
+  FleetEvent,
   IncidentRootCause,
   IncidentSeverity,
-  MaintenanceStatus,
-  MaintenanceTask,
-  MaintenanceVehicleState,
-  Vehicle,
   VehicleStatus,
-  ViolationType,
   WebUserStatus,
 } from "@/data/types"
 
@@ -115,6 +105,7 @@ export const EVENT_TYPE_LABEL: Record<EventType, string> = {
   entry: "Geozone entry",
   exit: "Geozone exit",
   speeding: "Speeding",
+  route_deviation: "Route deviation",
   no_signal: "Signal lost",
   idle: "Excessive idling",
 }
@@ -123,9 +114,21 @@ export const EVENT_RULE_TYPE_LABEL: Record<EventRuleType, string> = {
   entry: "Geozone entry",
   exit: "Geozone exit",
   speeding: "Zone speed limit",
+  route_deviation: "Route deviation",
   global_speeding: "Fleet speed limit",
   idle: "Excessive idle",
   no_signal: "Signal timeout",
+}
+
+/**
+ * Tailwind row accent for the live events table — gives unresolved critical
+ * violations a red alert treatment so the feed reads like real alerts.
+ */
+export function eventRowAccent(event: FleetEvent): string {
+  if (event.severity !== "critical" || event.status === "closed") return ""
+  return event.status === "open"
+    ? "border-l-2 border-l-rose-500 bg-rose-500/5"
+    : "border-l-2 border-l-rose-500/40"
 }
 
 export const EVENT_SEVERITY_CONFIG: Record<
@@ -186,96 +189,8 @@ export const EVENT_STATUS_CONFIG: Record<
 }
 
 // ---------------------------------------------------------------------------
-// Maintenance — SRS rule:
-//   OK      remaining > 20% of interval
-//   Waiting 0 < remaining <= 20% of interval
-//   Delay   overdue (remaining <= 0)
-// ---------------------------------------------------------------------------
-
-export const MAINTENANCE_STATUS_CONFIG: Record<
-  MaintenanceStatus,
-  { label: string; color: string; badgeClass: string }
-> = {
-  ok: {
-    label: "OK",
-    color: "#10b981",
-    badgeClass:
-      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-  },
-  waiting: {
-    label: "Waiting",
-    color: "#f59e0b",
-    badgeClass:
-      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
-  },
-  delay: {
-    label: "Delay",
-    color: "#f43f5e",
-    badgeClass:
-      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
-  },
-}
-
-export interface MaintenanceComputation {
-  status: MaintenanceStatus
-  /** remaining / interval — can be negative when overdue */
-  remainingPct: number
-  /** "1,240 km left" | "Overdue by 320 km" | "6 days left" | "Overdue by 2 days" */
-  remainingLabel: string
-  /** "Due at 84,500 km" | "Due on 12 Jul 2026" */
-  dueLabel: string
-}
-
-export function computeMaintenanceState(
-  task: MaintenanceTask,
-  state: MaintenanceVehicleState,
-  vehicle: Vehicle | undefined,
-  now: Date = new Date()
-): MaintenanceComputation {
-  if (task.paramType === "mileage") {
-    const interval = task.intervalKm ?? 1
-    const lastKm = state.lastServiceKm ?? 0
-    const dueKm = lastKm + interval
-    const remaining = dueKm - (vehicle?.odometerKm ?? lastKm)
-    const remainingPct = remaining / interval
-    return {
-      status: statusFromPct(remainingPct),
-      remainingPct,
-      remainingLabel:
-        remaining >= 0
-          ? i18n.t("maintenance.kmLeft", { km: formatKm(remaining) })
-          : i18n.t("maintenance.overdueKm", { km: formatKm(-remaining) }),
-      dueLabel: i18n.t("maintenance.dueAtKm", { km: formatKm(dueKm) }),
-    }
-  }
-
-  const interval = task.intervalDays ?? 1
-  const lastDate = state.lastServiceDate ? new Date(state.lastServiceDate) : now
-  const dueDate = addDays(lastDate, interval)
-  const remaining = differenceInCalendarDays(dueDate, now)
-  const remainingPct = remaining / interval
-  return {
-    status: statusFromPct(remainingPct),
-    remainingPct,
-    remainingLabel:
-      remaining >= 0
-        ? i18n.t("maintenance.daysLeft", { count: remaining })
-        : i18n.t("maintenance.overdueDays", { count: -remaining }),
-    dueLabel: i18n.t("maintenance.dueOnDate", {
-      date: formatDate(dueDate.toISOString()),
-    }),
-  }
-}
-
-function statusFromPct(remainingPct: number): MaintenanceStatus {
-  if (remainingPct > 0.2) return "ok"
-  if (remainingPct > 0) return "waiting"
-  return "delay"
-}
-
-// ---------------------------------------------------------------------------
-// Safety & incidents / compliance & fines / web users — colors only; labels
-// are translated via t(`enums.<group>.${value}`) per the i18n convention.
+// Safety & incidents / web users — colors only; labels are translated via
+// t(`enums.<group>.${value}`) per the i18n convention.
 // ---------------------------------------------------------------------------
 
 interface BadgeColorConfig {
@@ -314,33 +229,6 @@ export const INCIDENT_ROOT_CAUSE_COLOR: Record<IncidentRootCause, string> = {
   weather: "#0ea5e9",
   mechanical: "#f59e0b",
   other: "#64748b",
-}
-
-export const FINE_STATUS_CONFIG: Record<FineStatus, BadgeColorConfig> = {
-  paid: {
-    color: "#10b981",
-    badgeClass:
-      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-    dotClass: "bg-emerald-500",
-  },
-  pending: {
-    color: "#f59e0b",
-    badgeClass:
-      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
-    dotClass: "bg-amber-500",
-  },
-  disputed: {
-    color: "#f43f5e",
-    badgeClass:
-      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
-    dotClass: "bg-rose-500",
-  },
-}
-
-export const VIOLATION_TYPE_COLOR: Record<ViolationType, string> = {
-  speeding: "#f43f5e",
-  parking: "#0ea5e9",
-  overloading: "#f59e0b",
 }
 
 export const WEB_USER_STATUS_CONFIG: Record<WebUserStatus, BadgeColorConfig> = {

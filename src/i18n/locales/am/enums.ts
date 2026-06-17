@@ -28,6 +28,7 @@ export default {
     entry: "ወደ ጂኦ ዞን መግባት",
     exit: "ከጂኦ ዞን መውጣት",
     speeding: "ከመጠን በላይ ፍጥነት",
+    route_deviation: "ከመስመር መውጣት", // review: "Route deviation"
     no_signal: "ምልክት ጠፍቷል",
     idle: "ከመጠን በላይ ስራ ፈትቶ መቆም",
   },
@@ -35,14 +36,10 @@ export default {
     entry: "ወደ ጂኦ ዞን መግባት",
     exit: "ከጂኦ ዞን መውጣት",
     speeding: "የዞን ፍጥነት ገደብ",
+    route_deviation: "ከመስመር መውጣት", // review: "Route deviation"
     global_speeding: "የፍሊት ፍጥነት ገደብ",
     idle: "ከመጠን በላይ ስራ ፈትቶ መቆም",
     no_signal: "የምልክት ጊዜ ማብቂያ", // review: "Signal timeout"
-  },
-  maintenanceStatus: {
-    ok: "ደህና",
-    waiting: "በመጠባበቅ ላይ",
-    delay: "ዘግይቷል",
   },
   providerCategory: {
     ministry: "ሚኒስቴር",
@@ -56,6 +53,10 @@ export default {
     bus: "አውቶቡስ",
     container: "ኮንቴይነር",
     pickup: "ፒክአፕ",
+    saloon: "ሳሎን መኪና", // review: "Saloon" (sedan car)
+    suv: "ኤስዩቪ", // review: "SUV" (4x4 / field vehicle)
+    minibus: "ሚኒባስ", // review: "Minibus"
+    van: "ቫን", // review: "Van"
   },
   incidentSeverity: {
     minor: "ቀላል",
@@ -67,16 +68,6 @@ export default {
     weather: "የአየር ሁኔታ",
     mechanical: "የቴክኒክ ብልሽት",
     other: "ሌላ",
-  },
-  violationType: {
-    speeding: "ከመጠን በላይ ፍጥነት",
-    parking: "ማቆሚያ ጥሰት", // review: "Parking" violation
-    overloading: "ከመጠን በላይ ጭነት",
-  },
-  fineStatus: {
-    paid: "ተከፍሏል",
-    pending: "በመጠባበቅ ላይ",
-    disputed: "ክርክር ላይ", // review: "Disputed"
   },
   webUserStatus: {
     active: "ንቁ",

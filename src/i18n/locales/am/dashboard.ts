@@ -35,6 +35,12 @@ export default {
 
   liveFleet: {
     title: "የቀጥታ ፍሊት",
+    open: "የቀጥታ ካርታ ክፈት",
+    pageTitle: "የቀጥታ ፍሊት ካርታ",
+    pageDescription:
+      "እያንዳንዱን በክትትል ስር ያለ ተሽከርካሪ በቀጥታ ይከታተሉ፣ ወይም ለሊዘጋጅ ዝርዝር ወደ ሰንጠረዥ ይቀይሩ።",
+    tabMap: "ካርታ",
+    tabTable: "ሰንጠረዥ",
   },
 
   events: {

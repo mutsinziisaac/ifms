@@ -60,6 +60,10 @@ export const VEHICLE_TYPES = [
   "bus",
   "container",
   "pickup",
+  "saloon",
+  "suv",
+  "minibus",
+  "van",
 ] as const
 export type VehicleType = (typeof VEHICLE_TYPES)[number]
 
@@ -187,13 +191,15 @@ export interface GeozoneGroup {
 
 /**
  * Rule types: "entry"/"exit"/"speeding" are geozone-scoped (geozoneId
- * required); "global_speeding"/"idle"/"no_signal" apply fleet-wide
- * (geozoneId null).
+ * required); "route_deviation" is route-scoped (routeId required);
+ * "global_speeding"/"idle"/"no_signal" apply fleet-wide (geozoneId/routeId
+ * null).
  */
 export const EVENT_RULE_TYPES = [
   "entry",
   "exit",
   "speeding",
+  "route_deviation",
   "global_speeding",
   "idle",
   "no_signal",
@@ -203,17 +209,41 @@ export type EventRuleType = (typeof EVENT_RULE_TYPES)[number]
 export const ZONE_RULE_TYPES = ["entry", "exit", "speeding"] as const
 export type ZoneRuleType = (typeof ZONE_RULE_TYPES)[number]
 
+export const ROUTE_RULE_TYPES = ["route_deviation"] as const
+export type RouteRuleType = (typeof ROUTE_RULE_TYPES)[number]
+
+/**
+ * What a trigger does when it fires. In-app alerts are always emitted; email
+ * and SMS are demo channels (recipients captured but not actually dispatched).
+ */
+export interface EventRuleNotify {
+  email: boolean
+  emailTo: string
+  sms: boolean
+  smsTo: string
+}
+
 export interface EventRule {
   id: ID
+  /** Friendly policy name shown in the trigger list */
+  name: string
   type: EventRuleType
-  /** Required for entry/exit/speeding; null for global rule types */
+  /** Required for entry/exit/speeding; null otherwise */
   geozoneId: ID | null
+  /** Required for "route_deviation"; null otherwise */
+  routeId: ID | null
   /** Only for "speeding" / "global_speeding" rules */
   speedLimitKmh: number | null
   /** Only for "idle" / "no_signal" rules — minutes before the rule fires */
   thresholdMinutes: number | null
+  /** Only for "route_deviation" — metres off-corridor before the rule fires */
+  deviationMeters: number | null
+  /** Vehicles this trigger watches; null = every monitored vehicle */
+  vehicleIds: ID[] | null
   /** Severity stamped on events this rule fires */
   severity: EventSeverity
+  /** What happens when the trigger fires */
+  notify: EventRuleNotify
   /** Deactivated rules never generate events */
   active: boolean
 }
@@ -226,6 +256,7 @@ export const EVENT_TYPES = [
   "entry",
   "exit",
   "speeding",
+  "route_deviation",
   "no_signal",
   "idle",
 ] as const
@@ -259,6 +290,9 @@ export interface FleetEvent {
   entityId: ID
   geozoneId: ID | null
   geozoneName: string | null
+  /** Set for route_deviation events so the feed can show route context */
+  routeId: ID | null
+  routeName: string | null
   message: string
   /** ISO timestamp */
   at: string
@@ -349,63 +383,6 @@ export interface VehicleDriverAssignment {
 }
 
 // ---------------------------------------------------------------------------
-// Maintenance
-// ---------------------------------------------------------------------------
-
-export type MaintenanceParamType = "mileage" | "date"
-export type MaintenanceConfirmation = "manual" | "automatic"
-
-export const MAINTENANCE_STATUSES = ["ok", "waiting", "delay"] as const
-export type MaintenanceStatus = (typeof MAINTENANCE_STATUSES)[number]
-
-export interface MaintenanceVehicleState {
-  vehicleId: ID
-  /** Reference point for mileage tasks */
-  lastServiceKm: number | null
-  /** Reference point for date tasks (ISO date) */
-  lastServiceDate: string | null
-}
-
-export interface MaintenanceTask {
-  id: ID
-  title: string
-  description: string
-  paramType: MaintenanceParamType
-  /** Interval in km (mileage tasks) */
-  intervalKm: number | null
-  /** Interval in days (date tasks) */
-  intervalDays: number | null
-  /** Repeat the task after each completion */
-  repeat: boolean
-  confirmation: MaintenanceConfirmation
-  emailNotifications: boolean
-  /** Alert window before due — km or days depending on paramType */
-  alertBefore: number
-  vehicles: MaintenanceVehicleState[]
-  createdAt: string
-}
-
-/**
- * A completed service (work order). Stored as a flat top-level log (like
- * `events`/`trips`) keyed by task + vehicle, so cost KPIs are a one-pass reduce
- * and history survives a task's vehicle-membership being edited.
- */
-export interface MaintenanceServiceRecord {
-  id: ID
-  taskId: ID
-  vehicleId: ID
-  /** ISO timestamp the service was performed */
-  servicedAt: string
-  /** Odometer at service time (mileage tasks); null for date-only tasks */
-  odometerKm: number | null
-  /** Cost in Ethiopian Birr (ETB), whole birr */
-  cost: number
-  workshop: string
-  technician: string | null
-  notes: string
-}
-
-// ---------------------------------------------------------------------------
 // Safety & incidents (accident records — SRS Safety & Incident Dashboard)
 // ---------------------------------------------------------------------------
 
@@ -445,38 +422,6 @@ export interface AccidentRecord {
 }
 
 // ---------------------------------------------------------------------------
-// Compliance & fines (SRS Compliance & Fines Dashboard)
-// ---------------------------------------------------------------------------
-
-export const VIOLATION_TYPES = ["speeding", "parking", "overloading"] as const
-export type ViolationType = (typeof VIOLATION_TYPES)[number]
-
-export const FINE_STATUSES = ["paid", "pending", "disputed"] as const
-export type FineStatus = (typeof FINE_STATUSES)[number]
-
-export interface Fine {
-  id: ID
-  vehicleId: ID
-  vehiclePlate: string
-  driverId: ID | null
-  driverName: string | null
-  entityId: ID
-  violationType: ViolationType
-  /** Fine amount in Ethiopian Birr (ETB) */
-  amountEtb: number
-  /** ISO timestamp the fine was issued */
-  issuedAt: string
-  location: LatLng
-  address: string
-  status: FineStatus
-  /** Optional link to the speeding FleetEvent that generated this fine */
-  eventId: ID | null
-  ticketNo: string
-  notes: string
-  createdAt: string
-}
-
-// ---------------------------------------------------------------------------
 // Access control (RBAC) — web users & roles. Permissions are a fixed catalog
 // (SRS: predefined, not user-customizable): every module × action pair, stored
 // as the string `${module}:${action}`. These power the Administration
@@ -489,11 +434,9 @@ export const PERMISSION_MODULES = [
   "events",
   "geozones",
   "routes",
-  "maintenance",
   "providers",
   "reports",
   "incidents",
-  "fines",
   "admin",
 ] as const
 export type PermissionModule = (typeof PERMISSION_MODULES)[number]
@@ -567,10 +510,7 @@ export interface DB {
   routes: RouteDef[]
   trips: Trip[]
   assignments: VehicleDriverAssignment[]
-  maintenanceTasks: MaintenanceTask[]
-  maintenanceServiceRecords: MaintenanceServiceRecord[]
   accidents: AccidentRecord[]
-  fines: Fine[]
   roles: Role[]
   webUsers: WebUser[]
 }

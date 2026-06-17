@@ -6,10 +6,10 @@ agencies and public enterprises ("providers") — along the Addis Ababa–Djibou
 corridor. All data is dummy and lives in an in-memory store — there is no backend.
 
 Scope (per `ver.2 SRS Document 11.10.2024.docx`, since extended): Driver Management,
-Vehicle/Fleet Management, Geozone Management, Routes Management, Maintenance
-Management, an Events workspace (violations with an open → acknowledged → escalated →
-closed workflow), a Providers dashboard (per-ministry device/transmission stats), an
-Event Rules configuration page, plus a mock login and an overview dashboard.
+Vehicle/Fleet Management, Geozone Management, Routes Management, an Events workspace
+(violations with an open → acknowledged → escalated → closed workflow), a Providers
+dashboard (per-ministry device/transmission stats), an Event Rules configuration page,
+plus a mock login and an overview dashboard.
 
 ## Commands
 
@@ -32,7 +32,7 @@ degrade to a styled placeholder. `.env` is git-ignored.
   react-router-dom 7, TanStack Query 5, recharts, `@vis.gl/react-google-maps`.
 - **Data layer** (`src/data/`): `types.ts` (domain model) → `seed.ts` (stable seeded
   Ethiopian dummy data: 9 entities = government institutions, 48 vehicles, 36 drivers,
-  12 geozones, 6 routes, 6 maintenance tasks, 26 events with seeded workflow states,
+  12 geozones, 6 routes, 26 events with seeded workflow states,
   ~51 event rules incl. 3 fleet-wide ones, provider telemetry baselines) → `store.ts`
   (in-memory singleton DB + `subscribe`/`mutate`) → `api.ts` (async mock API with fake
   latency) → `hooks.ts` (TanStack Query hooks + mutations that cross-invalidate).
@@ -58,7 +58,7 @@ degrade to a styled placeholder. `.env` is git-ignored.
   `/providers/:id`, `/config/events` joined the original set.
 - **Features** (`src/features/<area>/`): `dashboard`, `vehicles`, `drivers`, `events`
   (workspace + `EventRulesPage` at `/config/events`), `providers`, `geozones`,
-  `routes`, `maintenance`, `auth`. Shared building blocks in `src/components/common/`
+  `routes`, `auth`. Shared building blocks in `src/components/common/`
   (`DataTable`, `StatCard`, `Sparkline`, status badges, `FormDialog`, `ConfirmDialog`,
   …); provider stats math lives once in `src/lib/provider-stats.ts`.
 - **i18n** (`src/i18n/`): react-i18next, English + Amharic (አማርኛ). `index.ts` bootstraps
@@ -78,9 +78,7 @@ degrade to a styled placeholder. `.env` is git-ignored.
 
 - Code style: no semicolons, double quotes, 2-space indent; merge classes with `cn()`
   from `@/lib/utils`. Import via the `@/*` alias.
-- The SRS maintenance status rule (OK > 20% interval remaining, Waiting ≤ 20%, Delay
-  overdue) lives in `computeMaintenanceState` (`src/lib/status.ts`) — consume it, never
-  reimplement. Deactivated routes reject **new** assignments (enforced in
+- Deactivated routes reject **new** assignments (enforced in
   `api.assignVehiclesToRoute`, which throws; callers guard + toast).
 - **Lint**: `npm run lint` is clean (0 errors). The React-Compiler rules
   `react-hooks/set-state-in-effect` and `react-hooks/purity` are set to **warn** in

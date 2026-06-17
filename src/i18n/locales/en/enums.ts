@@ -30,6 +30,7 @@ export default {
     entry: "Geozone entry",
     exit: "Geozone exit",
     speeding: "Speeding",
+    route_deviation: "Route deviation",
     no_signal: "Signal lost",
     idle: "Excessive idling",
   },
@@ -37,14 +38,10 @@ export default {
     entry: "Geozone entry",
     exit: "Geozone exit",
     speeding: "Zone speed limit",
+    route_deviation: "Route deviation",
     global_speeding: "Fleet speed limit",
     idle: "Excessive idle",
     no_signal: "Signal timeout",
-  },
-  maintenanceStatus: {
-    ok: "OK",
-    waiting: "Waiting",
-    delay: "Delay",
   },
   providerCategory: {
     ministry: "Ministry",
@@ -58,6 +55,10 @@ export default {
     bus: "Bus",
     container: "Container",
     pickup: "Pickup",
+    saloon: "Saloon",
+    suv: "SUV",
+    minibus: "Minibus",
+    van: "Van",
   },
   incidentSeverity: {
     minor: "Minor",
@@ -69,16 +70,6 @@ export default {
     weather: "Weather",
     mechanical: "Mechanical failure",
     other: "Other",
-  },
-  violationType: {
-    speeding: "Speeding",
-    parking: "Parking",
-    overloading: "Overloading",
-  },
-  fineStatus: {
-    paid: "Paid",
-    pending: "Pending",
-    disputed: "Disputed",
   },
   webUserStatus: {
     active: "Active",

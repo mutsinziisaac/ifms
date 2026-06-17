@@ -107,11 +107,6 @@ export default {
       empty: "ምንም የጂኦ ዞን፣ የፍጥነት ወይም የምልክት ክስተቶች አልተመዘገቡም።",
     },
 
-    maintenance: {
-      title: "ጥገና",
-      empty: "ይህ ተሽከርካሪ በምንም የጥገና መርሃ ግብር ውስጥ አልተመዘገበም።",
-    },
-
     travel: {
       title: "የጉዞ ታሪክ",
       attributedByDriver: "· በአሽከርካሪ የተመደበ",

@@ -55,4 +55,13 @@ export default {
       routes: "መስመሮች",
     },
   },
+
+  // reusable multi-vehicle picker
+  vehiclePicker: {
+    searchPlaceholder: "ተሽከርካሪዎችን ፈልግ…",
+    selectAll: "የሚታዩትን ሁሉ ምረጥ",
+    selected_one: "{{count}} ተመርጧል",
+    selected_other: "{{count}} ተመርጠዋል",
+    empty: "ምንም ተሽከርካሪ አይዛመድም",
+  },
 }

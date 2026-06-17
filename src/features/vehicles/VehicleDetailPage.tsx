@@ -15,7 +15,6 @@ import { VehicleEventsCard } from "./components/VehicleEventsCard"
 import { VehicleFormDialog } from "./components/VehicleFormDialog"
 import { VehicleIdentityHeader } from "./components/VehicleIdentityHeader"
 import { VehicleLiveStatusCard } from "./components/VehicleLiveStatusCard"
-import { VehicleMaintenanceCard } from "./components/VehicleMaintenanceCard"
 import { VehicleMapCard } from "./components/VehicleMapCard"
 import { VehicleReportExport } from "./components/VehicleReportExport"
 import { VehicleTravelHistory } from "./components/VehicleTravelHistory"
@@ -110,10 +109,7 @@ export function VehicleDetailPage() {
 
         <VehicleTravelHistory vehicleId={vehicle.id} />
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <VehicleEventsCard vehicleId={vehicle.id} />
-          <VehicleMaintenanceCard vehicle={vehicle} />
-        </div>
+        <VehicleEventsCard vehicleId={vehicle.id} />
 
         <VehicleReportExport vehicle={vehicle} />
       </div>

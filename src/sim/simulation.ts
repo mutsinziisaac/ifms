@@ -3,12 +3,12 @@
 // transitions, evaluates event rules (geofencing + fleet-wide) and emits
 // events — all inside ONE store.mutate so consumers re-render once per tick.
 
-import { defaultServiceCost } from "@/data/api"
 import { qk } from "@/data/query-keys"
 import { mutate } from "@/data/store"
 import type {
   DB,
   EventRule,
+  EventRuleType,
   FleetEvent,
   Geozone,
   RouteDef,
@@ -16,8 +16,12 @@ import type {
   ZoneRuleType,
 } from "@/data/types"
 import { queryClient } from "@/lib/query-client"
-import { interpolateAlongPath, isInsideGeozone } from "@/lib/maps"
-import { computeMaintenanceState } from "@/lib/status"
+import {
+  distanceToPolylineMeters,
+  interpolateAlongPath,
+  isInsideGeozone,
+  offsetLatLng,
+} from "@/lib/maps"
 
 const TICK_MS = 1500
 // At 1x: 1.5 real s * 1 * 40 = 60 simulated seconds per tick.
@@ -45,15 +49,6 @@ function nextEventId(): string {
   return `evt-${suffix}${(Date.now() + simIdCounter).toString(36).slice(-2)}`
 }
 
-function nextRecordId(): string {
-  simIdCounter++
-  let suffix = ""
-  for (let i = 0; i < 4; i++) {
-    suffix += ID_CHARS[Math.floor(Math.random() * ID_CHARS.length)]
-  }
-  return `mnt-rec-${suffix}${(Date.now() + simIdCounter).toString(36).slice(-2)}`
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
@@ -64,7 +59,8 @@ function newEvent(
   severity: FleetEvent["severity"],
   zone: Geozone | null,
   message: string,
-  now: string
+  now: string,
+  route: RouteDef | null = null
 ): FleetEvent {
   return {
     id: nextEventId(),
@@ -75,6 +71,8 @@ function newEvent(
     entityId: v.entityId,
     geozoneId: zone?.id ?? null,
     geozoneName: zone?.name ?? null,
+    routeId: route?.id ?? null,
+    routeName: route?.name ?? null,
     message,
     at: now,
     location: { ...v.position },
@@ -90,21 +88,31 @@ function newEvent(
   }
 }
 
-/** Active fleet-wide rules, resolved once per tick. */
-interface GlobalRules {
-  speeding: EventRule | undefined
-  idle: EventRule | undefined
-  noSignal: EventRule | undefined
+/** A trigger watches a vehicle when it is unscoped or names it explicitly. */
+function ruleAppliesTo(rule: EventRule, vehicleId: string): boolean {
+  return rule.vehicleIds === null || rule.vehicleIds.includes(vehicleId)
 }
 
-function resolveGlobalRules(db: DB): GlobalRules {
-  const active = (type: EventRule["type"]) =>
-    db.eventRules.find((r) => r.type === type && r.active)
-  return {
-    speeding: active("global_speeding"),
-    idle: active("idle"),
-    noSignal: active("no_signal"),
+/**
+ * The active fleet-wide rule of `type` that governs this vehicle. A
+ * vehicle-scoped rule wins over the unscoped fleet-wide one, so a vehicle only
+ * ever fires a single rule of each type.
+ */
+function globalRuleFor(
+  db: DB,
+  type: EventRuleType,
+  vehicleId: string
+): EventRule | undefined {
+  let fleet: EventRule | undefined
+  for (const r of db.eventRules) {
+    if (r.type !== type || !r.active) continue
+    if (r.vehicleIds !== null) {
+      if (r.vehicleIds.includes(vehicleId)) return r
+    } else {
+      fleet = r
+    }
   }
+  return fleet
 }
 
 export function startSimulation(): SimulationHandle {
@@ -117,25 +125,15 @@ export function startSimulation(): SimulationHandle {
       (TICK_MS / 1000) * speedMultiplier * SIM_SECONDS_PER_REAL_SECOND
     const simElapsedHours = simElapsedSeconds / 3600
     const now = new Date().toISOString()
-    let autoConfirmed = false
 
     mutate((db) => {
       const routesById = new Map<string, RouteDef>(
         db.routes.map((r) => [r.id, r])
       )
-      const globalRules = resolveGlobalRules(db)
       const newEvents: FleetEvent[] = []
 
       db.vehicles = db.vehicles.map((vehicle) =>
-        tickVehicle(
-          db,
-          vehicle,
-          routesById,
-          globalRules,
-          simElapsedHours,
-          now,
-          newEvents
-        )
+        tickVehicle(db, vehicle, routesById, simElapsedHours, now, newEvents)
       )
 
       if (newEvents.length > 0) {
@@ -160,48 +158,10 @@ export function startSimulation(): SimulationHandle {
         t.messagesTotal += sample
         t.history = [...t.history.slice(-(TELEMETRY_HISTORY_MAX - 1)), sample]
       }
-
-      // Automatic maintenance — tasks set to "automatic" self-confirm any
-      // vehicle that has crossed into delay (overdue). Resetting the counter
-      // immediately returns it to OK, so this fires at most once per cycle.
-      const vehiclesById = new Map(db.vehicles.map((v) => [v.id, v]))
-      for (const task of db.maintenanceTasks) {
-        if (task.confirmation !== "automatic") continue
-        for (const state of task.vehicles) {
-          const vehicle = vehiclesById.get(state.vehicleId)
-          if (
-            computeMaintenanceState(task, state, vehicle).status !== "delay"
-          ) {
-            continue
-          }
-          const odo = vehicle?.odometerKm ?? state.lastServiceKm ?? 0
-          if (task.paramType === "mileage") {
-            state.lastServiceKm = odo
-          } else {
-            state.lastServiceDate = now.slice(0, 10)
-          }
-          db.maintenanceServiceRecords.push({
-            id: nextRecordId(),
-            taskId: task.id,
-            vehicleId: state.vehicleId,
-            servicedAt: now,
-            odometerKm: task.paramType === "mileage" ? odo : null,
-            cost: defaultServiceCost(task),
-            workshop: "MoTL Central Workshop, Kality",
-            technician: null,
-            notes: "Automatic service confirmation.",
-          })
-          autoConfirmed = true
-        }
-      }
     })
 
     queryClient.invalidateQueries({ queryKey: qk.vehicles })
     queryClient.invalidateQueries({ queryKey: qk.events })
-    queryClient.invalidateQueries({ queryKey: qk.maintenanceTasks })
-    if (autoConfirmed) {
-      queryClient.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
-    }
   }, TICK_MS)
 
   return {
@@ -224,7 +184,6 @@ function tickVehicle(
   db: DB,
   prev: Vehicle,
   routesById: Map<string, RouteDef>,
-  globalRules: GlobalRules,
   simElapsedHours: number,
   now: string,
   newEvents: FleetEvent[]
@@ -261,7 +220,7 @@ function tickVehicle(
   // --- no_signal: freeze position and lastSyncAt entirely ---
   if (v.status === "no_signal") {
     v.speedKmh = 0
-    applyNoSignalRule(db, v, globalRules.noSignal, now, newEvents)
+    applyNoSignalRule(db, v, globalRuleFor(db, "no_signal", v.id), now, newEvents)
     return v
   }
 
@@ -272,7 +231,7 @@ function tickVehicle(
     // Re-evaluate geofencing (it sits still, but rules may have changed).
     applyGeofencing(db, prev, v, now, newEvents)
     if (v.status === "idling") {
-      applyIdleRule(db, v, globalRules.idle, now, newEvents)
+      applyIdleRule(db, v, globalRuleFor(db, "idle", v.id), now, newEvents)
     }
     return v
   }
@@ -304,6 +263,19 @@ function tickVehicle(
     const { position, heading } = interpolateAlongPath(route.path, progress)
     v.position = position
     v.heading = heading
+
+    // Occasionally send a vehicle off-corridor so route-deviation triggers can
+    // fire; while an excursion runs we offset the on-route position laterally.
+    const excursion = excursions.get(v.id) ?? maybeStartExcursion(v.id)
+    if (excursion) {
+      excursion.ticksLeft--
+      const bearing = (v.heading + excursion.sideDeg + 360) % 360
+      v.position = offsetLatLng(v.position, bearing, excursion.meters)
+      if (!excursion.fired && applyRouteDeviation(db, v, route, now, newEvents)) {
+        excursion.fired = true
+      }
+      if (excursion.ticksLeft <= 0) excursions.delete(v.id)
+    }
   } else {
     // random walk around current position
     v.position = {
@@ -319,9 +291,75 @@ function tickVehicle(
   v.lastSyncAt = now
 
   applyGeofencing(db, prev, v, now, newEvents)
-  applyGlobalSpeeding(db, v, globalRules.speeding, now, newEvents)
+  applyGlobalSpeeding(
+    db,
+    v,
+    globalRuleFor(db, "global_speeding", v.id),
+    now,
+    newEvents
+  )
 
   return v
+}
+
+// ---------------------------------------------------------------------------
+// Route-deviation excursions — transient off-corridor episodes kept in a
+// module-level map (no need to pollute the Vehicle domain type).
+// ---------------------------------------------------------------------------
+
+interface Excursion {
+  ticksLeft: number
+  /** Perpendicular side relative to heading: +90 or -90 degrees */
+  sideDeg: number
+  meters: number
+  fired: boolean
+}
+
+const excursions = new Map<string, Excursion>()
+const EXCURSION_START_PROB = 0.003
+
+function maybeStartExcursion(vehicleId: string): Excursion | undefined {
+  if (Math.random() >= EXCURSION_START_PROB) return undefined
+  const excursion: Excursion = {
+    ticksLeft: 4 + Math.floor(Math.random() * 5), // 4..8 ticks
+    sideDeg: Math.random() < 0.5 ? 90 : -90,
+    meters: 900 + Math.random() * 900, // 900..1800 m off the corridor
+    fired: false,
+  }
+  excursions.set(vehicleId, excursion)
+  return excursion
+}
+
+function applyRouteDeviation(
+  db: DB,
+  v: Vehicle,
+  route: RouteDef,
+  now: string,
+  newEvents: FleetEvent[]
+): boolean {
+  const rule = db.eventRules.find(
+    (r) =>
+      r.type === "route_deviation" &&
+      r.active &&
+      r.routeId === route.id &&
+      ruleAppliesTo(r, v.id)
+  )
+  if (!rule || rule.deviationMeters === null) return false
+  const dist = distanceToPolylineMeters(v.position, route.path)
+  if (dist < rule.deviationMeters) return false
+  const m = Math.round(dist)
+  newEvents.push(
+    newEvent(
+      v,
+      "route_deviation",
+      dist > rule.deviationMeters * 2 ? "critical" : rule.severity,
+      null,
+      `${v.plate} deviated ${m} m off ${route.name}`,
+      now,
+      route
+    )
+  )
+  return true
 }
 
 // ---------------------------------------------------------------------------
@@ -351,7 +389,12 @@ function applyGeofencing(
     // Exited the old zone.
     if (oldInsideId !== null) {
       const oldZone = db.geozones.find((z) => z.id === oldInsideId)
-      const exitRule = findActiveZoneRule(db.eventRules, oldInsideId, "exit")
+      const exitRule = findActiveZoneRule(
+        db.eventRules,
+        oldInsideId,
+        "exit",
+        v.id
+      )
       if (oldZone && exitRule) {
         newEvents.push(
           newEvent(
@@ -367,7 +410,12 @@ function applyGeofencing(
     }
     // Entered the new zone.
     if (newInsideId !== null && newInsideZone) {
-      const entryRule = findActiveZoneRule(db.eventRules, newInsideId, "entry")
+      const entryRule = findActiveZoneRule(
+        db.eventRules,
+        newInsideId,
+        "entry",
+        v.id
+      )
       if (entryRule) {
         newEvents.push(
           newEvent(
@@ -387,7 +435,12 @@ function applyGeofencing(
 
   // Speeding — while inside a zone with an active speeding rule.
   if (newInsideId !== null && newInsideZone) {
-    const speedRule = findActiveZoneRule(db.eventRules, newInsideId, "speeding")
+    const speedRule = findActiveZoneRule(
+      db.eventRules,
+      newInsideId,
+      "speeding",
+      v.id
+    )
     if (
       speedRule &&
       speedRule.speedLimitKmh !== null &&
@@ -445,7 +498,7 @@ function applyGlobalSpeeding(
   // A zone speeding rule covering the current zone wins — avoid double-fire.
   if (
     v.insideGeozoneId !== null &&
-    findActiveZoneRule(db.eventRules, v.insideGeozoneId, "speeding")
+    findActiveZoneRule(db.eventRules, v.insideGeozoneId, "speeding", v.id)
   ) {
     return
   }
@@ -531,9 +584,14 @@ function applyNoSignalRule(
 function findActiveZoneRule(
   rules: EventRule[],
   geozoneId: string,
-  type: ZoneRuleType
+  type: ZoneRuleType,
+  vehicleId: string
 ): EventRule | undefined {
   return rules.find(
-    (r) => r.geozoneId === geozoneId && r.type === type && r.active
+    (r) =>
+      r.geozoneId === geozoneId &&
+      r.type === type &&
+      r.active &&
+      ruleAppliesTo(r, vehicleId)
   )
 }

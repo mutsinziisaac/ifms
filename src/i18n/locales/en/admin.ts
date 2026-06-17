@@ -108,11 +108,9 @@ export default {
     events: "Events",
     geozones: "Geozones",
     routes: "Routes",
-    maintenance: "Maintenance",
     providers: "Providers",
     reports: "Reports",
     incidents: "Incidents",
-    fines: "Fines",
     admin: "Administration",
   },
   permissionActions: {

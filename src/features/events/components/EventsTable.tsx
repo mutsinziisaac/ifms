@@ -8,6 +8,7 @@ import {
   EventStatusBadge,
 } from "@/components/common/status-badges"
 import type { Entity, FleetEvent } from "@/data/types"
+import { eventRowAccent } from "@/lib/status"
 import { cn } from "@/lib/utils"
 
 export interface EventsTableProps {
@@ -79,11 +80,11 @@ export function EventsTable({
       ),
     },
     {
-      key: "geozone",
-      header: t("events.table.geozone"),
+      key: "location",
+      header: t("events.table.location"),
       render: (e) => (
         <span className="text-sm text-muted-foreground">
-          {e.geozoneName ?? "—"}
+          {e.geozoneName ?? e.routeName ?? "—"}
         </span>
       ),
     },
@@ -105,6 +106,7 @@ export function EventsTable({
       searchPlaceholder={t("events.table.searchPlaceholder")}
       toolbarActions={toolbarActions}
       onRowClick={onSelect}
+      rowClassName={eventRowAccent}
       pageSize={12}
       emptyTitle={t("events.table.emptyTitle")}
       emptyDescription={t("events.table.emptyDescription")}

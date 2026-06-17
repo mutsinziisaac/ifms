@@ -108,11 +108,9 @@ export default {
     events: "ክስተቶች",
     geozones: "ጂኦ-ዞኖች",
     routes: "መስመሮች",
-    maintenance: "ጥገና",
     providers: "አቅራቢዎች",
     reports: "ሪፖርቶች",
     incidents: "አደጋዎች",
-    fines: "ቅጣቶች",
     admin: "አስተዳደር",
   },
   permissionActions: {
