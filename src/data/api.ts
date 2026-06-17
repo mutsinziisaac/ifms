@@ -10,6 +10,7 @@ import type {
   Entity,
   EthiopiaRegion,
   EventRule,
+  EventRuleNotify,
   EventRuleType,
   EventSeverity,
   FleetEvent,
@@ -20,11 +21,6 @@ import type {
   ID,
   LatLng,
   LicenseCategory,
-  MaintenanceConfirmation,
-  MaintenanceParamType,
-  MaintenanceServiceRecord,
-  MaintenanceTask,
-  MaintenanceVehicleState,
   RouteDef,
   Trip,
   Vehicle,
@@ -32,19 +28,15 @@ import type {
   VehicleType,
   Waypoint,
   AccidentRecord,
-  Fine,
-  FineStatus,
   IncidentRootCause,
   IncidentSeverity,
   Permission,
   Role,
   RoleType,
-  ViolationType,
   WebUser,
   WebUserStatus,
 } from "./types"
 import { centroidOf, isInsideGeozone, pathLengthKm } from "@/lib/maps"
-import { computeMaintenanceState } from "@/lib/status"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,10 +67,6 @@ function nextId(prefix: string): ID {
 
 function nowIso(): string {
   return new Date().toISOString()
-}
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
 }
 
 function randomBetween(min: number, max: number): number {
@@ -134,33 +122,6 @@ export interface RouteInput {
   description: string
   waypoints: { name: string; position: LatLng }[]
   active: boolean
-}
-
-export interface MaintenanceTaskInput {
-  title: string
-  description: string
-  paramType: MaintenanceParamType
-  intervalKm: number | null
-  intervalDays: number | null
-  repeat: boolean
-  confirmation: MaintenanceConfirmation
-  emailNotifications: boolean
-  alertBefore: number
-  vehicleIds: ID[]
-  lastServiceKm: number | null
-  lastServiceDate: string | null
-}
-
-export interface LogMaintenanceServiceInput {
-  taskId: ID
-  vehicleId: ID
-  /** ISO timestamp the service was performed */
-  servicedAt: string
-  odometerKm: number | null
-  cost: number
-  workshop: string
-  technician: string | null
-  notes: string
 }
 
 // ---------------------------------------------------------------------------
@@ -362,10 +323,6 @@ export async function deleteVehicle(id: ID): Promise<void> {
       if (driver && driver.assignedVehicleId === id) {
         driver.assignedVehicleId = null
       }
-    }
-    // Remove it from maintenance task vehicle states.
-    for (const task of db.maintenanceTasks) {
-      task.vehicles = task.vehicles.filter((s) => s.vehicleId !== id)
     }
     // Drop its assignment history.
     db.assignments = db.assignments.filter((a) => a.vehicleId !== id)
@@ -692,11 +649,16 @@ const ZONE_SCOPED_RULE_TYPES: EventRuleType[] = ["entry", "exit", "speeding"]
 
 export interface EventRuleInput {
   id?: ID
+  name: string
   type: EventRuleType
   geozoneId: ID | null
+  routeId: ID | null
   speedLimitKmh: number | null
   thresholdMinutes: number | null
+  deviationMeters: number | null
+  vehicleIds: ID[] | null
   severity: EventSeverity
+  notify: EventRuleNotify
   active: boolean
 }
 
@@ -712,16 +674,30 @@ export async function upsertEventRule(
   if (ZONE_SCOPED_RULE_TYPES.includes(input.type) && input.geozoneId === null) {
     throw new Error("Geozone rules require a geozone")
   }
+  if (input.type === "route_deviation" && input.routeId === null) {
+    throw new Error("Route-deviation rules require a route")
+  }
+  if (
+    input.type === "route_deviation" &&
+    (input.deviationMeters === null || input.deviationMeters <= 0)
+  ) {
+    throw new Error("Route-deviation rules require a deviation distance")
+  }
   let result: EventRule | null = null
   mutate((db) => {
     if (input.id !== undefined) {
       const existing = db.eventRules.find((r) => r.id === input.id)
       if (existing) {
+        existing.name = input.name
         existing.type = input.type
         existing.geozoneId = input.geozoneId
+        existing.routeId = input.routeId
         existing.speedLimitKmh = input.speedLimitKmh
         existing.thresholdMinutes = input.thresholdMinutes
+        existing.deviationMeters = input.deviationMeters
+        existing.vehicleIds = input.vehicleIds
         existing.severity = input.severity
+        existing.notify = input.notify
         existing.active = input.active
         result = existing
         return
@@ -729,11 +705,16 @@ export async function upsertEventRule(
     }
     const rule: EventRule = {
       id: input.id ?? nextId("rul"),
+      name: input.name,
       type: input.type,
       geozoneId: input.geozoneId,
+      routeId: input.routeId,
       speedLimitKmh: input.speedLimitKmh,
       thresholdMinutes: input.thresholdMinutes,
+      deviationMeters: input.deviationMeters,
+      vehicleIds: input.vehicleIds,
       severity: input.severity,
+      notify: input.notify,
       active: input.active,
     }
     db.eventRules.push(rule)
@@ -982,238 +963,6 @@ export async function listAssignmentsForVehicle(
 }
 
 // ---------------------------------------------------------------------------
-// Maintenance
-// ---------------------------------------------------------------------------
-
-export async function listMaintenanceTasks(): Promise<MaintenanceTask[]> {
-  await latency()
-  return [...getDB().maintenanceTasks]
-}
-
-/** Service-history records, newest first. Pass a taskId to scope to one task. */
-export async function listMaintenanceServiceRecords(
-  taskId?: ID
-): Promise<MaintenanceServiceRecord[]> {
-  await latency()
-  const all = getDB().maintenanceServiceRecords
-  const scoped = taskId ? all.filter((r) => r.taskId === taskId) : all
-  return [...scoped].sort((a, b) => (a.servicedAt < b.servicedAt ? 1 : -1))
-}
-
-/** A sensible default work-order cost (ETB) for bulk/automatic confirmations. */
-export function defaultServiceCost(task: MaintenanceTask): number {
-  const t = task.title.toLowerCase()
-  if (t.includes("brake")) return 18000
-  if (t.includes("insurance")) return 30000
-  if (t.includes("tire") || t.includes("tyre")) return 2500
-  if (t.includes("oil")) return 5000
-  if (t.includes("inspection") || t.includes("bolo")) return 2000
-  if (t.includes("quarterly") || t.includes("preventive")) return 6000
-  return task.paramType === "mileage" ? 6000 : 5000
-}
-
-function buildMaintenanceStates(
-  db: ReturnType<typeof getDB>,
-  paramType: MaintenanceParamType,
-  vehicleIds: ID[],
-  lastServiceKm: number | null,
-  lastServiceDate: string | null
-): MaintenanceVehicleState[] {
-  return vehicleIds.map((vehicleId) => {
-    const vehicle = findVehicle(db, vehicleId)
-    if (paramType === "mileage") {
-      return {
-        vehicleId,
-        lastServiceKm: lastServiceKm ?? vehicle?.odometerKm ?? 0,
-        lastServiceDate: null,
-      }
-    }
-    return {
-      vehicleId,
-      lastServiceKm: null,
-      lastServiceDate: lastServiceDate ?? todayIso(),
-    }
-  })
-}
-
-export async function createMaintenanceTask(
-  input: MaintenanceTaskInput
-): Promise<MaintenanceTask> {
-  await latency()
-  let created: MaintenanceTask | null = null
-  mutate((db) => {
-    const task: MaintenanceTask = {
-      id: nextId("mnt"),
-      title: input.title,
-      description: input.description,
-      paramType: input.paramType,
-      intervalKm: input.intervalKm,
-      intervalDays: input.intervalDays,
-      repeat: input.repeat,
-      confirmation: input.confirmation,
-      emailNotifications: input.emailNotifications,
-      alertBefore: input.alertBefore,
-      vehicles: buildMaintenanceStates(
-        db,
-        input.paramType,
-        input.vehicleIds,
-        input.lastServiceKm,
-        input.lastServiceDate
-      ),
-      createdAt: nowIso(),
-    }
-    db.maintenanceTasks.push(task)
-    created = task
-  })
-  return created!
-}
-
-export async function updateMaintenanceTask(
-  id: ID,
-  patch: Partial<MaintenanceTaskInput>
-): Promise<MaintenanceTask> {
-  await latency()
-  let updated: MaintenanceTask | null = null
-  mutate((db) => {
-    const task = db.maintenanceTasks.find((t) => t.id === id)
-    if (!task) throw new Error(`Maintenance task ${id} not found`)
-
-    if (patch.title !== undefined) task.title = patch.title
-    if (patch.description !== undefined) task.description = patch.description
-    if (patch.paramType !== undefined) task.paramType = patch.paramType
-    if (patch.intervalKm !== undefined) task.intervalKm = patch.intervalKm
-    if (patch.intervalDays !== undefined) task.intervalDays = patch.intervalDays
-    if (patch.repeat !== undefined) task.repeat = patch.repeat
-    if (patch.confirmation !== undefined) task.confirmation = patch.confirmation
-    if (patch.emailNotifications !== undefined)
-      task.emailNotifications = patch.emailNotifications
-    if (patch.alertBefore !== undefined) task.alertBefore = patch.alertBefore
-
-    if (patch.vehicleIds !== undefined) {
-      const paramType = patch.paramType ?? task.paramType
-      const existing = new Map(task.vehicles.map((s) => [s.vehicleId, s]))
-      task.vehicles = patch.vehicleIds.map((vehicleId) => {
-        const prior = existing.get(vehicleId)
-        if (prior) return prior
-        const vehicle = findVehicle(db, vehicleId)
-        if (paramType === "mileage") {
-          return {
-            vehicleId,
-            lastServiceKm: patch.lastServiceKm ?? vehicle?.odometerKm ?? 0,
-            lastServiceDate: null,
-          }
-        }
-        return {
-          vehicleId,
-          lastServiceKm: null,
-          lastServiceDate: patch.lastServiceDate ?? todayIso(),
-        }
-      })
-    }
-
-    updated = task
-  })
-  return updated!
-}
-
-export async function deleteMaintenanceTask(id: ID): Promise<void> {
-  await latency()
-  mutate((db) => {
-    db.maintenanceTasks = db.maintenanceTasks.filter((t) => t.id !== id)
-  })
-}
-
-export async function confirmMaintenanceTask(
-  taskId: ID,
-  vehicleIds?: ID[]
-): Promise<void> {
-  await latency()
-  mutate((db) => {
-    const task = db.maintenanceTasks.find((t) => t.id === taskId)
-    if (!task) throw new Error(`Maintenance task ${taskId} not found`)
-
-    // Default targets: vehicles currently waiting or in delay.
-    const targets =
-      vehicleIds ??
-      task.vehicles
-        .filter((state) => {
-          const vehicle = findVehicle(db, state.vehicleId)
-          const comp = computeMaintenanceState(task, state, vehicle)
-          return comp.status === "waiting" || comp.status === "delay"
-        })
-        .map((state) => state.vehicleId)
-
-    const targetSet = new Set(targets)
-    const cost = defaultServiceCost(task)
-    const at = nowIso()
-    for (const state of task.vehicles) {
-      if (!targetSet.has(state.vehicleId)) continue
-      const vehicle = findVehicle(db, state.vehicleId)
-      const odo = vehicle?.odometerKm ?? state.lastServiceKm ?? 0
-      if (task.paramType === "mileage") {
-        state.lastServiceKm = odo
-      } else {
-        state.lastServiceDate = todayIso()
-      }
-      // Bulk confirm still writes a work order so spend/history stay honest.
-      db.maintenanceServiceRecords.push({
-        id: nextId("mnt-rec"),
-        taskId: task.id,
-        vehicleId: state.vehicleId,
-        servicedAt: at,
-        odometerKm: task.paramType === "mileage" ? odo : null,
-        cost,
-        workshop: "MoTL Central Workshop, Kality",
-        technician: null,
-        notes: "Bulk confirmation.",
-      })
-    }
-  })
-}
-
-export async function logMaintenanceService(
-  input: LogMaintenanceServiceInput
-): Promise<MaintenanceServiceRecord> {
-  await latency()
-  let created: MaintenanceServiceRecord | null = null
-  mutate((db) => {
-    const task = db.maintenanceTasks.find((t) => t.id === input.taskId)
-    if (!task) throw new Error(`Maintenance task ${input.taskId} not found`)
-    const state = task.vehicles.find((s) => s.vehicleId === input.vehicleId)
-    if (!state) {
-      throw new Error(
-        `Vehicle ${input.vehicleId} is not covered by task ${input.taskId}`
-      )
-    }
-    const vehicle = findVehicle(db, input.vehicleId)
-    const odo =
-      input.odometerKm ?? vehicle?.odometerKm ?? state.lastServiceKm ?? 0
-
-    const record: MaintenanceServiceRecord = {
-      id: nextId("mnt-rec"),
-      taskId: input.taskId,
-      vehicleId: input.vehicleId,
-      servicedAt: input.servicedAt,
-      odometerKm: task.paramType === "mileage" ? odo : null,
-      cost: input.cost,
-      workshop: input.workshop,
-      technician: input.technician,
-      notes: input.notes,
-    }
-    db.maintenanceServiceRecords.push(record)
-
-    // Logging a service confirms it — reset the counter for that vehicle.
-    if (task.paramType === "mileage") {
-      state.lastServiceKm = odo
-    } else {
-      state.lastServiceDate = input.servicedAt.slice(0, 10)
-    }
-    created = record
-  })
-  return created!
-}
-
-// ---------------------------------------------------------------------------
 // Accident / incident records
 // ---------------------------------------------------------------------------
 
@@ -1232,7 +981,7 @@ export interface AccidentInput {
   notes: string
 }
 
-/** Denormalize a vehicle + driver into the fields stored on accidents/fines. */
+/** Denormalize a vehicle + driver into the fields stored on accidents. */
 function denormalizeParties(
   db: ReturnType<typeof getDB>,
   vehicleId: ID,
@@ -1333,99 +1082,6 @@ export async function deleteAccident(id: ID): Promise<void> {
   await latency()
   mutate((db) => {
     db.accidents = db.accidents.filter((a) => a.id !== id)
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Fines
-// ---------------------------------------------------------------------------
-
-export interface FineInput {
-  vehicleId: ID
-  driverId: ID | null
-  violationType: ViolationType
-  amountEtb: number
-  /** ISO timestamp the fine was issued */
-  issuedAt: string
-  address: string
-  status: FineStatus
-  eventId: ID | null
-  notes: string
-}
-
-export async function listFines(): Promise<Fine[]> {
-  await latency()
-  return [...getDB().fines]
-}
-
-export async function createFine(input: FineInput): Promise<Fine> {
-  await latency()
-  let created: Fine | null = null
-  mutate((db) => {
-    const parties = denormalizeParties(db, input.vehicleId, input.driverId)
-    const fine: Fine = {
-      id: nextId("fine"),
-      vehicleId: input.vehicleId,
-      vehiclePlate: parties.vehiclePlate,
-      driverId: input.driverId,
-      driverName: parties.driverName,
-      entityId: parties.entityId,
-      violationType: input.violationType,
-      amountEtb: input.amountEtb,
-      issuedAt: input.issuedAt,
-      location: parties.location,
-      address: input.address,
-      status: input.status,
-      eventId: input.eventId,
-      ticketNo: `TR-${Math.round(randomBetween(10000, 99999))}`,
-      notes: input.notes,
-      createdAt: nowIso(),
-    }
-    db.fines.push(fine)
-    created = fine
-  })
-  return created!
-}
-
-export async function updateFine(
-  id: ID,
-  patch: Partial<FineInput>
-): Promise<Fine> {
-  await latency()
-  let updated: Fine | null = null
-  mutate((db) => {
-    const fine = db.fines.find((f) => f.id === id)
-    if (!fine) throw new Error(`Fine ${id} not found`)
-
-    if (patch.vehicleId !== undefined || patch.driverId !== undefined) {
-      const vehicleId = patch.vehicleId ?? fine.vehicleId
-      const driverId =
-        patch.driverId !== undefined ? patch.driverId : fine.driverId
-      const parties = denormalizeParties(db, vehicleId, driverId)
-      fine.vehicleId = vehicleId
-      fine.driverId = driverId
-      fine.vehiclePlate = parties.vehiclePlate
-      fine.entityId = parties.entityId
-      fine.driverName = parties.driverName
-    }
-    if (patch.violationType !== undefined)
-      fine.violationType = patch.violationType
-    if (patch.amountEtb !== undefined) fine.amountEtb = patch.amountEtb
-    if (patch.issuedAt !== undefined) fine.issuedAt = patch.issuedAt
-    if (patch.address !== undefined) fine.address = patch.address
-    if (patch.status !== undefined) fine.status = patch.status
-    if (patch.eventId !== undefined) fine.eventId = patch.eventId
-    if (patch.notes !== undefined) fine.notes = patch.notes
-
-    updated = fine
-  })
-  return updated!
-}
-
-export async function deleteFine(id: ID): Promise<void> {
-  await latency()
-  mutate((db) => {
-    db.fines = db.fines.filter((f) => f.id !== id)
   })
 }
 

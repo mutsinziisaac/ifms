@@ -68,11 +68,16 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
     upsertRule.mutate(
       {
         id: rule.id,
+        name: rule.name,
         geozoneId: rule.geozoneId,
+        routeId: rule.routeId,
         type: rule.type,
         speedLimitKmh: rule.speedLimitKmh,
         thresholdMinutes: rule.thresholdMinutes,
+        deviationMeters: rule.deviationMeters,
+        vehicleIds: rule.vehicleIds,
         severity: rule.severity,
+        notify: rule.notify,
         active,
       },
       {
@@ -100,11 +105,16 @@ export function ZoneRulesPanel({ geozone }: ZoneRulesPanelProps) {
     }
     upsertRule.mutate(
       {
+        name: `${geozone.name} ${t(`enums.eventRuleType.${newType}`)}`,
         geozoneId: geozone.id,
+        routeId: null,
         type: newType,
         speedLimitKmh,
         thresholdMinutes: null,
+        deviationMeters: null,
+        vehicleIds: null,
         severity: DEFAULT_SEVERITY[newType],
+        notify: { email: false, emailTo: "", sms: false, smsTo: "" },
         active: true,
       },
       {

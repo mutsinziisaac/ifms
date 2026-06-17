@@ -24,11 +24,10 @@ import {
   type Entity,
   type EntityCategory,
   type EventRule,
+  type EventRuleType,
   type EventSeverity,
   type EventStatus,
   type EventType,
-  type Fine,
-  type FineStatus,
   type FleetEvent,
   type IncidentSeverity,
   type Permission,
@@ -47,9 +46,6 @@ import {
   type GeozoneGroup,
   type LatLng,
   type LicenseCategory,
-  type MaintenanceServiceRecord,
-  type MaintenanceTask,
-  type MaintenanceVehicleState,
   type RouteDef,
   type Trip,
   type Vehicle,
@@ -541,7 +537,25 @@ function buildGeozones(
 // Event rules
 // ---------------------------------------------------------------------------
 
-function buildEventRules(byName: Map<string, Geozone>): EventRule[] {
+const RULE_NAME: Record<EventRuleType, string> = {
+  entry: "entry",
+  exit: "exit",
+  speeding: "speed limit",
+  route_deviation: "route deviation",
+  global_speeding: "Fleet speed limit",
+  idle: "Excessive idle",
+  no_signal: "Signal loss",
+}
+
+/** Fresh in-app-only notification config (each rule gets its own object). */
+function defaultNotify() {
+  return { email: false, emailTo: "", sms: false, smsTo: "" }
+}
+
+function buildEventRules(
+  byName: Map<string, Geozone>,
+  routes: RouteDef[]
+): EventRule[] {
   const rules: EventRule[] = []
   let n = 0
   const add = (
@@ -556,11 +570,16 @@ function buildEventRules(byName: Map<string, Geozone>): EventRule[] {
     n++
     rules.push({
       id: `rule-${pad(n, 2)}`,
+      name: `${zone.name} ${RULE_NAME[type]}`,
       geozoneId: zone.id,
+      routeId: null,
       type,
       speedLimitKmh,
       thresholdMinutes: null,
+      deviationMeters: null,
+      vehicleIds: null,
       severity,
+      notify: defaultNotify(),
       active,
     })
   }
@@ -591,7 +610,26 @@ function buildEventRules(byName: Map<string, Geozone>): EventRule[] {
   // Deactivated entry rule for Hawassa Industrial Park (demonstrates toggle).
   add("Hawassa Industrial Park", "entry", null, "info", false)
 
-  // Fleet-wide rules (geozoneId null).
+  // Route-deviation rules on the busiest active corridors.
+  for (const route of routes.filter((r) => r.active).slice(0, 2)) {
+    n++
+    rules.push({
+      id: `rule-${pad(n, 2)}`,
+      name: `${route.name} deviation`,
+      geozoneId: null,
+      routeId: route.id,
+      type: "route_deviation",
+      speedLimitKmh: null,
+      thresholdMinutes: null,
+      deviationMeters: 800,
+      vehicleIds: null,
+      severity: "warning",
+      notify: defaultNotify(),
+      active: true,
+    })
+  }
+
+  // Fleet-wide rules (geozoneId/routeId null).
   const addGlobal = (
     type: EventRule["type"],
     speedLimitKmh: number | null,
@@ -601,11 +639,16 @@ function buildEventRules(byName: Map<string, Geozone>): EventRule[] {
     n++
     rules.push({
       id: `rule-${pad(n, 2)}`,
+      name: RULE_NAME[type],
       geozoneId: null,
+      routeId: null,
       type,
       speedLimitKmh,
       thresholdMinutes,
+      deviationMeters: null,
+      vehicleIds: null,
       severity,
+      notify: defaultNotify(),
       active: true,
     })
   }
@@ -651,6 +694,12 @@ const MODELS: ModelSeed[] = [
   { description: "Higer KLQ6129 intercity bus", types: ["bus"] },
   { description: "Toyota Hilux double-cab", types: ["pickup"] },
   { description: "Isuzu D-Max utility", types: ["pickup"] },
+  { description: "Toyota Corolla saloon", types: ["saloon"] },
+  { description: "Hyundai Accent saloon", types: ["saloon"] },
+  { description: "Toyota Land Cruiser 4x4", types: ["suv"] },
+  { description: "Toyota Land Cruiser Prado", types: ["suv"] },
+  { description: "Toyota HiAce minibus", types: ["minibus"] },
+  { description: "Hyundai H-1 panel van", types: ["van"] },
 ]
 
 function modelFor(type: VehicleType, rng: Rng): string {
@@ -665,15 +714,20 @@ function plate(rng: Rng): string {
   return `${code}-${digits} ET`
 }
 
-// Type distribution: 18 truck, 8 trailer, 7 tanker, 6 container, 5 bus, 4 pickup.
+// Type distribution (48 total): 14 truck, 6 trailer, 5 tanker, 5 container,
+// 4 bus, 4 pickup, 4 saloon, 3 suv, 2 minibus, 1 van.
 function buildTypePool(): VehicleType[] {
   const counts: Record<VehicleType, number> = {
-    truck: 18,
-    trailer: 8,
-    tanker: 7,
-    container: 6,
-    bus: 5,
+    truck: 14,
+    trailer: 6,
+    tanker: 5,
+    container: 5,
+    bus: 4,
     pickup: 4,
+    saloon: 4,
+    suv: 3,
+    minibus: 2,
+    van: 1,
   }
   const pool: VehicleType[] = []
   for (const t of VEHICLE_TYPES) {
@@ -1025,9 +1079,14 @@ function buildDrivers(
     driver.assignedVehicleId = vehicle.id
     vehicle.driverId = driver.id
     // License category weighted by vehicle type.
-    if (vehicle.type === "bus") {
+    if (vehicle.type === "bus" || vehicle.type === "minibus") {
       driver.licenseCategory = rng.bool(0.6) ? "Public II" : "D"
-    } else if (vehicle.type === "pickup") {
+    } else if (
+      vehicle.type === "pickup" ||
+      vehicle.type === "saloon" ||
+      vehicle.type === "suv" ||
+      vehicle.type === "van"
+    ) {
       driver.licenseCategory = rng.bool(0.5) ? "B" : "C1"
     } else {
       driver.licenseCategory = rng.bool(0.6) ? "E" : "C"
@@ -1310,6 +1369,8 @@ function buildEvents(
       entityId: v.entityId,
       geozoneId: zone?.id ?? null,
       geozoneName: zone?.name ?? null,
+      routeId: null,
+      routeName: null,
       message,
       at: new Date(atMs).toISOString(),
       location,
@@ -1357,255 +1418,6 @@ function buildProviderTelemetry(
       history,
     }
   })
-}
-
-// ---------------------------------------------------------------------------
-// Maintenance tasks
-// ---------------------------------------------------------------------------
-
-interface MaintTaskSeed {
-  title: string
-  description: string
-  paramType: "mileage" | "date"
-  intervalKm: number | null
-  intervalDays: number | null
-  alertBefore: number
-  /** Per-service cost range in Ethiopian Birr (ETB). */
-  costMin: number
-  costMax: number
-}
-
-// Realistic Addis Ababa / MoTL workshops a service might be logged against.
-const ADDIS_WORKSHOPS = [
-  "MoTL Central Workshop, Kality",
-  "Mesfin Industrial Garage, Kotebe",
-  "Moenco Service Center, Bole",
-  "Ries Engineering Workshop, Lebu",
-  "Tana Heavy Equipment, Akaki",
-  "National Motors Garage, Gerji",
-] as const
-
-// Short, believable work-order notes.
-const MAINT_NOTES = [
-  "Completed to schedule, no faults found.",
-  "Replaced consumables and topped up fluids.",
-  "Minor wear noted, flagged for next cycle.",
-  "Parts sourced locally, vehicle returned to service.",
-  "Carried out during routine depot visit.",
-  "Inspection passed, certificate issued.",
-] as const
-
-const MAINT_SEEDS: MaintTaskSeed[] = [
-  {
-    title: "Engine oil & filter change",
-    description:
-      "Routine engine oil and oil-filter replacement to keep the powertrain healthy.",
-    paramType: "mileage",
-    intervalKm: 10000,
-    intervalDays: null,
-    alertBefore: 1000,
-    costMin: 3500,
-    costMax: 7000,
-  },
-  {
-    title: "Tire inspection & rotation",
-    description:
-      "Inspect tread depth and rotate tires to even out wear across all axles.",
-    paramType: "mileage",
-    intervalKm: 20000,
-    intervalDays: null,
-    alertBefore: 2000,
-    costMin: 1500,
-    costMax: 4000,
-  },
-  {
-    title: "Brake system overhaul",
-    description:
-      "Full inspection and overhaul of pads, discs and the air-brake system.",
-    paramType: "mileage",
-    intervalKm: 40000,
-    intervalDays: null,
-    alertBefore: 4000,
-    costMin: 12000,
-    costMax: 28000,
-  },
-  {
-    title: "Annual technical inspection (Bolo)",
-    description: "Mandatory annual roadworthiness inspection and Bolo renewal.",
-    paramType: "date",
-    intervalKm: null,
-    intervalDays: 365,
-    alertBefore: 30,
-    costMin: 1200,
-    costMax: 3000,
-  },
-  {
-    title: "Insurance renewal",
-    description:
-      "Renew the third-party and comprehensive motor insurance policy.",
-    paramType: "date",
-    intervalKm: null,
-    intervalDays: 365,
-    alertBefore: 21,
-    costMin: 18000,
-    costMax: 45000,
-  },
-  {
-    title: "Quarterly preventive service",
-    description:
-      "Scheduled quarterly preventive maintenance covering fluids, filters and belts.",
-    paramType: "date",
-    intervalKm: null,
-    intervalDays: 90,
-    alertBefore: 10,
-    costMin: 4000,
-    costMax: 9000,
-  },
-]
-
-// Build a per-task list of outcome buckets so every task shows a believable
-// mix of ~65% ok / 20% waiting / 15% delay (with at least one of each once the
-// task covers enough vehicles), then shuffle so they don't cluster.
-type Bucket = "ok" | "waiting" | "delay"
-function bucketQuota(n: number, rng: Rng): Bucket[] {
-  const delay = Math.max(n >= 7 ? 1 : 0, Math.round(n * 0.15))
-  let waiting = Math.max(n >= 5 ? 1 : 0, Math.round(n * 0.2))
-  if (delay + waiting > n) {
-    waiting = Math.max(0, n - delay)
-  }
-  const ok = n - delay - waiting
-  const buckets: Bucket[] = [
-    ...Array<Bucket>(ok).fill("ok"),
-    ...Array<Bucket>(waiting).fill("waiting"),
-    ...Array<Bucket>(delay).fill("delay"),
-  ]
-  for (let k = buckets.length - 1; k > 0; k--) {
-    const j = rng.int(0, k)
-    const tmp = buckets[k]!
-    buckets[k] = buckets[j]!
-    buckets[j] = tmp
-  }
-  return buckets
-}
-
-function buildMaintenance(
-  rng: Rng,
-  vehicles: Vehicle[],
-  now: number
-): { tasks: MaintenanceTask[]; records: MaintenanceServiceRecord[] } {
-  const records: MaintenanceServiceRecord[] = []
-  let recCounter = 0
-
-  // Append a believable service history for one vehicle. The most recent record
-  // is anchored to the vehicle's current lastService reference so the detail
-  // page's "last serviced / last cost" line matches the live status; earlier
-  // records step back ~one interval per cycle.
-  function addHistory(
-    seed: MaintTaskSeed,
-    taskId: string,
-    vehicleId: string,
-    lastServiceKm: number | null,
-    lastServiceDate: string | null
-  ): void {
-    const isMileage = seed.paramType === "mileage"
-    const interval = isMileage
-      ? (seed.intervalKm ?? 10000)
-      : (seed.intervalDays ?? 365)
-    const anchorMs = isMileage
-      ? now - rng.float(20 * DAY, 120 * DAY)
-      : new Date(lastServiceDate ?? new Date(now).toISOString()).getTime()
-    const stepMs = isMileage ? rng.float(50 * DAY, 150 * DAY) : interval * DAY
-    const recCount = rng.int(1, 3)
-    for (let r = 0; r < recCount; r++) {
-      recCounter++
-      records.push({
-        id: `mnt-rec-${pad(recCounter, 4)}`,
-        taskId,
-        vehicleId,
-        servicedAt: new Date(anchorMs - stepMs * r).toISOString(),
-        odometerKm: isMileage
-          ? Math.max(0, Math.round((lastServiceKm ?? 0) - interval * r))
-          : null,
-        cost: rng.int(seed.costMin, seed.costMax),
-        workshop: rng.pick(ADDIS_WORKSHOPS),
-        technician: rng.bool(0.75)
-          ? `${rng.pick(DRIVER_NAMES).first} ${rng.pick(DRIVER_NAMES).last}`
-          : null,
-        notes: rng.pick(MAINT_NOTES),
-      })
-    }
-  }
-
-  const tasks: MaintenanceTask[] = MAINT_SEEDS.map((seed, i) => {
-    const taskId = `mnt-${pad(i + 1, 2)}`
-    const count = rng.int(8, 20)
-    // Distinct vehicles for this task.
-    const pool = [...vehicles]
-    for (let k = pool.length - 1; k > 0; k--) {
-      const j = rng.int(0, k)
-      const tmp = pool[k]!
-      pool[k] = pool[j]!
-      pool[j] = tmp
-    }
-    const chosen = pool.slice(0, Math.min(count, pool.length))
-    const buckets = bucketQuota(chosen.length, rng)
-
-    const states: MaintenanceVehicleState[] = chosen.map((v, ci) => {
-      const bucket = buckets[ci]!
-      if (seed.paramType === "mileage") {
-        const interval = seed.intervalKm ?? 10000
-        // remaining = lastServiceKm + interval - odometer.
-        // Choose remaining as a fraction of interval per bucket, then derive
-        // lastServiceKm = odometer - interval + remaining.
-        let remainingFrac: number
-        if (bucket === "ok") remainingFrac = rng.float(0.25, 0.95)
-        else if (bucket === "waiting") remainingFrac = rng.float(0.02, 0.18)
-        else remainingFrac = rng.float(-0.45, -0.02)
-        const remaining = remainingFrac * interval
-        // lastServiceKm derived so remainingPct === remainingFrac. Floor at 0
-        // for the rare low-odometer vehicle (only nudges it further into "ok").
-        const lastServiceKm = Math.max(
-          0,
-          Math.round(v.odometerKm - interval + remaining)
-        )
-        addHistory(seed, taskId, v.id, lastServiceKm, null)
-        return { vehicleId: v.id, lastServiceKm, lastServiceDate: null }
-      }
-      const interval = seed.intervalDays ?? 365
-      // remaining(days) = lastServiceDate + interval - now.
-      let remainingFrac: number
-      if (bucket === "ok") remainingFrac = rng.float(0.25, 0.95)
-      else if (bucket === "waiting") remainingFrac = rng.float(0.02, 0.18)
-      else remainingFrac = rng.float(-0.45, -0.02)
-      const remainingDays = remainingFrac * interval
-      // lastServiceDate = now - (interval - remainingDays).
-      const elapsedDays = interval - remainingDays
-      const lastServiceMs = now - elapsedDays * DAY
-      const lastServiceDate = new Date(lastServiceMs).toISOString()
-      addHistory(seed, taskId, v.id, null, lastServiceDate)
-      return {
-        vehicleId: v.id,
-        lastServiceKm: null,
-        lastServiceDate,
-      }
-    })
-
-    return {
-      id: taskId,
-      title: seed.title,
-      description: seed.description,
-      paramType: seed.paramType,
-      intervalKm: seed.intervalKm,
-      intervalDays: seed.intervalDays,
-      repeat: true,
-      confirmation: rng.bool(0.5) ? "automatic" : "manual",
-      emailNotifications: rng.bool(0.6),
-      alertBefore: seed.alertBefore,
-      vehicles: states,
-      createdAt: ago(rng.float(60 * DAY, 300 * DAY), now),
-    }
-  })
-  return { tasks, records }
 }
 
 // ---------------------------------------------------------------------------
@@ -1677,102 +1489,6 @@ function buildAccidents(
 }
 
 // ---------------------------------------------------------------------------
-// Fines (SRS Compliance & Fines Dashboard) — a subset link back to seeded
-// speeding events so the events → fines relationship is visible.
-// ---------------------------------------------------------------------------
-
-function buildFines(
-  rng: Rng,
-  vehicles: Vehicle[],
-  drivers: Driver[],
-  events: FleetEvent[],
-  now: number
-): Fine[] {
-  const driverById = new Map(drivers.map((d) => [d.id, d]))
-  const vehicleById = new Map(vehicles.map((v) => [v.id, v]))
-  const fines: Fine[] = []
-
-  const pickStatus = (): FineStatus => {
-    const r = rng.next()
-    return r < 0.5 ? "paid" : r < 0.85 ? "pending" : "disputed"
-  }
-  const driverOf = (
-    v: Vehicle | undefined
-  ): { id: string | null; name: string | null } => {
-    const d = v?.driverId ? (driverById.get(v.driverId) ?? null) : null
-    return { id: d?.id ?? null, name: d ? `${d.firstName} ${d.lastName}` : null }
-  }
-
-  // Speeding fines linked to seeded speeding events.
-  for (const e of events) {
-    if (e.type !== "speeding") continue
-    if (!rng.bool(0.7)) continue
-    const v = vehicleById.get(e.vehicleId)
-    const dn = driverOf(v)
-    const issuedMs = Math.min(
-      now - MIN,
-      new Date(e.at).getTime() + rng.float(5 * MIN, 2 * HOUR)
-    )
-    fines.push({
-      id: "fine-tmp",
-      vehicleId: e.vehicleId,
-      vehiclePlate: e.vehiclePlate,
-      driverId: dn.id,
-      driverName: dn.name,
-      entityId: e.entityId,
-      violationType: "speeding",
-      amountEtb: rng.int(1000, 5000),
-      issuedAt: new Date(issuedMs).toISOString(),
-      location: e.location,
-      address: e.geozoneName ?? nearestPlaceName(e.location),
-      status: pickStatus(),
-      eventId: e.id,
-      ticketNo: "",
-      notes: "",
-      createdAt: new Date(issuedMs).toISOString(),
-    })
-  }
-
-  // Standalone parking / overloading fines.
-  for (let i = 0; i < 18; i++) {
-    const v = rng.pick(vehicles)
-    const dn = driverOf(v)
-    const violationType = rng.bool(0.5) ? "parking" : "overloading"
-    const amountEtb =
-      violationType === "parking" ? rng.int(300, 1500) : rng.int(5000, 25000)
-    const place = rng.pick(PLACES)
-    const location = rng.jitter(place.position, 0.02)
-    const issuedAt = ago(rng.float(1 * DAY, 270 * DAY), now)
-    fines.push({
-      id: "fine-tmp",
-      vehicleId: v.id,
-      vehiclePlate: v.plate,
-      driverId: dn.id,
-      driverName: dn.name,
-      entityId: v.entityId,
-      violationType,
-      amountEtb,
-      issuedAt,
-      location,
-      address: nearestPlaceName(location),
-      status: pickStatus(),
-      eventId: null,
-      ticketNo: "",
-      notes: "",
-      createdAt: issuedAt,
-    })
-  }
-
-  // Newest first, then assign sequential ticket numbers + ids.
-  fines.sort((a, b) => +new Date(b.issuedAt) - +new Date(a.issuedAt))
-  fines.forEach((f, i) => {
-    f.id = `fine-${pad(i + 1, 3)}`
-    f.ticketNo = `TR-${pad(i + 1, 5)}`
-  })
-  return fines
-}
-
-// ---------------------------------------------------------------------------
 // Access control (RBAC) — roles & web users (SRS Admin Panel)
 // ---------------------------------------------------------------------------
 
@@ -1828,20 +1544,20 @@ function buildRoles(rng: Rng, now: number): Role[] {
       "Day-to-day monitoring — view, create and edit operational records.",
       [
         ...permsFor(
-          ["fleet", "drivers", "events", "geozones", "routes", "maintenance", "providers"],
+          ["fleet", "drivers", "events", "geozones", "routes", "providers"],
           ["view", "create", "edit"]
         ),
-        ...permsFor(["reports", "incidents", "fines"], ["view"]),
+        ...permsFor(["reports", "incidents"], ["view"]),
       ]
     ),
     role(
       4,
       "Compliance Officer",
       "fms",
-      "Owns the events, incidents, fines and reporting workflows.",
+      "Owns the events, incidents and reporting workflows.",
       [
         ...permsFor(OPS, ["view"]),
-        ...permsFor(["events", "incidents", "fines", "reports"], [
+        ...permsFor(["events", "incidents", "reports"], [
           "create",
           "edit",
           "manage",
@@ -1941,17 +1657,38 @@ export function createSeedDB(): DB {
   const entityDomains = ENTITY_SEEDS.map((e) => e.domain)
   const routes = buildRoutes(rng, now)
   const { geozones, groups, byName } = buildGeozones(rng, routes, now)
-  const eventRules = buildEventRules(byName)
+  const eventRules = buildEventRules(byName, routes)
   const { vehicles } = buildVehicles(rng, routes, geozones, now)
+
+  // Showcase a vehicle-scoped trigger: a stricter speed limit + email alert for
+  // two flagged vehicles, on top of the fleet-wide rule.
+  if (vehicles.length >= 2) {
+    eventRules.push({
+      id: "rule-scoped-01",
+      name: "Priority vehicles — strict speed",
+      geozoneId: null,
+      routeId: null,
+      type: "global_speeding",
+      speedLimitKmh: 85,
+      thresholdMinutes: null,
+      deviationMeters: null,
+      vehicleIds: vehicles.slice(0, 2).map((v) => v.id),
+      severity: "critical",
+      notify: {
+        email: true,
+        emailTo: "control.room@motl.gov.et",
+        sms: false,
+        smsTo: "",
+      },
+      active: true,
+    })
+  }
   const { drivers } = buildDrivers(rng, vehicles, entityDomains, now)
   const trips = buildTrips(rng, vehicles, routes, now)
   const assignments = buildAssignments(rng, vehicles, drivers, now)
   const events = buildEvents(rng, vehicles, geozones, now)
   const providerTelemetry = buildProviderTelemetry(rng, entities, vehicles)
-  const { tasks: maintenanceTasks, records: maintenanceServiceRecords } =
-    buildMaintenance(rng, vehicles, now)
   const accidents = buildAccidents(rng, vehicles, drivers, now)
-  const fines = buildFines(rng, vehicles, drivers, events, now)
   const roles = buildRoles(rng, now)
   const webUsers = buildWebUsers(rng, entities, now)
 
@@ -1967,10 +1704,7 @@ export function createSeedDB(): DB {
     routes,
     trips,
     assignments,
-    maintenanceTasks,
-    maintenanceServiceRecords,
     accidents,
-    fines,
     roles,
     webUsers,
   }

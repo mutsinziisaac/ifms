@@ -8,11 +8,9 @@ import dashboard from "./am/dashboard"
 import drivers from "./am/drivers"
 import enums from "./am/enums"
 import events from "./am/events"
-import fines from "./am/fines"
 import forms from "./am/forms"
 import geozones from "./am/geozones"
 import incidents from "./am/incidents"
-import maintenance from "./am/maintenance"
 import nav from "./am/nav"
 import providers from "./am/providers"
 import reports from "./am/reports"
@@ -34,9 +32,7 @@ export const am: Resources = {
   providers,
   geozones,
   routes,
-  maintenance,
   reports,
   incidents,
-  fines,
   admin,
 }

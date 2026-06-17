@@ -52,6 +52,8 @@ export interface DataTableProps<T extends { id: string }> {
   filters?: DataTableFilter[]
   toolbarActions?: React.ReactNode
   onRowClick?: (row: T) => void
+  /** Extra per-row classes (e.g. a severity accent on the events feed) */
+  rowClassName?: (row: T) => string
   pageSize?: number
   isLoading?: boolean
   emptyTitle?: string
@@ -67,6 +69,7 @@ export function DataTable<T extends { id: string }>({
   filters,
   toolbarActions,
   onRowClick,
+  rowClassName,
   pageSize = 10,
   isLoading,
   emptyTitle,
@@ -177,7 +180,8 @@ export function DataTable<T extends { id: string }>({
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   className={cn(
                     onRowClick &&
-                      "cursor-pointer transition-colors hover:bg-accent/50"
+                      "cursor-pointer transition-colors hover:bg-accent/50",
+                    rowClassName?.(row)
                   )}
                 >
                   {columns.map((col) => (

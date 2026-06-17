@@ -3,6 +3,7 @@
 import type { Geozone, LatLng } from "@/data/types"
 
 const EARTH_RADIUS_KM = 6371
+const EARTH_RADIUS_M = EARTH_RADIUS_KM * 1000
 
 function toRad(deg: number): number {
   return (deg * Math.PI) / 180
@@ -77,6 +78,66 @@ export function interpolateAlongPath(
     target -= seg
   }
   return { position: path[path.length - 1]!, heading: 0 }
+}
+
+/**
+ * Destination point reached by travelling `meters` from `point` along
+ * `bearingDeg` (clockwise from north). Used by the simulation to nudge a
+ * vehicle laterally off its corridor.
+ */
+export function offsetLatLng(
+  point: LatLng,
+  bearingDeg: number,
+  meters: number
+): LatLng {
+  const angular = meters / EARTH_RADIUS_M
+  const brng = toRad(bearingDeg)
+  const lat1 = toRad(point.lat)
+  const lng1 = toRad(point.lng)
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angular) +
+      Math.cos(lat1) * Math.sin(angular) * Math.cos(brng)
+  )
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(brng) * Math.sin(angular) * Math.cos(lat1),
+      Math.cos(angular) - Math.sin(lat1) * Math.sin(lat2)
+    )
+  return { lat: toDeg(lat2), lng: toDeg(lng2) }
+}
+
+/** Distance in metres from origin (a local projection) to segment a→b. */
+function distanceToSegmentMeters(p: LatLng, a: LatLng, b: LatLng): number {
+  // Local equirectangular projection (metres) centred on p — accurate for the
+  // short segments of a densified route polyline.
+  const latRef = toRad(p.lat)
+  const px = (q: LatLng) =>
+    toRad(q.lng - p.lng) * Math.cos(latRef) * EARTH_RADIUS_M
+  const py = (q: LatLng) => toRad(q.lat - p.lat) * EARTH_RADIUS_M
+  const ax = px(a)
+  const ay = py(a)
+  const dx = px(b) - ax
+  const dy = py(b) - ay
+  const lenSq = dx * dx + dy * dy
+  // Closest-point parameter of the origin onto the segment, clamped to [0, 1].
+  let t = lenSq === 0 ? 0 : -(ax * dx + ay * dy) / lenSq
+  t = Math.min(1, Math.max(0, t))
+  const cx = ax + t * dx
+  const cy = ay + t * dy
+  return Math.sqrt(cx * cx + cy * cy)
+}
+
+/** Minimum distance in metres from a point to a polyline. */
+export function distanceToPolylineMeters(point: LatLng, path: LatLng[]): number {
+  if (path.length === 0) return 0
+  if (path.length === 1) return haversineKm(point, path[0]!) * 1000
+  let min = Infinity
+  for (let i = 1; i < path.length; i++) {
+    const d = distanceToSegmentMeters(point, path[i - 1]!, path[i]!)
+    if (d < min) min = d
+  }
+  return min
 }
 
 export function pointInCircle(

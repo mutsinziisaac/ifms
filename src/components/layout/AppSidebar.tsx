@@ -6,7 +6,6 @@ import {
   IdCard,
   LayoutDashboard,
   RadioTower,
-  ReceiptText,
   Route,
   Shield,
   ShieldAlert,
@@ -14,7 +13,6 @@ import {
   SlidersHorizontal,
   Truck,
   Users,
-  Wrench,
   type LucideIcon,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -63,11 +61,6 @@ const NAV_GROUPS = [
       { titleKey: "nav.items.drivers", path: "/drivers", icon: IdCard },
       { titleKey: "nav.items.events", path: "/events", icon: Siren },
       { titleKey: "nav.items.providers", path: "/providers", icon: RadioTower },
-      {
-        titleKey: "nav.items.maintenance",
-        path: "/maintenance",
-        icon: Wrench,
-      },
     ],
   },
   {
@@ -75,7 +68,6 @@ const NAV_GROUPS = [
     items: [
       { titleKey: "nav.items.reports", path: "/reports", icon: FileText },
       { titleKey: "nav.items.incidents", path: "/incidents", icon: ShieldAlert },
-      { titleKey: "nav.items.fines", path: "/fines", icon: ReceiptText },
     ],
   },
   {

@@ -17,7 +17,7 @@ export function AppShell() {
         <AppSidebar />
         <SidebarInset className="overflow-hidden md:peer-data-[variant=inset]:m-3 md:peer-data-[variant=inset]:rounded-2xl md:peer-data-[variant=inset]:shadow-lg">
           <Topbar />
-          <main className="min-h-0 flex-1 overflow-auto p-6">
+          <main className="min-h-0 flex-1 overflow-auto px-6 pt-4 pb-6">
             <Outlet />
           </main>
         </SidebarInset>

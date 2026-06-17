@@ -37,9 +37,17 @@ export default {
     provider: "አቅራቢ",
     vehicle: "ተሽከርካሪ",
     geozone: "ጂኦ ዞን",
+    location: "አካባቢ", // review: "Location"
     when: "መቼ",
     emptyTitle: "ምንም ክስተት አይዛመድም", // review: "No events match"
     emptyDescription: "ማጣሪያዎቹን ያስተካክሉ ወይም የቀጥታ ምግቡን ይጠብቁ።",
+  },
+
+  alertBanner: {
+    message_one: "{{count}} አሳሳቢ ማንቂያ ትኩረት ይፈልጋል", // review: "1 critical alert needs attention"
+    message_other: "{{count}} አሳሳቢ ማንቂያዎች ትኩረት ይፈልጋሉ",
+    action: "ይገምግሙ",
+    dismiss: "አስወግድ",
   },
 
   toast: {
@@ -53,6 +61,7 @@ export default {
     vehicle: "ተሽከርካሪ",
     provider: "አቅራቢ",
     geozone: "ጂኦ ዞን",
+    route: "መስመር",
     location: "አካባቢ", // review: "Location"
     timelineTitle: "የአያያዝ የጊዜ ሰሌዳ", // review: "Handling timeline"
     recorded: "ክስተቱ ተመዝግቧል",
@@ -88,72 +97,135 @@ export default {
 
   rules: {
     title: "የክስተት ህጎች",
-    description: "በክትትል ስር ባለው ፍሊት ላይ ክስተቶችን የሚያመነጩ የጥሰት ህጎች።",
-    newGeozoneRule: "አዲስ የጂኦ ዞን ህግ",
+    description: "ፍሊቱን ለጥሰቶች የሚከታተሉ እና ሲከሰቱ ማንቂያ የሚያስነሱ አስነሺዎች።", // review: "Triggers that watch the fleet for violations and raise alerts."
+    newRule: "አዲስ ህግ",
 
-    fleetWide: {
-      title: "ፍሊት-አቀፍ ህጎች",
-      description: "ከጂኦ ዞኖች ነጻ ሆነው በክትትል ስር ላሉ ሁሉም ተሽከርካሪዎች ይተገበራሉ።",
-      active: "ንቁ",
-      inactive: "ንቁ ያልሆነ",
-      thresholdLabel: "ገደብ ({{unit}})",
-      toggleAria: "የ{{name}} ህግን ቀይር",
-    },
-
-    descriptions: {
-      global_speeding:
-        "ማንኛውም ተሽከርካሪ በኮሪደሩ በማንኛውም ቦታ ይህን ገደብ ሲያልፍ የፍጥነት ክስተት ያስነሳል።",
-      idle: "ተሽከርካሪ ቆሞ ከዚህ ቆይታ በላይ ሞተሩን ሲያሄድ ያስነሳል።",
-      no_signal: "መሳሪያ ከዚህ ጊዜ ክፍተት በላይ መላክ ሲያቆም ያስነሳል።",
-    },
-
-    geozone: {
-      title: "የጂኦ ዞን ህጎች",
-      description:
-        "የመግቢያ፣ የመውጫ እና የዞን ፍጥነት ህጎች — በጂኦ ዞኖች ገጽ ላይ በዞን ደረጃም ሊስተካከሉ ይችላሉ።",
-      emptyTitle: "የጂኦ ዞን ህግ የለም",
-      emptyDescription: "የጂኦ ዞን ክስተቶችን ማመንጨት ለመጀመር ህግ ይፍጠሩ።",
+    targeted: {
+      title: "አስነሺዎች", // review: "Triggers"
+      description: "የጂኦ ዞን እና የመስመር አስነሺዎች፣ ለተወሰኑ ተሽከርካሪዎች ሊገደቡ ይችላሉ።",
+      emptyTitle: "ገና አስነሺ የለም",
+      emptyDescription: "ማንቂያ ማስነሳት ለመጀመር አስነሺ ይፍጠሩ።",
     },
 
     columns: {
-      geozone: "ጂኦ ዞን",
-      trigger: "አስነሺ", // review: "Trigger"
+      name: "አስነሺ", // review: "Trigger"
+      scope: "ወሰን", // review: "Scope"
+      vehicles: "ተሽከርካሪዎች",
       threshold: "ገደብ",
       severity: "የክብደት ደረጃ",
+      notify: "አሳውቅ", // review: "Notify"
       active: "ንቁ",
     },
+
+    scopeFleet: "ፍሊት-አቀፍ",
+    vehiclesAll: "ሁሉም ተሽከርካሪዎች",
+    vehiclesCount_one: "{{count}} ተሽከርካሪ",
+    vehiclesCount_other: "{{count}} ተሽከርካሪዎች",
+    notifyInAppOnly: "በመተግበሪያ ውስጥ ብቻ", // review: "In-app only"
 
     toggleAria: "ህግን ቀይር",
     deleteAria: "ህግን ሰርዝ",
 
     deleteTitle: "ህጉን ይሰረዝ?",
-    deleteDescription: "ለ{{zone}} ያለው የ{{type}} ህግ ክስተቶችን ማመንጨት ያቆማል።",
-    deleteFallbackZone: "ይህ ዞን",
+    deleteDescription: "“{{name}}” አስነሺ ማንቂያ ማስነሳት ያቆማል።",
 
     toast: {
-      created: "ህግ ተፈጥሯል",
-      updated: "ህግ ተዘምኗል",
+      created: "የክስተት ህግ ተፈጥሯል",
+      updated: "የክስተት ህግ ተዘምኗል",
       deleted: "ህግ ተሰርዟል",
       saveError: "ህግ ማስቀመጥ አልተቻለም",
       updateError: "ህግ ማዘመን አልተቻለም",
       deleteError: "ህግ መሰረዝ አልተቻለም",
       invalidThreshold: "ትክክለኛ ገደብ ያስገቡ",
       invalidSpeedLimit: "ትክክለኛ የፍጥነት ገደብ ያስገቡ",
-      chooseGeozone: "ለዚህ ህግ ጂኦ ዞን ይምረጡ",
+      invalidDeviation: "ትክክለኛ የመውጣት ርቀት ያስገቡ", // review: "Enter a valid deviation distance"
+      nameRequired: "ለአስነሺው ስም ይስጡ",
+      chooseGeozone: "ለዚህ አስነሺ ጂኦ ዞን ይምረጡ",
+      chooseRoute: "ለዚህ አስነሺ መስመር ይምረጡ",
+      chooseVehicles: "ቢያንስ አንድ ተሽከርካሪ ይምረጡ",
+      notFound: "ይህ ህግ ከእንግዲህ የለም",
     },
 
-    form: {
-      editTitle: "የጂኦ ዞን ህግ አስተካክል",
-      createTitle: "አዲስ የጂኦ ዞን ህግ",
-      description: "ተሽከርካሪ ይህን ሁኔታ ሲያስነሳ ክስተት ያመነጫል።",
+    wizard: {
+      createTitle: "አዲስ የክስተት ህግ",
+      editTitle: "የክስተት ህግ አስተካክል",
+      createDescription: "የሚከታተሉትን ጥሰት እና ሲከሰት ምን መሆን እንዳለበት ይግለጹ።",
+      editDescription: "ይህን አስነሺ እና ሲከሰት ምን እንደሚሆን ያዘምኑ።",
+      back: "ተመለስ",
+      next: "ቀጥል",
+      cancel: "ሰርዝ",
+      save: "ህግ ፍጠር",
       saveChanges: "ለውጦችን አስቀምጥ",
-      createRule: "ህግ ፍጠር",
-      triggerLabel: "አስነሺ", // review: "Trigger"
-      geozoneLabel: "ጂኦ ዞን",
-      geozonePlaceholder: "ጂኦ ዞን ይምረጡ",
-      speedLimitLabel: "የፍጥነት ገደብ (ኪሜ/ሰ)",
-      severityLabel: "የክብደት ደረጃ",
-      ruleActive: "ህጉ ንቁ ነው",
+
+      steps: {
+        trigger: "አስነሺ",
+        where: "የት",
+        vehicles: "ተሽከርካሪዎች",
+        action: "እርምጃ",
+      },
+
+      step1: {
+        title: "ይህ አስነሺ ምን መከታተል አለበት?",
+        description: "ይህን ማንቂያ የሚያስነሳውን የጥሰት ዓይነት ይምረጡ።",
+        nameLabel: "የአስነሺ ስም",
+        namePlaceholder: "ለምሳሌ የአዋሽ ኬላ ፍጥነት",
+        locationGroup: "በአካባቢ ላይ የተመሰረተ",
+        fleetGroup: "ፍሊት-አቀፍ",
+      },
+
+      step2: {
+        title: "የት ይተገበራል?",
+        geozoneLabel: "ጂኦ ዞን",
+        geozonePlaceholder: "ጂኦ ዞን ይምረጡ",
+        routeLabel: "መስመር",
+        routePlaceholder: "መስመር ይምረጡ",
+        speedLimitLabel: "የፍጥነት ገደብ (ኪሜ/ሰ)",
+        deviationLabel: "የመውጣት ርቀት (ሜ)",
+        idleLabel: "ስራ ፈትቶ የመቆም ገደብ (ደቂቃ)",
+        noSignalLabel: "የምልክት ጊዜ ማብቂያ (ደቂቃ)",
+        fleetSpeedLabel: "የፍሊት ፍጥነት ገደብ (ኪሜ/ሰ)",
+        fleetNote: "ይህ አስነሺ በመላው ኮሪደር ላይ ይተገበራል — የሚመረጥ አካባቢ የለም።",
+        previewTitle: "ቅድመ እይታ",
+        previewEmpty: "በካርታ ላይ ለማየት አካባቢ ይምረጡ።",
+      },
+
+      step3: {
+        title: "የትኞቹን ተሽከርካሪዎች ይከታተላል?",
+        description: "መላውን ፍሊት ይከታተሉ ወይም አስነሺውን ለተወሰኑ ተሽከርካሪዎች ይገድቡ።",
+        allLabel: "ሁሉም ተሽከርካሪዎች",
+        allHint: "በክትትል ስር ያለ ሁሉም ተሽከርካሪ ይከታተላል።",
+        specificLabel: "የተወሰኑ ተሽከርካሪዎች",
+        specificHint: "የመረጧቸው ተሽከርካሪዎች ብቻ ይከታተላሉ።",
+      },
+
+      step4: {
+        title: "ማንቂያ እና ማሳወቂያዎች",
+        description: "የማንቂያውን የክብደት ደረጃ እና ማን እንደሚሳወቅ ያዘጋጁ።",
+        severityLabel: "የክብደት ደረጃ",
+        notifyTitle: "ማሳወቂያዎች",
+        inApp: "በመተግበሪያ ውስጥ ማንቂያ",
+        inAppHint: "ሁልጊዜ ንቁ — በክስተቶች ምግብ ውስጥ ይታያል።",
+        email: "ኢሜይል",
+        emailPlaceholder: "ops@example.gov.et",
+        sms: "ኤስኤምኤስ",
+        smsPlaceholder: "+251…",
+        reviewTitle: "ግምገማ",
+        reviewType: "አስነሺ",
+        reviewScope: "ወሰን",
+        reviewVehicles: "ተሽከርካሪዎች",
+        reviewSeverity: "የክብደት ደረጃ",
+        reviewNotify: "አሳውቅ",
+      },
+
+      triggerDescriptions: {
+        entry: "ተሽከርካሪ ወደ ጂኦ ዞን ሲገባ ያስነሳል።",
+        exit: "ተሽከርካሪ ከጂኦ ዞን ሲወጣ ያስነሳል።",
+        speeding: "ተሽከርካሪ በጂኦ ዞን ውስጥ ሲፈጥን ያስነሳል።",
+        route_deviation: "ተሽከርካሪ ከመስመሩ ኮሪደር ሲወጣ ያስነሳል።",
+        global_speeding: "ተሽከርካሪ የፍሊት ፍጥነት ገደብን በማንኛውም ቦታ ሲያልፍ ያስነሳል።",
+        idle: "ተሽከርካሪ ከገደቡ በላይ ስራ ፈትቶ ሲቆም ያስነሳል።",
+        no_signal: "መሳሪያ ከገደቡ በላይ መላክ ሲያቆም ያስነሳል።",
+      },
     },
   },
 

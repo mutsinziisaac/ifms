@@ -18,7 +18,7 @@ export function exportEventsCsv(
     e.message,
     e.vehiclePlate,
     entityName.get(e.entityId) ?? "",
-    e.geozoneName ?? "",
+    e.geozoneName ?? e.routeName ?? "",
     e.acknowledgedBy ?? "",
     e.acknowledgedAt ? formatDateTime(e.acknowledgedAt) : "",
     e.escalatedTo ?? "",

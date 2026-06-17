@@ -10,10 +10,7 @@ import type {
   AccidentInput,
   DriverInput,
   EventRuleInput,
-  FineInput,
   GeozoneInput,
-  LogMaintenanceServiceInput,
-  MaintenanceTaskInput,
   RoleInput,
   RouteInput,
   VehicleInput,
@@ -94,32 +91,15 @@ export function useAssignmentsForVehicle(vehicleId: string | undefined) {
   })
 }
 
-export function useMaintenanceTasks() {
-  return useQuery({
-    queryKey: qk.maintenanceTasks,
-    queryFn: api.listMaintenanceTasks,
-  })
-}
-
-export function useMaintenanceServiceRecords(taskId?: string) {
-  return useQuery({
-    queryKey: taskId
-      ? qk.maintenanceServiceRecordsForTask(taskId)
-      : qk.maintenanceServiceRecords,
-    queryFn: () => api.listMaintenanceServiceRecords(taskId),
-  })
-}
-
 // ---------------------------------------------------------------------------
 // Mutation hooks — each invalidates every key its api call can affect.
 // ---------------------------------------------------------------------------
 
-// Vehicle mutations also affect drivers (bidirectional link), maintenance
-// tasks (vehicle states), and routes (route assignment).
+// Vehicle mutations also affect drivers (bidirectional link) and routes
+// (route assignment).
 function invalidateVehicleScope(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: qk.vehicles })
   qc.invalidateQueries({ queryKey: qk.drivers })
-  qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
   qc.invalidateQueries({ queryKey: qk.routes })
   qc.invalidateQueries({ queryKey: qk.assignments })
 }
@@ -388,62 +368,6 @@ export function useAssignVehiclesToRoute() {
   })
 }
 
-export function useCreateMaintenanceTask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (input: MaintenanceTaskInput) =>
-      api.createMaintenanceTask(input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
-    },
-  })
-}
-
-export function useUpdateMaintenanceTask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (vars: { id: string; patch: Partial<MaintenanceTaskInput> }) =>
-      api.updateMaintenanceTask(vars.id, vars.patch),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
-    },
-  })
-}
-
-export function useDeleteMaintenanceTask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => api.deleteMaintenanceTask(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
-    },
-  })
-}
-
-export function useConfirmMaintenanceTask() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (vars: { taskId: string; vehicleIds?: string[] }) =>
-      api.confirmMaintenanceTask(vars.taskId, vars.vehicleIds),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
-      qc.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
-    },
-  })
-}
-
-export function useLogMaintenanceService() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (input: LogMaintenanceServiceInput) =>
-      api.logMaintenanceService(input),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.maintenanceTasks })
-      qc.invalidateQueries({ queryKey: qk.maintenanceServiceRecords })
-    },
-  })
-}
-
 // ---------------------------------------------------------------------------
 // Accidents / incidents
 // ---------------------------------------------------------------------------
@@ -474,39 +398,6 @@ export function useDeleteAccident() {
   return useMutation({
     mutationFn: (id: string) => api.deleteAccident(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.accidents }),
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Fines
-// ---------------------------------------------------------------------------
-
-export function useFines() {
-  return useQuery({ queryKey: qk.fines, queryFn: api.listFines })
-}
-
-export function useCreateFine() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (input: FineInput) => api.createFine(input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.fines }),
-  })
-}
-
-export function useUpdateFine() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (vars: { id: string; patch: Partial<FineInput> }) =>
-      api.updateFine(vars.id, vars.patch),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.fines }),
-  })
-}
-
-export function useDeleteFine() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => api.deleteFine(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: qk.fines }),
   })
 }
 

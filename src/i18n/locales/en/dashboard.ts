@@ -35,6 +35,12 @@ export default {
 
   liveFleet: {
     title: "Live fleet",
+    open: "Open live map",
+    pageTitle: "Live fleet map",
+    pageDescription:
+      "Track every monitored vehicle in real time, or switch to the table for a sortable breakdown.",
+    tabMap: "Map",
+    tabTable: "Table",
   },
 
   events: {

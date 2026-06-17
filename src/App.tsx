@@ -9,12 +9,11 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage"
 import { DriverDetailPage } from "@/features/drivers/DriverDetailPage"
 import { DriversPage } from "@/features/drivers/DriversPage"
 import { EventRulesPage } from "@/features/events/EventRulesPage"
+import { EventRuleWizardPage } from "@/features/events/EventRuleWizardPage"
 import { EventsPage } from "@/features/events/EventsPage"
-import { FinesPage } from "@/features/fines/FinesPage"
 import { GeozonesPage } from "@/features/geozones/GeozonesPage"
 import { IncidentsPage } from "@/features/incidents/IncidentsPage"
-import { MaintenancePage } from "@/features/maintenance/MaintenancePage"
-import { MaintenanceTaskDetailPage } from "@/features/maintenance/MaintenanceTaskDetailPage"
+import { LiveMapPage } from "@/features/live/LiveMapPage"
 import { ProviderDetailPage } from "@/features/providers/ProviderDetailPage"
 import { ProvidersPage } from "@/features/providers/ProvidersPage"
 import { ReportsPage } from "@/features/reports/ReportsPage"
@@ -34,6 +33,7 @@ export function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="live-map" element={<LiveMapPage />} />
         <Route path="fleet" element={<VehiclesPage />} />
         <Route path="fleet/:id" element={<VehicleDetailPage />} />
         <Route path="drivers" element={<DriversPage />} />
@@ -44,11 +44,13 @@ export function App() {
         <Route path="geozones" element={<GeozonesPage />} />
         <Route path="routes" element={<RoutesPage />} />
         <Route path="config/events" element={<EventRulesPage />} />
-        <Route path="maintenance" element={<MaintenancePage />} />
-        <Route path="maintenance/:id" element={<MaintenanceTaskDetailPage />} />
+        <Route path="config/events/new" element={<EventRuleWizardPage />} />
+        <Route
+          path="config/events/:id/edit"
+          element={<EventRuleWizardPage />}
+        />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="incidents" element={<IncidentsPage />} />
-        <Route path="fines" element={<FinesPage />} />
         <Route path="admin/users" element={<AdminUsersPage />} />
         <Route path="admin/roles" element={<AdminRolesPage />} />
       </Route>

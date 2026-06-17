@@ -26,8 +26,12 @@ function VehicleTypeIcon({
     case "tanker":
       return <Fuel className={className} />
     case "bus":
+    case "minibus":
       return <Bus className={className} />
     case "pickup":
+    case "saloon":
+    case "suv":
+    case "van":
       return <Car className={className} />
     default:
       return <Truck className={className} />

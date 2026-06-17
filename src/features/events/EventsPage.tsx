@@ -10,6 +10,7 @@ import {
   List,
   Map as MapIcon,
   TriangleAlert,
+  X,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -93,6 +94,7 @@ export function EventsPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [bannerDismissed, setBannerDismissed] = useState(false)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -115,6 +117,9 @@ export function EventsPage() {
   const openCount = events.filter((e) => e.status === "open").length
   const ackCount = events.filter((e) => e.status === "acknowledged").length
   const escalatedCount = events.filter((e) => e.status === "escalated").length
+  const openCriticalCount = events.filter(
+    (e) => e.status === "open" && e.severity === "critical"
+  ).length
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
   const closedToday = events.filter(
     (e) =>
@@ -221,6 +226,39 @@ export function EventsPage() {
       />
 
       <div className="space-y-4">
+        {openCriticalCount > 0 && !bannerDismissed && (
+          <div className="flex items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-rose-700 dark:text-rose-300">
+            <span className="relative flex size-2.5">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-rose-500 opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-rose-500" />
+            </span>
+            <TriangleAlert className="size-4 shrink-0" />
+            <p className="flex-1 text-sm font-medium">
+              {t("events.alertBanner.message", { count: openCriticalCount })}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-rose-500/40 bg-transparent text-rose-700 hover:bg-rose-500/10 dark:text-rose-300"
+              onClick={() => {
+                setSeverity("critical")
+                setStatus("open")
+                setView("list")
+              }}
+            >
+              {t("events.alertBanner.action")}
+            </Button>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="text-rose-700 hover:bg-rose-500/10 dark:text-rose-300"
+              aria-label={t("events.alertBanner.dismiss")}
+              onClick={() => setBannerDismissed(true)}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label={t("events.stats.open")}

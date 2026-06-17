@@ -25,8 +25,9 @@ presentation. Each is also marked with a `// review:` comment at its definition 
 - Geofencing → ጂኦ-አጥር
 - Fleet Officer / Fleet Operations Officer → የፍሊት ኦፊሰር / የፍሊት ኦፐሬሽን ኦፊሰር
 
-### Vehicles (`am/vehicles.ts`)
+### Vehicles (`am/vehicles.ts`, `am/enums.ts`)
 - Coordinates → መጋጠሚያዎች · Trip playback → የጉዞ ድጋሚ ማጫወት · Severity → ክብደት
+- Vehicle types: Saloon → ሳሎን መኪና · SUV → ኤስዩቪ · Minibus → ሚኒባስ · Van → ቫን
 
 ### Drivers (`am/drivers.ts`)
 - Fair (safety band) → መካከለኛ · Harsh braking → ኃይለኛ ብሬክ · Harsh acceleration → ኃይለኛ ፍጥነት መጨመር
@@ -37,11 +38,6 @@ presentation. Each is also marked with a `// review:` comment at its definition 
 
 ### Geozones / Routes (`am/geozones.ts`, `am/routes.ts`)
 - Latitude → ኬክሮስ · Longitude → ኬንትሮስ · Radius → ራዲየስ · vertices → ጫፎች · Ungrouped → ያልተቧደነ
-
-### Maintenance (`am/maintenance.ts`)
-- Workshop → ጋራዥ · Technician → ቴክኒሺያን · Provider → አቅራቢ · Remaining → የቀረ · Due → የሚደርስ
-- "Due at {{km}}" / "Due on {{date}}" preposition placement · "Confirm {{count}} due" · "All vehicles up to date"
-- "Status mix" → የሁኔታ ድብልቅ · "Active schedules" → ንቁ መርሃ ግብሮች · "({{count}} selected)" · "Title (A–Z)"
 
 ## Known scope decisions (not bugs)
 - **Dummy data stays English** by design (ministry/place/route/geozone names, GPS provider brands, plate numbers, person names).

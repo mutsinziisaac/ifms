@@ -1,5 +1,5 @@
 // Fleet (vehicles) feature: list page, detail page, form dialog, and the
-// per-vehicle cards (live status, driver history, events, maintenance, map,
+// per-vehicle cards (live status, driver history, events, map,
 // travel history, report export). Shared terms live under common/enums/forms.
 export default {
   title: "Fleet",
@@ -109,11 +109,6 @@ export default {
     events: {
       title: "Recent events",
       empty: "No geozone, speeding or signal events recorded.",
-    },
-
-    maintenance: {
-      title: "Maintenance",
-      empty: "This vehicle is not enrolled in any maintenance schedule.",
     },
 
     travel: {

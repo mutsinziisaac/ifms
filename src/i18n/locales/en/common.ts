@@ -55,4 +55,13 @@ export default {
       routes: "Routes",
     },
   },
+
+  // reusable multi-vehicle picker
+  vehiclePicker: {
+    searchPlaceholder: "Search vehicles…",
+    selectAll: "Select all shown",
+    selected_one: "{{count}} selected",
+    selected_other: "{{count}} selected",
+    empty: "No vehicles match",
+  },
 }
