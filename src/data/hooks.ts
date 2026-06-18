@@ -216,6 +216,18 @@ export function useUpsertEventRule() {
   })
 }
 
+/** Toggle a rule via the backend's activate/deactivate action endpoints. */
+export function useSetEventRuleActive() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      api.setEventRuleActive(id, active),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.eventRules })
+    },
+  })
+}
+
 export function useDeleteEventRule() {
   const qc = useQueryClient()
   return useMutation({

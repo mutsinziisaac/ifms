@@ -225,6 +225,7 @@ export default {
         global_speeding: "ተሽከርካሪ የፍሊት ፍጥነት ገደብን በማንኛውም ቦታ ሲያልፍ ያስነሳል።",
         idle: "ተሽከርካሪ ከገደቡ በላይ ስራ ፈትቶ ሲቆም ያስነሳል።",
         no_signal: "መሳሪያ ከገደቡ በላይ መላክ ሲያቆም ያስነሳል።",
+        ignition: "በተሽከርካሪ የማስነሻ ሁኔታ ለውጥ ላይ ያስነሳል።", // review: "Fires on a vehicle ignition state change."
       },
     },
   },

@@ -22,10 +22,9 @@ export default {
   table: {
     provider: "አቅራቢ",
     status: "ሁኔታ",
-    devices: "መሳሪያዎች",
-    transmitting: "ስርጭት እያደረጉ",
+    devices: "ተሽከርካሪዎች",
+    transmitting: "የስኬት ምጣኔ",
     lastSync: "መጨረሻ የተገናኘበት",
-    added: "የተጨመረበት",
   },
 
   detail: {

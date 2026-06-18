@@ -8,6 +8,7 @@ export default {
   password: "Password",
   passwordPlaceholder: "Enter any password",
   signIn: "Sign in",
+  signInWithKeycloak: "Sign in with Keycloak",
   demoNotice: "Demonstration build — any credentials are accepted.",
   keycloakNotice:
     "You'll be redirected to your organization's secure sign-in.",

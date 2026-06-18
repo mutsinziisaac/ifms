@@ -205,6 +205,9 @@ export const EVENT_RULE_TYPES = [
   "global_speeding",
   "idle",
   "no_signal",
+  // Backend-only condition (GET /api/v1/alert-rules `condition_type: IGNITION`):
+  // the app has no scope-based equivalent, so it gets its own generic bucket.
+  "ignition",
 ] as const
 export type EventRuleType = (typeof EVENT_RULE_TYPES)[number]
 

@@ -3,6 +3,9 @@
 // the call layer stays focused on orchestration.
 
 import type {
+  EventRule,
+  EventRuleType,
+  EventSeverity,
   ItmsVerificationStatus,
   Provider,
   Vehicle,
@@ -193,5 +196,106 @@ export function mapProviderResponse(dto: ProviderResponse): Provider {
     active: dto.active,
     createdAt: created,
     modifiedAt: dto.time_last_modified ?? created,
+  }
+}
+
+/**
+ * An alert-rule record from `GET /api/v1/alert-rules` (`data[]`). The backend
+ * models rules by *condition* — a `condition_type` plus a JSON payload — rather
+ * than by the app's scope-based `EventRuleType`, and carries fields the app's
+ * model has no slot for (combinator, trigger_timing, active_window). The list
+ * page only needs name/type/threshold/severity/active, so the rest is ignored.
+ */
+export interface AlertRuleResponse {
+  id: number
+  name: string
+  condition_type: string
+  combinator: string | null
+  trigger_timing: string | null
+  active_window: string | null
+  severity: string
+  active: boolean
+  // A JSON-encoded, condition-type-specific object, e.g. {"limit_kmh":80} or
+  // {"direction":"OUTSIDE"} or {"minutes":30,...}. May be null/absent.
+  condition_payload_json: string | null
+  creation_time: string | null
+  time_last_modified: string | null
+}
+
+// Backend severity (4 levels) → the app's 3-level EventSeverity. The app has no
+// distinct "low" tier, so LOW collapses into "info"; HIGH is the only "critical".
+const SEVERITY_MAP: Record<string, EventSeverity> = {
+  INFO: "info",
+  LOW: "info",
+  MEDIUM: "warning",
+  HIGH: "critical",
+}
+
+/** Parse `condition_payload_json` defensively — it's a JSON string or null. */
+function parsePayload(raw: string | null): Record<string, unknown> {
+  if (!raw) return {}
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, unknown>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function numberOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null
+}
+
+/**
+ * Map a backend `condition_type` (+ its payload) onto the app's `EventRuleType`.
+ * This endpoint carries no geozone/route binding, so geofence rules resolve to
+ * entry/exit purely by their `direction`. Condition types with no scope-based
+ * equivalent (IGNITION, plus any the backend adds later) fall back to the
+ * generic "ignition" bucket so the row still renders honestly under its name.
+ */
+function ruleTypeFor(
+  conditionType: string,
+  payload: Record<string, unknown>
+): EventRuleType {
+  switch (conditionType) {
+    case "SPEED":
+      return "global_speeding"
+    case "GEOFENCE":
+      return payload.direction === "OUTSIDE" ? "exit" : "entry"
+    case "TIME_AND_DISTANCE":
+      return "idle"
+    case "IGNITION":
+      return "ignition"
+    default:
+      return "ignition"
+  }
+}
+
+/**
+ * Map an `AlertRuleResponse` onto the app's `EventRule`. Scope (geozone/route),
+ * per-vehicle targeting and notification channels aren't part of this endpoint,
+ * so they get neutral defaults (fleet-wide, all vehicles, no channels) — the
+ * list surfaces name, type, threshold, severity and the active toggle, which is
+ * exactly what the backend drives.
+ */
+export function mapAlertRuleResponse(dto: AlertRuleResponse): EventRule {
+  const payload = parsePayload(dto.condition_payload_json)
+  const type = ruleTypeFor(dto.condition_type, payload)
+  return {
+    id: String(dto.id),
+    name: dto.name,
+    type,
+    geozoneId: null,
+    routeId: null,
+    speedLimitKmh:
+      type === "global_speeding" ? numberOrNull(payload.limit_kmh) : null,
+    thresholdMinutes: type === "idle" ? numberOrNull(payload.minutes) : null,
+    deviationMeters: null,
+    vehicleIds: null,
+    severity: SEVERITY_MAP[dto.severity] ?? "info",
+    notify: { email: false, emailTo: "", sms: false, smsTo: "" },
+    active: dto.active,
   }
 }

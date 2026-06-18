@@ -34,6 +34,7 @@ export default {
     global_speeding: "የፍሊት ፍጥነት ገደብ",
     idle: "ከመጠን በላይ ስራ ፈትቶ መቆም",
     no_signal: "የምልክት ጊዜ ማብቂያ", // review: "Signal timeout"
+    ignition: "የማስነሻ ሁኔታ", // review: "Ignition state"
   },
   providerCategory: {
     ministry: "ሚኒስቴር",

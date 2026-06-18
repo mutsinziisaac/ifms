@@ -36,6 +36,7 @@ export default {
     global_speeding: "Fleet speed limit",
     idle: "Excessive idle",
     no_signal: "Signal timeout",
+    ignition: "Ignition state",
   },
   providerCategory: {
     ministry: "Ministry",

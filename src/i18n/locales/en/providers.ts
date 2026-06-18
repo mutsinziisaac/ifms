@@ -27,10 +27,9 @@ export default {
   table: {
     provider: "Provider",
     status: "Status",
-    devices: "Devices",
-    transmitting: "Transmitting",
+    devices: "Vehicles",
+    transmitting: "Success ratio",
     lastSync: "Last sync",
-    added: "Added",
   },
 
   detail: {
