@@ -25,6 +25,19 @@ export default {
     route_deviation: "ከመስመር መውጣት", // review: "Route deviation"
     no_signal: "ምልክት ጠፍቷል",
     idle: "ከመጠን በላይ ስራ ፈትቶ መቆም",
+    ignition: "የማስነሻ ሁኔታ", // review: "Ignition state"
+  },
+  // Backend alert filter vocabulary (GET /api/v1/alerts params).
+  alertStatus: {
+    OPEN: "ክፍት",
+    ACKNOWLEDGED: "ታውቋል", // review: "Acknowledged"
+    RESOLVED: "ተፈትቷል", // review: "Resolved"
+  },
+  alertType: {
+    SPEED: "ከመጠን በላይ ፍጥነት", // review: "Speeding"
+    GEOFENCE: "ጂኦፌንስ", // review: "Geofence"
+    IGNITION: "ማስነሻ", // review: "Ignition"
+    TIME_AND_DISTANCE: "ስራ ፈትቶ መቆም / ርቀት", // review: "Idle / distance"
   },
   eventRuleType: {
     entry: "ወደ ጂኦ ዞን መግባት",

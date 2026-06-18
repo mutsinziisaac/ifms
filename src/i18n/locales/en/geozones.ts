@@ -35,7 +35,25 @@ export default {
   map: {
     emptyTitle: "No geozones yet",
     emptyDescription: "Draw on the map, add one manually, or import from CSV.",
-    drawHint: "Draw a {{shape}} on the map",
+    drawHint: "Click the map to add points",
+    circleDrawHint: "Click to set the centre, then click the edge",
+    points: "{{count}} points",
+    undo: "Undo",
+    clear: "Clear",
+    finish: "Finish",
+  },
+
+  editor: {
+    createTitle: "New geozone",
+    editTitle: "Edit geozone",
+    createDescription: "Plot the geofence on the map and add its details.",
+    editDescription: "Update the geofence shape and its details.",
+    shape: "Shape",
+    geometry: "Geometry",
+    noGeometry: "Nothing plotted yet",
+    circleSummary: "Centre {{lat}}, {{lng}} · {{meters}} m radius",
+    circleRequired: "Plot a circle on the map first",
+    redraw: "Redraw",
   },
 
   shapes: {
@@ -63,6 +81,7 @@ export default {
     longitude: "Longitude",
     radius: "Radius (m)",
     noGroup: "No group",
+    color: "Color",
     notePlaceholder: "Optional notes for operators",
   },
 

@@ -1,5 +1,6 @@
-// Routes feature: list/detail page, the route form dialog (with waypoint rows),
-// and the assign-vehicles dialog. Shared terms live under common/enums/forms.
+// Routes feature: list/detail page, the route form dialog (corridor plotted on
+// the map + start/end addresses), and the assign-vehicles dialog. Shared terms
+// live under common/enums/forms.
 export default {
   title: "Routes",
   description: "Freight corridors and vehicle itineraries.",
@@ -12,7 +13,7 @@ export default {
     noRoutesTitle: "No routes yet",
     noMatchTitle: "No matching routes",
     noRoutesDescription:
-      "Create your first freight corridor to start monitoring itineraries.",
+      "Plot your first freight corridor on the map to start monitoring itineraries.",
     noMatchDescription: "Try a different search term.",
   },
 
@@ -30,14 +31,30 @@ export default {
     waypoints: "Waypoints",
     assignedVehicles: "Assigned vehicles",
     noneAssigned: "No vehicles assigned to this corridor yet.",
+    from: "From",
+    to: "To",
+  },
+
+  map: {
+    drawHint: "Click the map to add points",
+    undo: "Undo",
+    clear: "Clear",
+  },
+
+  editor: {
+    createTitle: "Create route",
+    editTitle: "Edit route",
+    createDescription: "Plot the corridor on the map and add its details.",
+    editDescription: "Adjust the corridor and its details.",
+    plotHint: "Click the map to plot the corridor (at least 2 points).",
   },
 
   form: {
     editTitle: "Edit route",
     addTitle: "Add route",
-    editDescription: "Update the corridor itinerary and its waypoints.",
+    editDescription: "Update the corridor details and its endpoints.",
     addDescription:
-      "Define a freight corridor as an ordered list of waypoints.",
+      "Name the corridor you plotted on the map and set its endpoints.",
     saveChanges: "Save changes",
     createRoute: "Create route",
     namePlaceholder: "Addis Ababa – Djibouti Mainline",
@@ -45,16 +62,14 @@ export default {
       "Primary freight corridor serving the port of Djibouti.",
     activeHint:
       "Inactive routes stay on existing assignments but cannot take new vehicles.",
-    waypoints: "Waypoints",
-    stops: "{{count}} stops",
-    stopNamePlaceholder: "Stop name",
-    latPlaceholder: "Lat",
-    lngPlaceholder: "Lng",
-    addWaypoint: "Add waypoint",
-    waypointName: "Waypoint {{index}} name",
-    waypointLat: "Waypoint {{index}} latitude",
-    waypointLng: "Waypoint {{index}} longitude",
-    removeWaypoint: "Remove waypoint {{index}}",
+    startAddress: "Start address",
+    endAddress: "End address",
+    startAddressPlaceholder: "Kality Dry Port, Addis Ababa",
+    endAddressPlaceholder: "Adama Logistics Hub, Adama",
+    plottedRoute: "Plotted route",
+    points: "{{count}} points",
+    noPath: "No route plotted yet",
+    replot: "Re-plot on map",
   },
 
   assign: {
@@ -89,8 +104,6 @@ export default {
     deactivatedReject:
       "This route is deactivated and cannot take new vehicle assignments",
     nameRequired: "Route name is required",
-    waypointNameRequired: "Each waypoint needs a name",
-    waypointInvalidCoords: 'Waypoint "{{name}}" has invalid coordinates',
-    minWaypoints: "A route needs at least 2 waypoints",
+    pathRequired: "Plot the route on the map first",
   },
 }

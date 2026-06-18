@@ -1,28 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Hexagon, MapPin, Plus, Upload, X } from "lucide-react"
+import { MapPin, Plus, Upload, X } from "lucide-react"
 
 import { EmptyState } from "@/components/common/EmptyState"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { FleetMap } from "@/components/map/FleetMap"
 import { GeozoneOverlay } from "@/components/map/GeozoneOverlay"
-import {
-  DrawingManager,
-  type DrawResult,
-} from "@/components/map/DrawingManager"
 import { VehicleMarker } from "@/components/map/VehicleMarker"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
+import { isRealApi } from "@/data/api"
 import { useGeozoneGroups, useGeozones, useLiveVehicles } from "@/data/hooks"
 import type { Geozone } from "@/data/types"
 import { DEFAULT_GEOZONE_COLOR } from "@/lib/geozone-colors"
@@ -30,15 +20,9 @@ import { boundsOf, padBounds } from "@/lib/maps"
 import type { GeoBounds } from "@/lib/maps"
 
 import { GeozoneCsvImportDialog } from "./components/GeozoneCsvImportDialog"
-import {
-  GeozoneFormDialog,
-  type GeozoneDraft,
-} from "./components/GeozoneFormDialog"
 import { GeozoneGroupDialog } from "./components/GeozoneGroupDialog"
 import { GeozoneList } from "./components/GeozoneList"
 import { ZoneRulesPanel } from "./components/ZoneRulesPanel"
-
-type DrawMode = "polygon" | "circle" | null
 
 /** Collect every coordinate that defines a zone, for fit-to-bounds. */
 function pointsForZone(zone: Geozone) {
@@ -50,6 +34,7 @@ function pointsForZone(zone: Geozone) {
 
 export function GeozonesPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const geozones = useGeozones().data ?? []
   const groups = useGeozoneGroups().data ?? []
   const liveVehicles = useLiveVehicles()
@@ -65,13 +50,8 @@ export function GeozonesPage() {
     if (linkedId) setSelectedId(linkedId)
   }, [linkedId])
 
-  const [drawMode, setDrawMode] = useState<DrawMode>(null)
-
   const [importOpen, setImportOpen] = useState(false)
   const [groupOpen, setGroupOpen] = useState(false)
-  const [formOpen, setFormOpen] = useState(false)
-  const [editZone, setEditZone] = useState<Geozone | undefined>(undefined)
-  const [draft, setDraft] = useState<GeozoneDraft | undefined>(undefined)
 
   const groupColorById = useMemo(
     () => new Map(groups.map((g) => [g.id, g.color])),
@@ -79,9 +59,10 @@ export function GeozonesPage() {
   )
 
   const colorForZone = (zone: Geozone): string =>
-    zone.groupId
+    zone.color ??
+    (zone.groupId
       ? (groupColorById.get(zone.groupId) ?? DEFAULT_GEOZONE_COLOR)
-      : DEFAULT_GEOZONE_COLOR
+      : DEFAULT_GEOZONE_COLOR)
 
   const visibleZones = useMemo(
     () => geozones.filter((zone) => !hiddenIds.has(zone.id)),
@@ -93,16 +74,14 @@ export function GeozonesPage() {
     [geozones, selectedId]
   )
 
-  // Fit to the selected zone when one is chosen, otherwise to all visible
-  // zones. The drawing flow keeps the current view.
+  // Fit to the selected zone when one is chosen, otherwise to all visible zones.
   const bounds = useMemo<GeoBounds | null>(() => {
-    if (drawMode) return null
     const source = selectedZone ? [selectedZone] : visibleZones
     if (source.length === 0) return null
     const allPoints = source.flatMap(pointsForZone)
     const raw = boundsOf(allPoints)
     return raw ? padBounds(raw, selectedZone ? 0.5 : 0.15) : null
-  }, [drawMode, selectedZone, visibleZones])
+  }, [selectedZone, visibleZones])
 
   const toggleVisible = (id: string) => {
     setHiddenIds((prev) => {
@@ -113,49 +92,7 @@ export function GeozonesPage() {
     })
   }
 
-  const openCreateManual = () => {
-    setEditZone(undefined)
-    setDraft(undefined)
-    setDrawMode(null)
-    setFormOpen(true)
-  }
-
-  const startDraw = (mode: "polygon" | "circle") => {
-    setSelectedId(null)
-    setEditZone(undefined)
-    setDraft(undefined)
-    setDrawMode(mode)
-  }
-
-  const handleDrawComplete = (result: DrawResult) => {
-    setDrawMode(null)
-    const nextDraft: GeozoneDraft =
-      result.shape === "polygon"
-        ? { shape: "polygon", path: result.path }
-        : {
-            shape: "circle",
-            center: result.center,
-            radiusM: result.radiusM,
-          }
-    setEditZone(undefined)
-    setDraft(nextDraft)
-    setFormOpen(true)
-  }
-
-  const handleEdit = (zone: Geozone) => {
-    setDraft(undefined)
-    setDrawMode(null)
-    setEditZone(zone)
-    setFormOpen(true)
-  }
-
-  const handleFormOpenChange = (open: boolean) => {
-    setFormOpen(open)
-    if (!open) {
-      setEditZone(undefined)
-      setDraft(undefined)
-    }
-  }
+  const handleEdit = (zone: Geozone) => navigate(`/geozones/${zone.id}/edit`)
 
   return (
     <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col">
@@ -164,47 +101,30 @@ export function GeozonesPage() {
         description={t("geozones.description")}
         actions={
           <>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setImportOpen(true)}
-            >
-              <Upload className="size-4" />
-              {t("geozones.toolbar.importCsv")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setGroupOpen(true)
-              }}
-            >
-              <Plus className="size-4" />
-              {t("geozones.toolbar.newGroup")}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button">
-                  <Plus className="size-4" />
-                  {t("geozones.toolbar.addGeozone")}
+            {!isRealApi ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="size-4" />
+                  {t("geozones.toolbar.importCsv")}
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem onSelect={openCreateManual}>
-                  <MapPin className="size-4" />
-                  {t("geozones.toolbar.manualCircle")}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => startDraw("circle")}>
-                  <MapPin className="size-4" />
-                  {t("geozones.toolbar.drawCircle")}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => startDraw("polygon")}>
-                  <Hexagon className="size-4" />
-                  {t("geozones.toolbar.drawPolygon")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setGroupOpen(true)}
+                >
+                  <Plus className="size-4" />
+                  {t("geozones.toolbar.newGroup")}
+                </Button>
+              </>
+            ) : null}
+            <Button type="button" onClick={() => navigate("/geozones/new")}>
+              <Plus className="size-4" />
+              {t("geozones.toolbar.addGeozone")}
+            </Button>
           </>
         }
       />
@@ -279,10 +199,6 @@ export function GeozonesPage() {
                   <VehicleMarker key={vehicle.id} vehicle={vehicle} />
                 ))
               : null}
-
-            {drawMode ? (
-              <DrawingManager mode={drawMode} onComplete={handleDrawComplete} />
-            ) : null}
           </FleetMap>
 
           {/* Vehicle overlay toggle */}
@@ -301,26 +217,6 @@ export function GeozonesPage() {
             </label>
           </div>
 
-          {/* Drawing banner */}
-          {drawMode ? (
-            <div className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-lg border border-primary/40 bg-background/95 px-3 py-1.5 shadow-md backdrop-blur">
-              <span className="text-xs font-medium">
-                {t("geozones.map.drawHint", {
-                  shape: t(`geozones.shapes.${drawMode}`),
-                })}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => setDrawMode(null)}
-              >
-                <X className="size-3.5" />
-                {t("common.cancel")}
-              </Button>
-            </div>
-          ) : null}
-
           {/* No-zones hint overlay */}
           {geozones.length === 0 ? (
             <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
@@ -330,7 +226,10 @@ export function GeozonesPage() {
                   title={t("geozones.map.emptyTitle")}
                   description={t("geozones.map.emptyDescription")}
                   action={
-                    <Button type="button" onClick={openCreateManual}>
+                    <Button
+                      type="button"
+                      onClick={() => navigate("/geozones/new")}
+                    >
                       <Plus className="size-4" />
                       {t("geozones.toolbar.addGeozone")}
                     </Button>
@@ -344,12 +243,6 @@ export function GeozonesPage() {
 
       <GeozoneCsvImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <GeozoneGroupDialog open={groupOpen} onOpenChange={setGroupOpen} />
-      <GeozoneFormDialog
-        open={formOpen}
-        onOpenChange={handleFormOpenChange}
-        geozone={editZone}
-        draft={draft}
-      />
     </div>
   )
 }

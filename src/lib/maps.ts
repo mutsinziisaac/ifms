@@ -214,3 +214,99 @@ export function padBounds(bounds: GeoBounds, fraction = 0.1): GeoBounds {
     west: bounds.west - lngPad,
   }
 }
+
+/**
+ * Serialize a polyline into a GeoJSON `LineString` *string* — the wire format the
+ * routes backend stores in `route_geojson`. GeoJSON orders each coordinate
+ * [longitude, latitude], the reverse of the app's {lat, lng}.
+ */
+export function pathToLineString(path: LatLng[]): string {
+  return JSON.stringify({
+    type: "LineString",
+    coordinates: path.map((p) => [p.lng, p.lat]),
+  })
+}
+
+/**
+ * Parse a `route_geojson` LineString string back into the app's {lat, lng}
+ * polyline. Defensive: anything that isn't an array of [lng, lat] number pairs
+ * degrades to an empty path rather than throwing in the render path.
+ */
+export function lineStringToPath(raw: string | null | undefined): LatLng[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    const coords =
+      parsed && typeof parsed === "object" && "coordinates" in parsed
+        ? (parsed as { coordinates: unknown }).coordinates
+        : null
+    if (!Array.isArray(coords)) return []
+    const out: LatLng[] = []
+    for (const pair of coords) {
+      if (
+        Array.isArray(pair) &&
+        typeof pair[0] === "number" &&
+        typeof pair[1] === "number"
+      ) {
+        out.push({ lat: pair[1], lng: pair[0] })
+      }
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Serialize a polygon's vertices into a GeoJSON `Polygon` *string* — the wire
+ * format the geozones backend stores in `boundary_geojson`. A GeoJSON Polygon is
+ * an array of linear rings; we emit a single (exterior) ring whose first and last
+ * coordinate are equal, as the spec requires. Coordinates are [longitude, latitude].
+ */
+export function polygonToGeoJson(path: LatLng[]): string {
+  const ring = path.map((p) => [p.lng, p.lat])
+  const first = ring[0]
+  const last = ring[ring.length - 1]
+  if (first && last && (first[0] !== last[0] || first[1] !== last[1])) {
+    ring.push([first[0]!, first[1]!])
+  }
+  return JSON.stringify({ type: "Polygon", coordinates: [ring] })
+}
+
+/**
+ * Parse a `boundary_geojson` Polygon string back into the app's {lat, lng}
+ * vertices (exterior ring only). The trailing closing vertex is dropped so the
+ * result matches a freshly drawn path. Defensive: anything that isn't an array of
+ * [lng, lat] number pairs degrades to an empty path rather than throwing.
+ */
+export function geoJsonToPolygonPath(raw: string | null | undefined): LatLng[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    const rings =
+      parsed && typeof parsed === "object" && "coordinates" in parsed
+        ? (parsed as { coordinates: unknown }).coordinates
+        : null
+    const ring = Array.isArray(rings) ? rings[0] : null
+    if (!Array.isArray(ring)) return []
+    const out: LatLng[] = []
+    for (const pair of ring) {
+      if (
+        Array.isArray(pair) &&
+        typeof pair[0] === "number" &&
+        typeof pair[1] === "number"
+      ) {
+        out.push({ lat: pair[1], lng: pair[0] })
+      }
+    }
+    // Drop the closing duplicate vertex if present.
+    const head = out[0]
+    const tail = out[out.length - 1]
+    if (out.length > 1 && head && tail && head.lat === tail.lat && head.lng === tail.lng) {
+      out.pop()
+    }
+    return out
+  } catch {
+    return []
+  }
+}

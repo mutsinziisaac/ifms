@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { isRealApi } from "@/data/api"
 import { useDeleteGeozone, useGeozoneGroups, useGeozones } from "@/data/hooks"
 import type { Geozone, GeozoneGroup } from "@/data/types"
 import { DEFAULT_GEOZONE_COLOR } from "@/lib/geozone-colors"
@@ -158,6 +159,7 @@ export function GeozoneList({
                     const selected = zone.id === selectedId
                     const ShapeIcon =
                       zone.shape === "circle" ? CircleIcon : Hexagon
+                    const zoneColor = zone.color ?? color
                     return (
                       <div
                         key={zone.id}
@@ -178,7 +180,7 @@ export function GeozoneList({
                       >
                         <ShapeIcon
                           className="size-4 shrink-0"
-                          style={{ color }}
+                          style={{ color: zoneColor }}
                         />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
@@ -228,32 +230,36 @@ export function GeozoneList({
                               <Eye className="size-4" />
                             )}
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={t("geozones.list.editGeozone")}
-                            className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onEdit(zone)
-                            }}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={t("geozones.list.deleteGeozone")}
-                            className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setPendingDelete(zone)
-                            }}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                          {!isRealApi ? (
+                            <>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={t("geozones.list.editGeozone")}
+                                className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-foreground focus-visible:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  onEdit(zone)
+                                }}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={t("geozones.list.deleteGeozone")}
+                                className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setPendingDelete(zone)
+                                }}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </>
+                          ) : null}
                         </div>
                       </div>
                     )

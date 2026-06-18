@@ -9,12 +9,14 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage"
 import { EventRulesPage } from "@/features/events/EventRulesPage"
 import { EventRuleWizardPage } from "@/features/events/EventRuleWizardPage"
 import { EventsPage } from "@/features/events/EventsPage"
+import { GeozoneEditorPage } from "@/features/geozones/GeozoneEditorPage"
 import { GeozonesPage } from "@/features/geozones/GeozonesPage"
 import { IncidentsPage } from "@/features/incidents/IncidentsPage"
 import { LiveMapPage } from "@/features/live/LiveMapPage"
 import { ProviderDetailPage } from "@/features/providers/ProviderDetailPage"
 import { ProvidersPage } from "@/features/providers/ProvidersPage"
 import { ReportsPage } from "@/features/reports/ReportsPage"
+import { RouteEditorPage } from "@/features/routes/RouteEditorPage"
 import { RoutesPage } from "@/features/routes/RoutesPage"
 import { VehicleDetailPage } from "@/features/vehicles/VehicleDetailPage"
 import { VehiclesPage } from "@/features/vehicles/VehiclesPage"
@@ -38,7 +40,11 @@ export function App() {
         <Route path="providers" element={<ProvidersPage />} />
         <Route path="providers/:id" element={<ProviderDetailPage />} />
         <Route path="geozones" element={<GeozonesPage />} />
+        <Route path="geozones/new" element={<GeozoneEditorPage />} />
+        <Route path="geozones/:id/edit" element={<GeozoneEditorPage />} />
         <Route path="routes" element={<RoutesPage />} />
+        <Route path="routes/new" element={<RouteEditorPage />} />
+        <Route path="routes/:id/edit" element={<RouteEditorPage />} />
         <Route path="config/events" element={<EventRulesPage />} />
         <Route path="config/events/new" element={<EventRuleWizardPage />} />
         <Route

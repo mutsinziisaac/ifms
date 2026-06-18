@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   Pencil,
   Plus,
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { isRealApi } from "@/data/api"
 import {
   useDeleteRoute,
   useGeozones,
@@ -31,25 +32,24 @@ import {
   useSetRouteActive,
 } from "@/data/hooks"
 import type { RouteDef } from "@/data/types"
+import { formatKm } from "@/lib/format"
 import { boundsOf, padBounds, type GeoBounds } from "@/lib/maps"
 import { cn } from "@/lib/utils"
 
 import { AssignVehiclesDialog } from "./components/AssignVehiclesDialog"
 import { RouteDetailPanel } from "./components/RouteDetailPanel"
-import { RouteFormDialog } from "./components/RouteFormDialog"
 
 const SELECTED_COLOR = "#0d9488"
 const MUTED_COLOR = "#94a3b8"
 
 type DialogState =
   | { kind: "none" }
-  | { kind: "create" }
-  | { kind: "edit"; route: RouteDef }
   | { kind: "delete"; route: RouteDef }
   | { kind: "assign"; route: RouteDef }
 
 export function RoutesPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const routesQuery = useRoutes()
   const routes = useMemo(() => routesQuery.data ?? [], [routesQuery.data])
   const isLoading = routesQuery.isLoading
@@ -63,7 +63,7 @@ export function RoutesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>({ kind: "none" })
 
-  // Deep-link from global search: /routes?id=... preselects that route.
+  // Deep-link from global search or the editor: /routes?id=... preselects it.
   const [searchParams] = useSearchParams()
   const linkedId = searchParams.get("id")
   useEffect(() => {
@@ -108,12 +108,12 @@ export function RoutesPage() {
   const closeDialog = () => setDialog({ kind: "none" })
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] min-h-[640px] flex-col">
+    <div className="flex h-[calc(100vh-9rem)] min-h-[560px] flex-col">
       <PageHeader
         title={t("routes.title")}
         description={t("routes.description")}
         actions={
-          <Button onClick={() => setDialog({ kind: "create" })}>
+          <Button onClick={() => navigate("/routes/new")}>
             <Plus className="size-4" />
             {t("routes.addRoute")}
           </Button>
@@ -158,10 +158,7 @@ export function RoutesPage() {
                 }
                 action={
                   routes.length === 0 ? (
-                    <Button
-                      size="sm"
-                      onClick={() => setDialog({ kind: "create" })}
-                    >
+                    <Button size="sm" onClick={() => navigate("/routes/new")}>
                       <Plus className="size-4" />
                       {t("routes.addRoute")}
                     </Button>
@@ -170,11 +167,19 @@ export function RoutesPage() {
                 className="py-16"
               />
             ) : (
-              <ul className="divide-y">
+              <ul className="space-y-1.5 p-3">
                 {filtered.map((route) => {
                   const isSelected = route.id === selectedId
                   return (
-                    <li key={route.id}>
+                    <li
+                      key={route.id}
+                      className={cn(
+                        "overflow-hidden rounded-lg border transition-colors",
+                        isSelected
+                          ? "border-primary/30 bg-primary/5"
+                          : "border-transparent hover:border-border hover:bg-muted/40"
+                      )}
+                    >
                       <div
                         role="button"
                         tabIndex={0}
@@ -187,16 +192,13 @@ export function RoutesPage() {
                             setSelectedId(isSelected ? null : route.id)
                           }
                         }}
-                        className={cn(
-                          "cursor-pointer px-3 py-3 transition-colors",
-                          isSelected ? "bg-primary/5" : "hover:bg-muted/50"
-                        )}
+                        className="cursor-pointer px-3 py-3"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="truncate font-medium">{route.name}</p>
                             <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                              {route.distanceKm} km ·{" "}
+                              {formatKm(route.distanceKm)} ·{" "}
                               {t("routes.list.stops", {
                                 count: route.waypoints.length,
                               })}
@@ -215,73 +217,79 @@ export function RoutesPage() {
                           </Badge>
                         </div>
 
-                        <div
-                          className="mt-2.5 flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="mr-auto flex items-center gap-1.5">
-                            <Switch
-                              size="sm"
-                              checked={route.active}
-                              onCheckedChange={(checked) =>
-                                setActive.mutate(
-                                  { id: route.id, active: checked },
-                                  {
-                                    onSuccess: () =>
-                                      toast.success(
-                                        checked
-                                          ? t("routes.toast.activated", {
-                                              name: route.name,
-                                            })
-                                          : t("routes.toast.deactivated", {
-                                              name: route.name,
-                                            })
-                                      ),
-                                    onError: (error: Error) =>
-                                      toast.error(error.message),
-                                  }
-                                )
-                              }
-                              aria-label={t("routes.list.toggleActive")}
-                            />
-                            <span className="text-xs text-muted-foreground">
-                              {route.active
-                                ? t("routes.active")
-                                : t("routes.inactive")}
-                            </span>
-                          </div>
+                        {!isRealApi ? (
+                          <div
+                            className="mt-2.5 flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="mr-auto flex items-center gap-1.5">
+                              <Switch
+                                size="sm"
+                                checked={route.active}
+                                onCheckedChange={(checked) =>
+                                  setActive.mutate(
+                                    { id: route.id, active: checked },
+                                    {
+                                      onSuccess: () =>
+                                        toast.success(
+                                          checked
+                                            ? t("routes.toast.activated", {
+                                                name: route.name,
+                                              })
+                                            : t("routes.toast.deactivated", {
+                                                name: route.name,
+                                              })
+                                        ),
+                                      onError: (error: Error) =>
+                                        toast.error(error.message),
+                                    }
+                                  )
+                                }
+                                aria-label={t("routes.list.toggleActive")}
+                              />
+                              <span className="text-xs text-muted-foreground">
+                                {route.active
+                                  ? t("routes.active")
+                                  : t("routes.inactive")}
+                              </span>
+                            </div>
 
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={() => setDialog({ kind: "assign", route })}
-                            aria-label={t("routes.list.assignVehicles")}
-                            title={t("routes.list.assignVehicles")}
-                          >
-                            <Truck className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-muted-foreground hover:text-foreground"
-                            onClick={() => setDialog({ kind: "edit", route })}
-                            aria-label={t("routes.list.editRoute")}
-                            title={t("routes.list.editRoute")}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => setDialog({ kind: "delete", route })}
-                            aria-label={t("routes.list.deleteRoute")}
-                            title={t("routes.list.deleteRoute")}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() =>
+                                setDialog({ kind: "assign", route })
+                              }
+                              aria-label={t("routes.list.assignVehicles")}
+                              title={t("routes.list.assignVehicles")}
+                            >
+                              <Truck className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:text-foreground"
+                              onClick={() => navigate(`/routes/${route.id}/edit`)}
+                              aria-label={t("routes.list.editRoute")}
+                              title={t("routes.list.editRoute")}
+                            >
+                              <Pencil className="size-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() =>
+                                setDialog({ kind: "delete", route })
+                              }
+                              aria-label={t("routes.list.deleteRoute")}
+                              title={t("routes.list.deleteRoute")}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
 
                       {isSelected ? <RouteDetailPanel route={route} /> : null}
@@ -326,17 +334,6 @@ export function RoutesPage() {
       </div>
 
       {/* Dialogs */}
-      <RouteFormDialog
-        open={dialog.kind === "create"}
-        onOpenChange={(open) => !open && closeDialog()}
-      />
-      {dialog.kind === "edit" ? (
-        <RouteFormDialog
-          open
-          onOpenChange={(open) => !open && closeDialog()}
-          route={dialog.route}
-        />
-      ) : null}
       {dialog.kind === "assign" ? (
         <AssignVehiclesDialog
           open

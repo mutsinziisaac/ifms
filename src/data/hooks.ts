@@ -2,12 +2,18 @@
 // Query for high-frequency map updates (they re-render off the store version
 // via useSyncExternalStore).
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import {
+  useMutation,
+  useQueries,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
 import { useSyncExternalStore } from "react"
 
 import * as api from "./api"
 import type {
   AccidentInput,
+  AlertListParams,
   EventRuleInput,
   GeozoneInput,
   RoleInput,
@@ -15,6 +21,7 @@ import type {
   VehicleInput,
   WebUserInput,
 } from "./api"
+import type { ApiPagination } from "@/lib/http"
 import { qk } from "./query-keys"
 import { getDB, getVersion, subscribe } from "./store"
 import type {
@@ -238,13 +245,19 @@ export function useDeleteEventRule() {
   })
 }
 
+// Event workflow mutations refresh both the legacy ["events"] consumers
+// (notifications bell, reports, vehicle/provider cards) and every Alerts-page
+// ["alerts"] list/count query (real backend) so the page reflects the new status.
+function invalidateEventScope(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: qk.events })
+  qc.invalidateQueries({ queryKey: ["alerts"] })
+}
+
 export function useMarkAllEventsRead() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => api.markAllEventsRead(),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.events })
-    },
+    onSuccess: () => invalidateEventScope(qc),
   })
 }
 
@@ -253,9 +266,7 @@ export function useAcknowledgeEvent() {
   return useMutation({
     mutationFn: (vars: { id: string; by: string }) =>
       api.acknowledgeEvent(vars.id, vars.by),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.events })
-    },
+    onSuccess: () => invalidateEventScope(qc),
   })
 }
 
@@ -264,9 +275,7 @@ export function useEscalateEvent() {
   return useMutation({
     mutationFn: (vars: { id: string; to: string; by: string }) =>
       api.escalateEvent(vars.id, { to: vars.to, by: vars.by }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.events })
-    },
+    onSuccess: () => invalidateEventScope(qc),
   })
 }
 
@@ -275,9 +284,7 @@ export function useCloseEvent() {
   return useMutation({
     mutationFn: (vars: { id: string; by: string; note: string }) =>
       api.closeEvent(vars.id, { by: vars.by, note: vars.note }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.events })
-    },
+    onSuccess: () => invalidateEventScope(qc),
   })
 }
 
@@ -474,3 +481,85 @@ export function useLiveProviderTelemetry(): ProviderTelemetry[] {
   useSyncExternalStore(subscribe, getVersion, getVersion)
   return getDB().providerTelemetry
 }
+
+// ---------------------------------------------------------------------------
+// Alerts page — server-side filtered + paginated feed (GET /api/v1/alerts).
+// Two implementations picked once at module load by `isRealApi` (same pattern as
+// useLiveVehicles): real mode queries the backend page; mock mode reads the
+// simulation store live and applies the same filter/pagination via
+// api.selectAlertPage, so the page code path is identical in both modes.
+// ---------------------------------------------------------------------------
+
+export interface AlertsFeed {
+  events: FleetEvent[]
+  pagination: ApiPagination | null
+  isLoading: boolean
+}
+
+function useQueriedAlertsFeed(params: AlertListParams): AlertsFeed {
+  const query = useQuery({
+    queryKey: qk.alerts(params),
+    queryFn: () => api.listAlerts(params),
+    // Keep the previous page visible while the next page/filter loads (no flicker).
+    placeholderData: (prev) => prev,
+  })
+  return {
+    events: query.data?.events ?? [],
+    pagination: query.data?.pagination ?? null,
+    isLoading: query.isLoading,
+  }
+}
+
+function useSimulatedAlertsFeed(params: AlertListParams): AlertsFeed {
+  useSyncExternalStore(subscribe, getVersion, getVersion)
+  const page = api.selectAlertPage(getDB().events, params)
+  return { events: page.events, pagination: page.pagination, isLoading: false }
+}
+
+export const useAlertsFeed: (params: AlertListParams) => AlertsFeed =
+  api.isRealApi ? useQueriedAlertsFeed : useSimulatedAlertsFeed
+
+export interface AlertCounts {
+  open: number
+  acknowledged: number
+  resolved: number
+  total: number
+}
+
+function useQueriedAlertCounts(): AlertCounts {
+  const results = useQueries({
+    queries: [
+      { queryKey: qk.alertCounts("OPEN"), queryFn: () => api.countAlerts("OPEN") },
+      {
+        queryKey: qk.alertCounts("ACKNOWLEDGED"),
+        queryFn: () => api.countAlerts("ACKNOWLEDGED"),
+      },
+      {
+        queryKey: qk.alertCounts("RESOLVED"),
+        queryFn: () => api.countAlerts("RESOLVED"),
+      },
+      { queryKey: qk.alertCounts(), queryFn: () => api.countAlerts() },
+    ],
+  })
+  return {
+    open: results[0].data ?? 0,
+    acknowledged: results[1].data ?? 0,
+    resolved: results[2].data ?? 0,
+    total: results[3].data ?? 0,
+  }
+}
+
+function useSimulatedAlertCounts(): AlertCounts {
+  useSyncExternalStore(subscribe, getVersion, getVersion)
+  const events = getDB().events
+  return {
+    open: events.filter((e) => e.status === "open").length,
+    acknowledged: events.filter((e) => e.status === "acknowledged").length,
+    resolved: events.filter((e) => e.status === "closed").length,
+    total: events.length,
+  }
+}
+
+export const useAlertCounts: () => AlertCounts = api.isRealApi
+  ? useQueriedAlertCounts
+  : useSimulatedAlertCounts

@@ -21,6 +21,23 @@ export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
         <p className="text-sm text-muted-foreground">{route.description}</p>
       ) : null}
 
+      {route.startAddress || route.endAddress ? (
+        <dl className="space-y-1.5 text-sm">
+          <div className="flex gap-2">
+            <dt className="w-9 shrink-0 text-xs font-medium text-muted-foreground">
+              {t("routes.detail.from")}
+            </dt>
+            <dd className="min-w-0">{route.startAddress || "—"}</dd>
+          </div>
+          <div className="flex gap-2">
+            <dt className="w-9 shrink-0 text-xs font-medium text-muted-foreground">
+              {t("routes.detail.to")}
+            </dt>
+            <dd className="min-w-0">{route.endAddress || "—"}</dd>
+          </div>
+        </dl>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border bg-muted/30 px-3 py-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -37,7 +54,7 @@ export function RouteDetailPanel({ route }: RouteDetailPanelProps) {
             {t("routes.detail.vehicles")}
           </div>
           <p className="mt-0.5 font-heading text-lg font-semibold tabular-nums">
-            {assigned.length}
+            {route.assignedItineraryCount ?? assigned.length}
           </p>
         </div>
       </div>

@@ -19,6 +19,10 @@ export default {
     escalatedHint: "ከበላይ ባለስልጣን ጋር", // review: "With a higher authority"
     closedToday: "ዛሬ የተዘጉ",
     closedTodayHint: "ባለፉት 24 ሰዓታት የተፈቱ",
+    resolved: "ተፈትቷል", // review: "Resolved"
+    resolvedHint: "ተስተናግዶ ተዘግቷል", // review: "Handled and closed"
+    total: "ጠቅላላ", // review: "Total"
+    totalHint: "በመዝገብ ላይ ያሉ ሁሉም ማንቂያዎች", // review: "All alerts on record"
   },
 
   filters: {

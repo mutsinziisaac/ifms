@@ -774,12 +774,11 @@ function buildVehicles(
     lastSyncMs: number
   ): Vehicle => {
     idx++
-    // ITMS verification: ~13% fail (NOT_FOUND), ~11% pending (UNVERIFIED), rest
-    // verified. Seeded RNG keeps the failed set stable so the failed-first
-    // ordering is reproducible offline.
-    const vRoll = rng.next()
-    const itmsVerificationStatus: ItmsVerificationStatus =
-      vRoll < 0.13 ? "NOT_FOUND" : vRoll < 0.24 ? "UNVERIFIED" : "VERIFIED"
+    // ITMS verification: the whole seeded fleet starts UNVERIFIED (not yet
+    // checked against the ITMS registry). Advance the RNG regardless so the rest
+    // of the seeded vehicle fields stay reproducible offline.
+    rng.next()
+    const itmsVerificationStatus: ItmsVerificationStatus = "UNVERIFIED"
     return {
       id: `veh-${pad(idx, 3)}`,
       plate: plate(rng),
