@@ -32,7 +32,25 @@ export default {
   map: {
     emptyTitle: "እስካሁን ምንም ጂኦ ዞን የለም",
     emptyDescription: "በካርታ ላይ ይሳሉ፣ በእጅ ይጨምሩ፣ ወይም ከCSV ያስገቡ።",
-    drawHint: "በካርታ ላይ {{shape}} ይሳሉ",
+    drawHint: "ነጥቦችን ለመጨመር ካርታውን ጠቅ ያድርጉ",
+    circleDrawHint: "መሃሉን ለማስቀመጥ ጠቅ ያድርጉ፣ ከዚያ ጠርዙን ጠቅ ያድርጉ",
+    points: "{{count}} ነጥቦች",
+    undo: "ቀልብስ",
+    clear: "አጽዳ",
+    finish: "ጨርስ",
+  },
+
+  editor: {
+    createTitle: "አዲስ ጂኦ ዞን",
+    editTitle: "ጂኦ ዞን አስተካክል",
+    createDescription: "ጂኦፈንሱን በካርታ ላይ ይሳሉ እና ዝርዝሮቹን ይጨምሩ።",
+    editDescription: "የጂኦፈንሱን ቅርፅ እና ዝርዝሮች ያዘምኑ።",
+    shape: "ቅርፅ",
+    geometry: "ጂኦሜትሪ",
+    noGeometry: "እስካሁን ምንም አልተሳለም",
+    circleSummary: "መሃል {{lat}}, {{lng}} · {{meters}} ሜ ራዲየስ",
+    circleRequired: "በመጀመሪያ ክብ በካርታ ላይ ይሳሉ",
+    redraw: "እንደገና ሳል",
   },
 
   shapes: {
@@ -59,6 +77,7 @@ export default {
     longitude: "ኬንትሮስ",
     radius: "ራዲየስ (ሜ)",
     noGroup: "ቡድን የለም",
+    color: "ቀለም",
     notePlaceholder: "ለአንቀሳቃሾች አማራጭ ማስታወሻዎች",
   },
 

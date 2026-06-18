@@ -154,6 +154,7 @@ export const EVENT_TYPE_LABEL: Record<EventType, string> = {
   route_deviation: "Route deviation",
   no_signal: "Signal lost",
   idle: "Excessive idling",
+  ignition: "Ignition state",
 }
 
 export const EVENT_RULE_TYPE_LABEL: Record<EventRuleType, string> = {

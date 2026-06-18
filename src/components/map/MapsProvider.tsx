@@ -22,10 +22,7 @@ export function MapsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <MapsAvailableContext.Provider value={true}>
-      <APIProvider
-        apiKey={apiKey}
-        libraries={["drawing", "geometry", "marker"]}
-      >
+      <APIProvider apiKey={apiKey} libraries={["geometry", "marker"]}>
         {children}
       </APIProvider>
     </MapsAvailableContext.Provider>

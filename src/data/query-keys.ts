@@ -20,6 +20,17 @@ export const qk = {
   geozoneGroups: ["geozone-groups"] as const,
   eventRules: ["event-rules"] as const,
   events: ["events"] as const,
+  // The Alerts page list (GET /api/v1/alerts) — keyed by the server-side filter +
+  // page so each combination caches separately. Workflow mutations invalidate the
+  // whole ["alerts"] prefix so both the list and the counts below refresh.
+  alerts: (params: {
+    status?: string
+    alertType?: string
+    pageNumber: number
+    pageSize: number
+  }) => ["alerts", params] as const,
+  alertCounts: (status?: string) =>
+    ["alerts", "count", status ?? "all"] as const,
   routes: ["routes"] as const,
   trips: ["trips"] as const,
   tripsForVehicle: (vehicleId: string) => ["trips", vehicleId] as const,

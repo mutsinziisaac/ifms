@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/sheet"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/auth/auth-context"
+import { isRealApi } from "@/data/api"
 import {
   useAcknowledgeEvent,
   useCloseEvent,
@@ -335,14 +336,18 @@ export function EventDetailSheet({
                   {t("events.workflow.acknowledge")}
                 </Button>
               ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEscalateOpen(true)}
-              >
-                <TriangleAlert className="size-4" />
-                {t("events.workflow.escalate")}
-              </Button>
+              {/* The backend exposes only acknowledge + resolve — there is no
+                  escalate endpoint, so the escalation leg is mock-mode only. */}
+              {!isRealApi ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEscalateOpen(true)}
+                >
+                  <TriangleAlert className="size-4" />
+                  {t("events.workflow.escalate")}
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 className="ml-auto"

@@ -176,6 +176,8 @@ export interface Geozone {
   path: LatLng[] | null
   address: string
   groupId: ID | null
+  /** Per-zone draw color (hex). Backend `color_hex`; falls back to group/default. */
+  color?: string
   /** Show/hide on the map */
   visible: boolean
   /** Corridor point of interest */
@@ -264,6 +266,10 @@ export const EVENT_TYPES = [
   "route_deviation",
   "no_signal",
   "idle",
+  // Backend-only alert condition (GET /api/v1/alerts `alert_type: IGNITION`): the
+  // app has no scope-based equivalent, so it gets its own bucket — mirroring the
+  // "ignition" member already on EventRuleType.
+  "ignition",
 ] as const
 export type EventType = (typeof EVENT_TYPES)[number]
 
@@ -276,6 +282,25 @@ export const EVENT_STATUSES = [
   "closed",
 ] as const
 export type EventStatus = (typeof EVENT_STATUSES)[number]
+
+// ---------------------------------------------------------------------------
+// Backend alert vocabulary (GET /api/v1/alerts query params). The Alerts page
+// filters server-side with these values, which the mappers translate to the
+// app's EventStatus/EventType for display. Kept distinct from the app enums
+// above because the backend has fewer statuses (no "escalated") and a
+// condition-based type vocabulary.
+// ---------------------------------------------------------------------------
+
+export const ALERT_STATUSES = ["OPEN", "ACKNOWLEDGED", "RESOLVED"] as const
+export type AlertStatus = (typeof ALERT_STATUSES)[number]
+
+export const ALERT_TYPES = [
+  "SPEED",
+  "GEOFENCE",
+  "IGNITION",
+  "TIME_AND_DISTANCE",
+] as const
+export type AlertType = (typeof ALERT_TYPES)[number]
 
 /** Where an event can be escalated to (demo-grade constant list). */
 export const ESCALATION_TARGETS = [
@@ -351,6 +376,11 @@ export interface RouteDef {
    */
   active: boolean
   createdAt: string
+  /** Corridor endpoints. Set on backend-sourced routes; optional for the seed. */
+  startAddress?: string
+  endAddress?: string
+  /** Itineraries bound to this route, per the backend list endpoint. */
+  assignedItineraryCount?: number
 }
 
 export interface Trip {

@@ -29,9 +29,11 @@
 // the simulation-driven store directly and are NOT covered here — they need a
 // separate polling/stream decision once vehicles/events go real.
 
-import { densifyPath, nearestPlaceName } from "./geo"
+import { nearestPlaceName } from "./geo"
 import { getDB, mutate } from "./store"
 import type {
+  AlertStatus,
+  AlertType,
   Entity,
   Provider,
   EthiopiaRegion,
@@ -61,15 +63,27 @@ import type {
   WebUser,
   WebUserStatus,
 } from "./types"
-import { centroidOf, isInsideGeozone, pathLengthKm } from "@/lib/maps"
-import { ApiError, getAll, http } from "@/lib/http"
 import {
+  centroidOf,
+  isInsideGeozone,
+  pathLengthKm,
+  pathToLineString,
+  polygonToGeoJson,
+} from "@/lib/maps"
+import { ApiError, getAll, getPage, http, type ApiPagination } from "@/lib/http"
+import {
+  mapAlertResponse,
   mapAlertRuleResponse,
+  mapGeozoneResponse,
   mapProviderResponse,
+  mapRouteResponse,
   mapVehicleMapItem,
   mapVehicleResponse,
+  type AlertResponse,
   type AlertRuleResponse,
+  type GeozoneResponse,
   type ProviderResponse,
+  type RouteResponse,
   type VehicleMapItem,
   type VehicleResponse,
 } from "./mappers"
@@ -159,13 +173,18 @@ export interface GeozoneInput {
   path: LatLng[] | null
   address: string
   groupId: ID | null
+  /** Per-zone draw color (hex), sent to the backend as `color_hex`. */
+  color: string
   note: string
 }
 
 export interface RouteInput {
   name: string
   description: string
-  waypoints: { name: string; position: LatLng }[]
+  /** The drawn corridor polyline (also serialized to the backend's GeoJSON). */
+  path: LatLng[]
+  startAddress: string
+  endAddress: string
   active: boolean
 }
 
@@ -366,11 +385,34 @@ export async function deleteVehicle(id: ID): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function listGeozones(): Promise<Geozone[]> {
+  if (isRealApi) {
+    const rows = await getAll<GeozoneResponse>("/geozones")
+    return rows.map(mapGeozoneResponse)
+  }
   await latency()
   return [...getDB().geozones]
 }
 
 export async function createGeozone(input: GeozoneInput): Promise<Geozone> {
+  if (isRealApi) {
+    const created = await http.post<GeozoneResponse>("/geozones", {
+      data: {
+        name: input.name,
+        shape_type: input.shape === "polygon" ? "POLYGON" : "CIRCLE",
+        description: input.note,
+        boundary_geojson:
+          input.shape === "polygon" && input.path
+            ? polygonToGeoJson(input.path)
+            : "",
+        center_lat: input.center.lat,
+        center_lng: input.center.lng,
+        radius_m: input.radiusM ?? 0,
+        address: input.address,
+        color_hex: input.color,
+      },
+    })
+    return mapGeozoneResponse(created)
+  }
   await latency()
   let created: Geozone | null = null
   mutate((db) => {
@@ -383,6 +425,7 @@ export async function createGeozone(input: GeozoneInput): Promise<Geozone> {
       path: input.path,
       address: input.address,
       groupId: input.groupId,
+      color: input.color,
       visible: true,
       isPOI: false,
       note: input.note,
@@ -411,6 +454,7 @@ export async function updateGeozone(
     if (patch.path !== undefined) zone.path = patch.path
     if (patch.address !== undefined) zone.address = patch.address
     if (patch.groupId !== undefined) zone.groupId = patch.groupId
+    if (patch.color !== undefined) zone.color = patch.color
     if (patch.note !== undefined) zone.note = patch.note
 
     updated = zone
@@ -636,6 +680,126 @@ export async function deleteEventRule(id: ID): Promise<void> {
 // Events
 // ---------------------------------------------------------------------------
 
+// The Alerts page reads the violation feed from GET /api/v1/alerts with
+// server-side status/alert_type filtering + pagination (the `status`/`alert_type`
+// params are passed through as-is; page-number/page-size are kebab-cased per the
+// envelope contract). The mock fallback applies the same filters to the
+// simulation-driven store and paginates in-memory so the page behaves the same
+// offline. See mapAlertResponse for the assumed wire shape.
+export interface AlertListParams {
+  status?: AlertStatus
+  alertType?: AlertType
+  pageNumber: number
+  pageSize: number
+}
+
+export interface AlertPage {
+  events: FleetEvent[]
+  pagination: ApiPagination
+}
+
+// Mock-mode bridge: how a seeded FleetEvent maps back onto the backend's alert
+// status vocabulary so the in-memory store can answer a `status=` filter. The
+// app's "escalated" has no backend equivalent (null → never matches).
+const EVENT_STATUS_TO_ALERT: Record<FleetEvent["status"], AlertStatus | null> = {
+  open: "OPEN",
+  acknowledged: "ACKNOWLEDGED",
+  escalated: null,
+  closed: "RESOLVED",
+}
+
+function eventMatchesAlertType(
+  event: FleetEvent,
+  alertType: AlertType
+): boolean {
+  switch (alertType) {
+    case "SPEED":
+      return event.type === "speeding"
+    case "GEOFENCE":
+      return event.type === "entry" || event.type === "exit"
+    case "TIME_AND_DISTANCE":
+      return event.type === "idle"
+    case "IGNITION":
+      return event.type === "ignition"
+  }
+}
+
+// Pure status/alert_type filter + pagination over a FleetEvent list. Shared by
+// the mock listAlerts branch and the live (mock-mode) useAlertsFeed hook so both
+// answer the same filters without an async round-trip.
+export function selectAlertPage(
+  events: FleetEvent[],
+  params: AlertListParams
+): AlertPage {
+  const { status, alertType, pageNumber, pageSize } = params
+  const all = events.filter(
+    (e) =>
+      (!status || EVENT_STATUS_TO_ALERT[e.status] === status) &&
+      (!alertType || eventMatchesAlertType(e, alertType))
+  )
+  const start = (pageNumber - 1) * pageSize
+  return {
+    events: all.slice(start, start + pageSize),
+    pagination: {
+      page_number: pageNumber,
+      page_size: pageSize,
+      total_pages: Math.max(1, Math.ceil(all.length / pageSize)),
+      total_records: all.length,
+    },
+  }
+}
+
+export async function listAlerts(params: AlertListParams): Promise<AlertPage> {
+  const { status, alertType, pageNumber, pageSize } = params
+  if (isRealApi) {
+    const { data, pagination } = await getPage<AlertResponse>("/alerts", {
+      "page-number": pageNumber,
+      "page-size": pageSize,
+      ...(status ? { status } : {}),
+      ...(alertType ? { alert_type: alertType } : {}),
+    })
+    return {
+      events: data.map(mapAlertResponse),
+      pagination: pagination ?? {
+        page_number: pageNumber,
+        page_size: pageSize,
+        total_pages: 1,
+        total_records: data.length,
+      },
+    }
+  }
+  await latency()
+  return selectAlertPage(getDB().events, params)
+}
+
+// Total alert count for a status (drives the page's stat cards). Real mode reads
+// `pagination.total_records` from a 1-row page; mock counts the store.
+export async function countAlerts(status?: AlertStatus): Promise<number> {
+  if (isRealApi) {
+    const { pagination } = await getPage<AlertResponse>("/alerts", {
+      "page-number": 1,
+      "page-size": 1,
+      ...(status ? { status } : {}),
+    })
+    return pagination?.total_records ?? 0
+  }
+  await latency()
+  return getDB().events.filter(
+    (e) => !status || EVENT_STATUS_TO_ALERT[e.status] === status
+  ).length
+}
+
+// The acknowledge/resolve action endpoints may echo the updated alert or return
+// an empty body. Map it back when present; otherwise synthesize a minimal record
+// (the value only satisfies the mutation contract — the page refetches on success).
+function alertActionResult(id: ID, body: unknown): FleetEvent {
+  const data = unwrapData<AlertResponse>(body)
+  if (data && typeof data === "object" && "alert_type" in data) {
+    return mapAlertResponse(data)
+  }
+  return mapAlertResponse({ id, alert_type: "", status: "", severity: "" })
+}
+
 export async function listEvents(): Promise<FleetEvent[]> {
   await latency()
   // Newest first — the simulation keeps db.events newest-first already.
@@ -659,6 +823,10 @@ export async function acknowledgeEvent(
   id: ID,
   by: string
 ): Promise<FleetEvent> {
+  if (isRealApi) {
+    const body = await http.post<unknown>(`/alerts/${id}/acknowledge`)
+    return alertActionResult(id, body)
+  }
   await latency()
   let updated: FleetEvent | null = null
   mutate((db) => {
@@ -703,6 +871,12 @@ export async function closeEvent(
   id: ID,
   vars: { by: string; note: string }
 ): Promise<FleetEvent> {
+  if (isRealApi) {
+    const body = await http.post<unknown>(`/alerts/${id}/resolve`, {
+      resolution_note: vars.note,
+    })
+    return alertActionResult(id, body)
+  }
   await latency()
   let updated: FleetEvent | null = null
   mutate((db) => {
@@ -725,6 +899,10 @@ export async function closeEvent(
 // ---------------------------------------------------------------------------
 
 export async function listRoutes(): Promise<RouteDef[]> {
+  if (isRealApi) {
+    const rows = await getAll<RouteResponse>("/routes")
+    return rows.map(mapRouteResponse)
+  }
   await latency()
   return [...getDB().routes]
 }
@@ -734,31 +912,60 @@ export async function getRoute(id: ID): Promise<RouteDef | null> {
   return getDB().routes.find((r) => r.id === id) ?? null
 }
 
-function buildWaypoints(
-  input: { name: string; position: LatLng }[]
+/**
+ * Two display waypoints (start/end) pinned to a drawn path's endpoints, named by
+ * the corridor addresses. The backend has no waypoint concept, so this keeps
+ * `RouteDetailPanel`/`RoutePolyline` rendering for app-created routes too.
+ */
+function endpointWaypoints(
+  path: LatLng[],
+  startAddress: string,
+  endAddress: string
 ): Waypoint[] {
-  return input.map((w) => ({
-    id: nextId("wpt"),
-    name: w.name,
-    position: w.position,
-  }))
+  if (path.length === 0) return []
+  const waypoints: Waypoint[] = [
+    { id: nextId("wpt"), name: startAddress || "Start", position: path[0]! },
+  ]
+  if (path.length > 1) {
+    waypoints.push({
+      id: nextId("wpt"),
+      name: endAddress || "End",
+      position: path[path.length - 1]!,
+    })
+  }
+  return waypoints
 }
 
 export async function createRoute(input: RouteInput): Promise<RouteDef> {
+  if (isRealApi) {
+    const created = await http.post<RouteResponse>("/routes", {
+      data: {
+        name: input.name,
+        route_geojson: pathToLineString(input.path),
+        description: input.description,
+        start_address: input.startAddress,
+        end_address: input.endAddress,
+        distance_km: pathLengthKm(input.path),
+      },
+    })
+    return mapRouteResponse(created)
+  }
   await latency()
   let created: RouteDef | null = null
   mutate((db) => {
-    const waypoints = buildWaypoints(input.waypoints)
-    const path = densifyPath(waypoints.map((w) => w.position))
+    // The drawn polyline *is* the corridor — no densification needed.
+    const path = input.path
     const route: RouteDef = {
       id: nextId("rte"),
       name: input.name,
       description: input.description,
       path,
-      waypoints,
+      waypoints: endpointWaypoints(path, input.startAddress, input.endAddress),
       distanceKm: Math.round(pathLengthKm(path)),
       active: input.active,
       createdAt: nowIso(),
+      startAddress: input.startAddress,
+      endAddress: input.endAddress,
     }
     db.routes.push(route)
     created = route
@@ -766,6 +973,7 @@ export async function createRoute(input: RouteInput): Promise<RouteDef> {
   return created!
 }
 
+// Mock-only (no backend endpoint wired): edits the in-memory route in place.
 export async function updateRoute(
   id: ID,
   patch: Partial<RouteInput>
@@ -779,11 +987,18 @@ export async function updateRoute(
     if (patch.name !== undefined) route.name = patch.name
     if (patch.description !== undefined) route.description = patch.description
     if (patch.active !== undefined) route.active = patch.active
-    if (patch.waypoints !== undefined) {
-      route.waypoints = buildWaypoints(patch.waypoints)
-      route.path = densifyPath(route.waypoints.map((w) => w.position))
-      route.distanceKm = Math.round(pathLengthKm(route.path))
+    if (patch.startAddress !== undefined) route.startAddress = patch.startAddress
+    if (patch.endAddress !== undefined) route.endAddress = patch.endAddress
+    if (patch.path !== undefined) {
+      route.path = patch.path
+      route.distanceKm = Math.round(pathLengthKm(patch.path))
     }
+    // Keep the start/end display waypoints in step with whatever changed.
+    route.waypoints = endpointWaypoints(
+      route.path,
+      route.startAddress ?? "",
+      route.endAddress ?? ""
+    )
 
     updated = route
   })

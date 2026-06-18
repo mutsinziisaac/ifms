@@ -20,6 +20,10 @@ export default {
     escalatedHint: "With a higher authority",
     closedToday: "Closed today",
     closedTodayHint: "Resolved in the last 24h",
+    resolved: "Resolved",
+    resolvedHint: "Handled and closed",
+    total: "Total",
+    totalHint: "All alerts on record",
   },
 
   filters: {

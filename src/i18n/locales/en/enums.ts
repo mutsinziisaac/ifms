@@ -27,6 +27,19 @@ export default {
     route_deviation: "Route deviation",
     no_signal: "Signal lost",
     idle: "Excessive idling",
+    ignition: "Ignition state",
+  },
+  // Backend alert filter vocabulary (GET /api/v1/alerts params).
+  alertStatus: {
+    OPEN: "Open",
+    ACKNOWLEDGED: "Acknowledged",
+    RESOLVED: "Resolved",
+  },
+  alertType: {
+    SPEED: "Speeding",
+    GEOFENCE: "Geofence",
+    IGNITION: "Ignition",
+    TIME_AND_DISTANCE: "Idle / distance",
   },
   eventRuleType: {
     entry: "Geozone entry",

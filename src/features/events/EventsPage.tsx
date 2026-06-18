@@ -2,7 +2,10 @@ import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSearchParams } from "react-router-dom"
 import {
+  Bell,
   CheckCheck,
+  ChevronLeft,
+  ChevronRight,
   CircleCheckBig,
   CircleDot,
   Download,
@@ -25,14 +28,16 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { isRealApi } from "@/data/api"
 import {
+  useAlertCounts,
+  useAlertsFeed,
   useEntities,
-  useLiveEvents,
   useMarkAllEventsRead,
   useVehicles,
 } from "@/data/hooks"
-import { EVENT_STATUSES, EVENT_TYPES } from "@/data/types"
-import type { FleetEvent } from "@/data/types"
+import { ALERT_STATUSES, ALERT_TYPES } from "@/data/types"
+import type { AlertStatus, AlertType, FleetEvent } from "@/data/types"
 
 import { EventDetailSheet } from "./components/EventDetailSheet"
 import { EventsMapView } from "./components/EventsMapView"
@@ -42,6 +47,11 @@ import { exportEventsCsv } from "./components/events-export"
 type ViewMode = "list" | "map"
 
 const SEVERITIES = ["info", "warning", "critical"] as const
+
+// Server page size. Matches EventsTable's DataTable pageSize so the table's own
+// (client) pager stays dormant — one loaded page never exceeds it — and the
+// server pager below drives page-number instead.
+const PAGE_SIZE = 12
 
 interface FilterSelectProps {
   value: string
@@ -77,56 +87,74 @@ function FilterSelect({
 
 export function EventsPage() {
   const { t } = useTranslation()
-  const events = useLiveEvents()
-  const entities = useEntities().data ?? []
-  const vehicles = useVehicles().data ?? []
-  const markAllRead = useMarkAllEventsRead()
 
   // Deep links: /events?entity=…&vehicle=… preselect those filters.
   const [searchParams] = useSearchParams()
   const [view, setView] = useState<ViewMode>("list")
   const [search, setSearch] = useState("")
-  const [status, setStatus] = useState("all")
+  // status + alertType drive the backend query (server-side filtering).
+  const [status, setStatus] = useState<string>("all")
+  const [alertType, setAlertType] = useState<string>("all")
+  // severity / provider / vehicle / search filter the loaded page client-side.
   const [severity, setSeverity] = useState("all")
-  const [type, setType] = useState("all")
   const [entity, setEntity] = useState(searchParams.get("entity") ?? "all")
   const [vehicle, setVehicle] = useState(searchParams.get("vehicle") ?? "all")
+  const [pageNumber, setPageNumber] = useState(1)
+
+  const feed = useAlertsFeed({
+    status: status === "all" ? undefined : (status as AlertStatus),
+    alertType: alertType === "all" ? undefined : (alertType as AlertType),
+    pageNumber,
+    pageSize: PAGE_SIZE,
+  })
+  const events = feed.events
+  const counts = useAlertCounts()
+  const entities = useEntities().data ?? []
+  const vehicles = useVehicles().data ?? []
+  const markAllRead = useMarkAllEventsRead()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
 
+  // Changing a server-side filter resets to the first page.
+  const handleStatusChange = (value: string) => {
+    setStatus(value)
+    setPageNumber(1)
+  }
+  const handleTypeChange = (value: string) => {
+    setAlertType(value)
+    setPageNumber(1)
+  }
+
+  // The backend already filtered by status + alert_type; apply the remaining
+  // facets to the loaded page in-browser.
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return events.filter(
       (e) =>
-        (status === "all" || e.status === status) &&
         (severity === "all" || e.severity === severity) &&
-        (type === "all" || e.type === type) &&
         (entity === "all" || e.entityId === entity) &&
         (vehicle === "all" || e.vehicleId === vehicle) &&
         (q === "" ||
           e.message.toLowerCase().includes(q) ||
           e.vehiclePlate.toLowerCase().includes(q))
     )
-  }, [events, status, severity, type, entity, vehicle, search])
+  }, [events, severity, entity, vehicle, search])
 
-  // Resolve from the live list so workflow changes reflect immediately.
+  // Resolve from the loaded page so workflow changes reflect immediately.
   const selectedEvent = events.find((e) => e.id === selectedId) ?? null
 
-  const openCount = events.filter((e) => e.status === "open").length
-  const ackCount = events.filter((e) => e.status === "acknowledged").length
-  const escalatedCount = events.filter((e) => e.status === "escalated").length
+  // Banner reflects the loaded page — severity isn't a server-side facet, so an
+  // exact corridor-wide count isn't available without an extra query.
   const openCriticalCount = events.filter(
     (e) => e.status === "open" && e.severity === "critical"
   ).length
-  const dayAgo = Date.now() - 24 * 60 * 60 * 1000
-  const closedToday = events.filter(
-    (e) =>
-      e.status === "closed" &&
-      e.closedAt !== null &&
-      new Date(e.closedAt).getTime() >= dayAgo
-  ).length
+
+  const totalPages = feed.pagination?.total_pages ?? 1
+  const totalRecords = feed.pagination?.total_records ?? events.length
+  const rangeFrom = totalRecords === 0 ? 0 : (pageNumber - 1) * PAGE_SIZE + 1
+  const rangeTo = Math.min(pageNumber * PAGE_SIZE, totalRecords)
 
   const handleSelect = (event: FleetEvent) => {
     setSelectedId(event.id)
@@ -146,11 +174,20 @@ export function EventsPage() {
     <div className="flex flex-wrap items-center gap-2">
       <FilterSelect
         value={status}
-        onChange={setStatus}
+        onChange={handleStatusChange}
         allLabel={t("events.filters.allStatuses")}
-        options={EVENT_STATUSES.map((s) => ({
+        options={ALERT_STATUSES.map((s) => ({
           value: s,
-          label: t(`enums.eventStatus.${s}`),
+          label: t(`enums.alertStatus.${s}`),
+        }))}
+      />
+      <FilterSelect
+        value={alertType}
+        onChange={handleTypeChange}
+        allLabel={t("events.filters.allTypes")}
+        options={ALERT_TYPES.map((tp) => ({
+          value: tp,
+          label: t(`enums.alertType.${tp}`),
         }))}
       />
       <FilterSelect
@@ -160,15 +197,6 @@ export function EventsPage() {
         options={SEVERITIES.map((s) => ({
           value: s,
           label: t(`enums.eventSeverity.${s}`),
-        }))}
-      />
-      <FilterSelect
-        value={type}
-        onChange={setType}
-        allLabel={t("events.filters.allTypes")}
-        options={EVENT_TYPES.map((tp) => ({
-          value: tp,
-          label: t(`enums.eventType.${tp}`),
         }))}
       />
       <FilterSelect
@@ -242,7 +270,7 @@ export function EventsPage() {
               className="border-rose-500/40 bg-transparent text-rose-700 hover:bg-rose-500/10 dark:text-rose-300"
               onClick={() => {
                 setSeverity("critical")
-                setStatus("open")
+                handleStatusChange("OPEN")
                 setView("list")
               }}
             >
@@ -262,59 +290,97 @@ export function EventsPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label={t("events.stats.open")}
-            value={openCount}
+            value={counts.open}
             icon={CircleDot}
-            intent={openCount > 0 ? "danger" : "default"}
+            intent={counts.open > 0 ? "danger" : "default"}
             hint={t("events.stats.openHint")}
           />
           <StatCard
             label={t("events.stats.acknowledged")}
-            value={ackCount}
+            value={counts.acknowledged}
             icon={Eye}
             intent="warning"
             hint={t("events.stats.acknowledgedHint")}
           />
           <StatCard
-            label={t("events.stats.escalated")}
-            value={escalatedCount}
-            icon={TriangleAlert}
-            intent={escalatedCount > 0 ? "warning" : "default"}
-            hint={t("events.stats.escalatedHint")}
-          />
-          <StatCard
-            label={t("events.stats.closedToday")}
-            value={closedToday}
+            label={t("events.stats.resolved")}
+            value={counts.resolved}
             icon={CircleCheckBig}
             intent="success"
-            hint={t("events.stats.closedTodayHint")}
+            hint={t("events.stats.resolvedHint")}
+          />
+          <StatCard
+            label={t("events.stats.total")}
+            value={counts.total}
+            icon={Bell}
+            hint={t("events.stats.totalHint")}
           />
         </div>
 
         {filterBar}
 
         {view === "list" ? (
-          <EventsTable
-            events={filtered}
-            entities={entities}
-            searchValue={search}
-            onSearchChange={setSearch}
-            toolbarActions={
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  markAllRead.mutate(undefined, {
-                    onSuccess: () =>
-                      toast.success(t("events.toast.allMarkedRead")),
-                  })
-                }
-              >
-                <CheckCheck className="size-4" />
-                {t("common.markAllRead")}
-              </Button>
-            }
-            onSelect={handleSelect}
-          />
+          <div className="space-y-4">
+            <EventsTable
+              events={filtered}
+              entities={entities}
+              searchValue={search}
+              onSearchChange={setSearch}
+              toolbarActions={
+                isRealApi ? undefined : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      markAllRead.mutate(undefined, {
+                        onSuccess: () =>
+                          toast.success(t("events.toast.allMarkedRead")),
+                      })
+                    }
+                  >
+                    <CheckCheck className="size-4" />
+                    {t("common.markAllRead")}
+                  </Button>
+                )
+              }
+              onSelect={handleSelect}
+            />
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {t("common.table.showingRange", {
+                    from: rangeFrom,
+                    to: rangeTo,
+                    total: totalRecords,
+                  })}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+                    disabled={pageNumber <= 1}
+                  >
+                    <ChevronLeft />
+                    <span className="sr-only">
+                      {t("common.table.previousPage")}
+                    </span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() =>
+                      setPageNumber((p) => Math.min(totalPages, p + 1))
+                    }
+                    disabled={pageNumber >= totalPages}
+                  >
+                    <ChevronRight />
+                    <span className="sr-only">{t("common.table.nextPage")}</span>
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <EventsMapView
             events={filtered}

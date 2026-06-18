@@ -2,15 +2,30 @@
 // app's domain model. Kept separate from api.ts so the transforms stay pure and
 // the call layer stays focused on orchestration.
 
+import {
+  centroidOf,
+  geoJsonToPolygonPath,
+  lineStringToPath,
+  pathLengthKm,
+} from "@/lib/maps"
+
 import type {
   EventRule,
   EventRuleType,
   EventSeverity,
+  EventStatus,
+  EventType,
+  FleetEvent,
+  Geozone,
+  GeozoneShape,
   ItmsVerificationStatus,
+  LatLng,
   Provider,
+  RouteDef,
   Vehicle,
   VehicleStatus,
   VehicleType,
+  Waypoint,
 } from "./types"
 
 /**
@@ -297,5 +312,229 @@ export function mapAlertRuleResponse(dto: AlertRuleResponse): EventRule {
     severity: SEVERITY_MAP[dto.severity] ?? "info",
     notify: { email: false, emailTo: "", sms: false, smsTo: "" },
     active: dto.active,
+  }
+}
+
+/**
+ * A fired-alert record from `GET /api/v1/alerts` (`data[]`) — the violation feed,
+ * distinct from the alert *rule* that produced it. The sample response carried an
+ * empty `data` array, so this shape is a best-guess at the backend's snake_case
+ * fields; the mapper reads every field defensively (all optional/nullable) so a
+ * naming mismatch degrades a single column rather than throwing. Confirm against
+ * a real payload and tighten as needed.
+ */
+export interface AlertResponse {
+  id: number | string
+  alert_type: string
+  status: string
+  severity: string
+  vehicle_id?: number | string | null
+  plate_number?: string | null
+  message?: string | null
+  description?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  // GEOFENCE alerts carry a direction so entry vs exit can be resolved.
+  direction?: string | null
+  geofence_name?: string | null
+  route_name?: string | null
+  // Provider/owner — surfaces the entity for the page's provider filter.
+  provider?: string | null
+  stakeholder_id?: number | string | null
+  creation_time?: string | null
+  triggered_at?: string | null
+  acknowledged_by?: string | null
+  acknowledged_at?: string | null
+  resolved_by?: string | null
+  resolved_at?: string | null
+  resolution_note?: string | null
+}
+
+// Backend alert_type → the app's EventType (for the row's displayed kind). Mirrors
+// `ruleTypeFor` but targets EventType: SPEED is a fired "speeding" event (not the
+// rule-level "global_speeding"), GEOFENCE splits on direction, IGNITION has no
+// scope-based equivalent so it uses the dedicated "ignition" bucket.
+function alertTypeToEventType(
+  alertType: string,
+  direction?: string | null
+): EventType {
+  switch (alertType) {
+    case "SPEED":
+      return "speeding"
+    case "GEOFENCE":
+      return direction === "OUTSIDE" ? "exit" : "entry"
+    case "TIME_AND_DISTANCE":
+      return "idle"
+    case "IGNITION":
+      return "ignition"
+    default:
+      return "ignition"
+  }
+}
+
+// Backend alert status (3 values) → the app's EventStatus. The app's "escalated"
+// has no backend equivalent, and the backend's "RESOLVED" maps onto "closed".
+const ALERT_STATUS_MAP: Record<string, EventStatus> = {
+  OPEN: "open",
+  ACKNOWLEDGED: "acknowledged",
+  RESOLVED: "closed",
+}
+
+/**
+ * Map an `AlertResponse` onto the app's `FleetEvent`. Fields the endpoint doesn't
+ * carry (geozone/route ids, the escalation leg) get null; lat/lng fall back to
+ * Addis when absent so the map overlay still renders. `read` is derived from
+ * status (OPEN reads as unread) since alerts have no separate read flag.
+ */
+export function mapAlertResponse(dto: AlertResponse): FleetEvent {
+  const status = ALERT_STATUS_MAP[dto.status] ?? "open"
+  const at = dto.triggered_at ?? dto.creation_time ?? new Date().toISOString()
+  const lat = numberOrNull(dto.latitude)
+  const lng = numberOrNull(dto.longitude)
+  const location: LatLng =
+    lat !== null && lng !== null ? { lat, lng } : { ...ADDIS }
+  const vehicleId = dto.vehicle_id != null ? String(dto.vehicle_id) : ""
+  return {
+    id: String(dto.id),
+    type: alertTypeToEventType(dto.alert_type, dto.direction),
+    severity: SEVERITY_MAP[dto.severity] ?? "info",
+    vehicleId,
+    vehiclePlate: dto.plate_number ?? (vehicleId ? `#${vehicleId}` : "—"),
+    entityId:
+      dto.provider ??
+      (dto.stakeholder_id != null ? String(dto.stakeholder_id) : ""),
+    geozoneId: null,
+    geozoneName: dto.geofence_name ?? null,
+    routeId: null,
+    routeName: dto.route_name ?? null,
+    message: dto.message ?? dto.description ?? "—",
+    at,
+    location,
+    read: dto.status !== "OPEN",
+    status,
+    acknowledgedBy: dto.acknowledged_by ?? null,
+    acknowledgedAt: dto.acknowledged_at ?? null,
+    escalatedTo: null,
+    escalatedAt: null,
+    closedBy: dto.resolved_by ?? null,
+    closedAt: dto.resolved_at ?? null,
+    resolutionNote: dto.resolution_note ?? null,
+  }
+}
+
+/**
+ * A route record from `GET /api/v1/routes` (`data[]`). The backend stores the
+ * corridor geometry as a *stringified* GeoJSON LineString (`route_geojson`,
+ * `[lng, lat]` pairs) plus a start/end address — there is no named-waypoint
+ * concept, so the app synthesizes two display waypoints from the endpoints.
+ */
+export interface RouteResponse {
+  id: number
+  stakeholder_id: number | null
+  name: string
+  description: string | null
+  start_address: string | null
+  end_address: string | null
+  route_geojson: string | null
+  distance_km: number | null
+  active: boolean
+  assigned_itinerary_count: number | null
+  creation_time: string | null
+  time_last_modified: string | null
+}
+
+/**
+ * Map a `RouteResponse` onto the app's `RouteDef`. `route_geojson` becomes the
+ * render/simulation `path`; the start/end addresses name two display waypoints
+ * pinned to the path endpoints so `RouteDetailPanel`/`RoutePolyline` keep
+ * rendering. Backend distance is used as-is (the app's haversine length is only
+ * the fallback when it's absent).
+ */
+export function mapRouteResponse(dto: RouteResponse): RouteDef {
+  const path = lineStringToPath(dto.route_geojson)
+  const startAddress = dto.start_address ?? ""
+  const endAddress = dto.end_address ?? ""
+  const waypoints: Waypoint[] = []
+  if (path.length > 0) {
+    waypoints.push({
+      id: `rte-${dto.id}-start`,
+      name: startAddress || "Start",
+      position: path[0]!,
+    })
+    if (path.length > 1) {
+      waypoints.push({
+        id: `rte-${dto.id}-end`,
+        name: endAddress || "End",
+        position: path[path.length - 1]!,
+      })
+    }
+  }
+  const created = dto.creation_time ?? new Date().toISOString()
+  return {
+    id: String(dto.id),
+    name: dto.name,
+    description: dto.description ?? "",
+    path,
+    waypoints,
+    distanceKm: dto.distance_km ?? pathLengthKm(path),
+    active: dto.active,
+    createdAt: created,
+    startAddress,
+    endAddress,
+    assignedItineraryCount: dto.assigned_itinerary_count ?? undefined,
+  }
+}
+
+/** `GeozoneResponse` from `GET /api/v1/geozones` (`data[]`). */
+export interface GeozoneResponse {
+  id: number
+  stakeholder_id: number | null
+  name: string
+  description: string | null
+  /** "CIRCLE" | "POLYGON" */
+  shape_type: string | null
+  /** GeoJSON Polygon string (polygons only). */
+  boundary_geojson: string | null
+  center_lat: number | null
+  center_lng: number | null
+  radius_m: number | null
+  address: string | null
+  status: string | null
+  color_hex: string | null
+  creation_time: string | null
+  time_last_modified: string | null
+}
+
+/**
+ * Map a `GeozoneResponse` onto the app's `Geozone`. Polygons carry their vertices
+ * in `boundary_geojson`; circles carry `center_*` + `radius_m`. `visible`/`isPOI`/
+ * `groupId` have no backend column, so they default to sensible UI values (the
+ * group concept is mock-only). `color_hex` becomes the per-zone draw color.
+ */
+export function mapGeozoneResponse(dto: GeozoneResponse): Geozone {
+  const shape: GeozoneShape =
+    dto.shape_type?.toUpperCase() === "POLYGON" ? "polygon" : "circle"
+  const path = shape === "polygon" ? geoJsonToPolygonPath(dto.boundary_geojson) : null
+  const center: LatLng =
+    dto.center_lat != null && dto.center_lng != null
+      ? { lat: dto.center_lat, lng: dto.center_lng }
+      : path && path.length > 0
+        ? centroidOf(path)
+        : { lat: 0, lng: 0 }
+  const created = dto.creation_time ?? new Date().toISOString()
+  return {
+    id: String(dto.id),
+    name: dto.name,
+    shape,
+    center,
+    radiusM: shape === "circle" ? (dto.radius_m ?? null) : null,
+    path,
+    address: dto.address ?? "",
+    groupId: null,
+    color: dto.color_hex ?? undefined,
+    visible: true,
+    isPOI: false,
+    note: dto.description ?? "",
+    createdAt: created,
   }
 }

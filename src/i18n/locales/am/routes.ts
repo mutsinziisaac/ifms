@@ -10,7 +10,8 @@ export default {
   empty: {
     noRoutesTitle: "እስካሁን መስመር የለም",
     noMatchTitle: "ተመሳሳይ መስመር አልተገኘም",
-    noRoutesDescription: "መርሐ ጉዞዎችን መከታተል ለመጀመር የመጀመሪያውን የጭነት ኮሪደር ይፍጠሩ።",
+    noRoutesDescription:
+      "መርሐ ጉዞዎችን መከታተል ለመጀመር የመጀመሪያውን የጭነት ኮሪደር በካርታ ላይ ይሳሉ።",
     noMatchDescription: "ሌላ የፍለጋ ቃል ይሞክሩ።",
   },
 
@@ -28,29 +29,43 @@ export default {
     waypoints: "መንገድ ነጥቦች",
     assignedVehicles: "የተመደቡ ተሽከርካሪዎች",
     noneAssigned: "እስካሁን በዚህ ኮሪደር ላይ የተመደበ ተሽከርካሪ የለም።",
+    from: "ከ",
+    to: "ወደ",
+  },
+
+  map: {
+    drawHint: "ነጥቦችን ለመጨመር ካርታውን ጠቅ ያድርጉ",
+    undo: "ቀልብስ",
+    clear: "አጽዳ",
+  },
+
+  editor: {
+    createTitle: "መስመር ፍጠር",
+    editTitle: "መስመር አርትዕ",
+    createDescription: "ኮሪደሩን በካርታ ላይ ይሳሉና ዝርዝሮቹን ይጨምሩ።",
+    editDescription: "ኮሪደሩንና ዝርዝሮቹን ያስተካክሉ።",
+    plotHint: "ኮሪደሩን ለመሳል ካርታውን ጠቅ ያድርጉ (ቢያንስ 2 ነጥቦች)።",
   },
 
   form: {
     editTitle: "መስመር አርትዕ",
     addTitle: "አዲስ መስመር",
-    editDescription: "የኮሪደሩን መርሐ ጉዞና የመንገድ ነጥቦቹን ያዘምኑ።",
-    addDescription: "የጭነት ኮሪደርን እንደ ቅደም ተከተል ያለው የመንገድ ነጥቦች ዝርዝር ይግለጹ።",
+    editDescription: "የኮሪደሩን ዝርዝሮችና መነሻ/መድረሻ ያዘምኑ።",
+    addDescription: "በካርታ ላይ የሳሉትን ኮሪደር ይሰይሙና መነሻ/መድረሻውን ያስቀምጡ።",
     saveChanges: "ለውጦችን አስቀምጥ",
     createRoute: "መስመር ፍጠር",
     namePlaceholder: "አዲስ አበባ – ጅቡቲ ዋና መስመር",
     descriptionPlaceholder: "የጅቡቲን ወደብ የሚያገለግል ዋና የጭነት ኮሪደር።",
     activeHint:
       "ንቁ ያልሆኑ መስመሮች ቀደም ሲል በተመደቡት ላይ ይቆያሉ ነገር ግን አዲስ ተሽከርካሪዎችን መቀበል አይችሉም።",
-    waypoints: "መንገድ ነጥቦች",
-    stops: "{{count}} ማቆሚያዎች",
-    stopNamePlaceholder: "የማቆሚያ ስም",
-    latPlaceholder: "ኬክሮስ", // review: Lat (latitude)
-    lngPlaceholder: "ኬንትሮስ", // review: Lng (longitude)
-    addWaypoint: "መንገድ ነጥብ ጨምር",
-    waypointName: "የመንገድ ነጥብ {{index}} ስም",
-    waypointLat: "የመንገድ ነጥብ {{index}} ኬክሮስ", // review: latitude
-    waypointLng: "የመንገድ ነጥብ {{index}} ኬንትሮስ", // review: longitude
-    removeWaypoint: "መንገድ ነጥብ {{index}} አስወግድ",
+    startAddress: "የመነሻ አድራሻ",
+    endAddress: "የመድረሻ አድራሻ",
+    startAddressPlaceholder: "ቃሊቲ ደረቅ ወደብ፣ አዲስ አበባ",
+    endAddressPlaceholder: "አዳማ ሎጂስቲክስ ማዕከል፣ አዳማ",
+    plottedRoute: "የተሳለ መስመር",
+    points: "{{count}} ነጥቦች",
+    noPath: "እስካሁን የተሳለ መስመር የለም",
+    replot: "በካርታ ላይ እንደገና ሳል",
   },
 
   assign: {
@@ -84,8 +99,6 @@ export default {
     assigned_other: '{{count}} ተሽከርካሪዎች ወደ "{{name}}" ተመድበዋል',
     deactivatedReject: "ይህ መስመር ተቦዝኗል እና አዲስ የተሽከርካሪ ምደባ መቀበል አይችልም",
     nameRequired: "የመስመር ስም ያስፈልጋል",
-    waypointNameRequired: "እያንዳንዱ መንገድ ነጥብ ስም ያስፈልገዋል",
-    waypointInvalidCoords: 'የመንገድ ነጥብ "{{name}}" የተሳሳተ መጋጠሚያዎች አሉት',
-    minWaypoints: "መስመር ቢያንስ 2 መንገድ ነጥቦች ያስፈልጉታል",
+    pathRequired: "በመጀመሪያ መስመሩን በካርታ ላይ ይሳሉ",
   },
 }
