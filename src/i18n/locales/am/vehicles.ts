@@ -4,16 +4,21 @@ export default {
   description: "በኮሪደሩ ላይ በክትትል ስር ባሉ ተቋማት የሚንቀሳቀሱ ተሽከርካሪዎች።",
   addVehicle: "ተሽከርካሪ ጨምር",
   searchPlaceholder: "ታርጋ፣ ሞዴል ወይም ተቋም ፈልግ…",
+  searchByPlateProvider: "ታርጋ፣ አቅራቢ ወይም መለያ ፈልግ…", // review: "Search plate, provider or ID…"
   emptyTitle: "ምንም ተሽከርካሪ አልተገኘም",
   emptyDescription: "ፍለጋዎን ወይም ማጣሪያዎችዎን ለማስተካከል ይሞክሩ።",
 
   stats: {
     total: "ጠቅላላ ተሽከርካሪዎች",
+    verificationFailed: "ማረጋገጫ ያልተሳካላቸው", // review: "Verification failed"
     moving: "በመንቀሳቀስ ላይ",
     idling: "ስራ ፈትቶ መቆም",
     stopped: "የቆሙ",
     noSignal: "ምልክት የለም",
     entitiesMonitored: "በክትትል ስር ያሉ ተቋማት",
+    inQueue: "በማረጋገጫ ሰልፍ ውስጥ", // review: "In verification queue"
+    unverified: "ያልተረጋገጡ", // review: "Unverified"
+    providers: "አቅራቢዎች", // review: "Providers"
   },
 
   filters: {
@@ -22,16 +27,21 @@ export default {
     entity: "ተቋም",
     region: "ክልል",
     gps: "ጂፒኤስ",
+    verification: "ማረጋገጫ", // review: "Verification"
   },
 
   table: {
     plate: "ታርጋ",
     entity: "ተቋም",
-    driver: "አሽከርካሪ",
     status: "ሁኔታ",
+    verification: "ማረጋገጫ", // review: "Verification"
     speed: "ፍጥነት",
     lastSync: "መጨረሻ የተገናኘበት",
     region: "ክልል",
+    provider: "አቅራቢ", // review: "Provider"
+    externalId: "የውጭ መለያ", // review: "External ID"
+    registryStatus: "የምዝገባ ሁኔታ", // review: "Registry status"
+    lastUpdated: "መጨረሻ የተዘመነበት", // review: "Last updated"
   },
 
   form: {
@@ -55,6 +65,7 @@ export default {
     createFailed: "ተሽከርካሪ መጨመር አልተሳካም",
     updateFailed: "ተሽከርካሪ ማዘመን አልተሳካም",
     deleteFailed: "ተሽከርካሪ መሰረዝ አልተሳካም",
+    verificationChanged: "{{plate}} ማረጋገጫ: {{status}}", // review: "<plate> verification: <status>"
   },
 
   detail: {
@@ -78,17 +89,6 @@ export default {
       synced: "ተገናኝቷል",
     },
 
-    driver: {
-      title: "የአሽከርካሪ ምደባ ታሪክ",
-      activeNow: "አሁን ንቁ",
-      unassigned: "ያልተመደበ",
-      noneAtWheel: "በአሁኑ ጊዜ ምንም አሽከርካሪ መሪው ላይ የለም።",
-      since: "ከ{{date}} ጀምሮ",
-      previous: "ቀዳሚ",
-      removedDriver: "የተወገደ አሽከርካሪ",
-      present: "አሁን",
-    },
-
     live: {
       title: "የቀጥታ ሁኔታ",
       status: "ሁኔታ",
@@ -109,14 +109,11 @@ export default {
 
     travel: {
       title: "የጉዞ ታሪክ",
-      attributedByDriver: "· በአሽከርካሪ የተመደበ",
       emptyTitle: "የጉዞ ታሪክ የለም",
       emptyDescription: "የዚህ ተሽከርካሪ የተጠናቀቁ ጉዞዎች ለድጋሚ ማጫወት እዚህ ይታያሉ።",
-      unattributed: "ያልተመደበ",
       colWhen: "መቼ",
       colTrip: "ጉዞ",
       colDistance: "ርቀት",
-      colDriver: "አሽከርካሪ",
       playbackTitle: "የጉዞ ድጋሚ ማጫወት", // review: የጉዞ ድጋሚ ማጫወት → Trip playback
       closePlayback: "ድጋሚ ማጫወትን ዝጋ",
     },
@@ -130,7 +127,6 @@ export default {
       noTravel: "ለዚህ ተሽከርካሪ ለመላክ ምንም የጉዞ ታሪክ የለም",
       eventsExported: "የክስተቶች ሪፖርት ተልኳል",
       travelExported: "የጉዞ ታሪክ ተልኳል",
-      unattributed: "ያልተመደበ",
       eventHeaders: {
         severity: "ክብደት", // review: ክብደት → Severity
         event: "ክስተት",
@@ -147,7 +143,6 @@ export default {
         distance: "ርቀት (km)",
         avgSpeed: "አማካይ ፍጥነት (km/h)",
         maxSpeed: "ከፍተኛ ፍጥነት (km/h)",
-        driver: "አሽከርካሪ",
       },
     },
   },

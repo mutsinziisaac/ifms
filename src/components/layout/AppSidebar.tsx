@@ -3,7 +3,6 @@ import {
   ChevronDown,
   FileText,
   Hexagon,
-  IdCard,
   LayoutDashboard,
   RadioTower,
   Route,
@@ -58,7 +57,6 @@ const NAV_GROUPS = [
     items: [
       { titleKey: "nav.items.overview", path: "/", icon: LayoutDashboard },
       { titleKey: "nav.items.fleet", path: "/fleet", icon: Truck },
-      { titleKey: "nav.items.drivers", path: "/drivers", icon: IdCard },
       { titleKey: "nav.items.events", path: "/events", icon: Siren },
       { titleKey: "nav.items.providers", path: "/providers", icon: RadioTower },
     ],

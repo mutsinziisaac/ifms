@@ -9,6 +9,9 @@ export default {
   passwordPlaceholder: "Enter any password",
   signIn: "Sign in",
   demoNotice: "Demonstration build — any credentials are accepted.",
+  keycloakNotice:
+    "You'll be redirected to your organization's secure sign-in.",
+  redirecting: "Redirecting to sign-in…",
 
   hero: {
     badge: "Ethiopia–Djibouti Corridor Monitoring",

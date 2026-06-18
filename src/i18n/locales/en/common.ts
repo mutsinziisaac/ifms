@@ -45,12 +45,11 @@ export default {
   // global search (topbar)
   search: {
     trigger: "Search fleet…",
-    placeholder: "Search vehicles, drivers, geozones, routes…",
+    placeholder: "Search vehicles, geozones, routes…",
     minChars: "Type at least 3 characters to search.",
     noResults: "No results found.",
     groups: {
       vehicles: "Vehicles",
-      drivers: "Drivers",
       geozones: "Geozones",
       routes: "Routes",
     },

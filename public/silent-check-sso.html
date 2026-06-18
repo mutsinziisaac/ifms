@@ -1,0 +1,9 @@
+<!doctype html>
+<html>
+  <body>
+    <!-- Keycloak silent check-sso helper: relays the auth result to the app. -->
+    <script>
+      parent.postMessage(location.href, location.origin)
+    </script>
+  </body>
+</html>

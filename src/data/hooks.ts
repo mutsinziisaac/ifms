@@ -8,7 +8,6 @@ import { useSyncExternalStore } from "react"
 import * as api from "./api"
 import type {
   AccidentInput,
-  DriverInput,
   EventRuleInput,
   GeozoneInput,
   RoleInput,
@@ -18,7 +17,13 @@ import type {
 } from "./api"
 import { qk } from "./query-keys"
 import { getDB, getVersion, subscribe } from "./store"
-import type { FleetEvent, LatLng, ProviderTelemetry, Vehicle } from "./types"
+import type {
+  FleetEvent,
+  ItmsVerificationStatus,
+  LatLng,
+  ProviderTelemetry,
+  Vehicle,
+} from "./types"
 
 // ---------------------------------------------------------------------------
 // Query hooks
@@ -28,26 +33,29 @@ export function useEntities() {
   return useQuery({ queryKey: qk.entities, queryFn: api.listEntities })
 }
 
-export function useVehicles() {
-  return useQuery({ queryKey: qk.vehicles, queryFn: api.listVehicles })
+export function useProviders() {
+  return useQuery({ queryKey: qk.providers, queryFn: api.listProviders })
+}
+
+export function useVehicles(verification?: ItmsVerificationStatus) {
+  return useQuery({
+    queryKey: qk.vehiclesList(verification),
+    queryFn: () => api.listVehicles(verification),
+  })
+}
+
+/** The Fleet page's verification queue (GET /vehicles?filter=verification). */
+export function useVerificationVehicles() {
+  return useQuery({
+    queryKey: qk.vehiclesVerification,
+    queryFn: api.listVerificationVehicles,
+  })
 }
 
 export function useVehicle(id: string | undefined) {
   return useQuery({
     queryKey: qk.vehicle(id ?? ""),
     queryFn: () => api.getVehicle(id!),
-    enabled: !!id,
-  })
-}
-
-export function useDrivers() {
-  return useQuery({ queryKey: qk.drivers, queryFn: api.listDrivers })
-}
-
-export function useDriver(id: string | undefined) {
-  return useQuery({
-    queryKey: qk.driver(id ?? ""),
-    queryFn: () => api.getDriver(id!),
     enabled: !!id,
   })
 }
@@ -83,25 +91,14 @@ export function useTripsForVehicle(vehicleId: string | undefined) {
   })
 }
 
-export function useAssignmentsForVehicle(vehicleId: string | undefined) {
-  return useQuery({
-    queryKey: qk.assignmentsForVehicle(vehicleId ?? ""),
-    queryFn: () => api.listAssignmentsForVehicle(vehicleId!),
-    enabled: !!vehicleId,
-  })
-}
-
 // ---------------------------------------------------------------------------
 // Mutation hooks — each invalidates every key its api call can affect.
 // ---------------------------------------------------------------------------
 
-// Vehicle mutations also affect drivers (bidirectional link) and routes
-// (route assignment).
+// Vehicle mutations also affect routes (route assignment).
 function invalidateVehicleScope(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: qk.vehicles })
-  qc.invalidateQueries({ queryKey: qk.drivers })
   qc.invalidateQueries({ queryKey: qk.routes })
-  qc.invalidateQueries({ queryKey: qk.assignments })
 }
 
 export function useCreateVehicle() {
@@ -129,53 +126,6 @@ export function useDeleteVehicle() {
   return useMutation({
     mutationFn: (id: string) => api.deleteVehicle(id),
     onSuccess: () => invalidateVehicleScope(qc),
-  })
-}
-
-// Driver mutations also affect vehicles (bidirectional link).
-function invalidateDriverScope(qc: ReturnType<typeof useQueryClient>) {
-  qc.invalidateQueries({ queryKey: qk.drivers })
-  qc.invalidateQueries({ queryKey: qk.vehicles })
-  qc.invalidateQueries({ queryKey: qk.assignments })
-}
-
-export function useCreateDriver() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (input: DriverInput) => api.createDriver(input),
-    onSuccess: () => invalidateDriverScope(qc),
-  })
-}
-
-export function useUpdateDriver() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (vars: { id: string; patch: Partial<DriverInput> }) =>
-      api.updateDriver(vars.id, vars.patch),
-    onSuccess: (_data, vars) => {
-      invalidateDriverScope(qc)
-      qc.invalidateQueries({ queryKey: qk.driver(vars.id) })
-    },
-  })
-}
-
-export function useDeleteDriver() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (id: string) => api.deleteDriver(id),
-    onSuccess: () => invalidateDriverScope(qc),
-  })
-}
-
-export function useAssignVehicleToDriver() {
-  const qc = useQueryClient()
-  return useMutation({
-    mutationFn: (vars: { driverId: string; vehicleId: string | null }) =>
-      api.assignVehicleToDriver(vars.driverId, vars.vehicleId),
-    onSuccess: (_data, vars) => {
-      invalidateDriverScope(qc)
-      qc.invalidateQueries({ queryKey: qk.driver(vars.driverId) })
-    },
   })
 }
 
@@ -475,10 +425,32 @@ export function useDeleteWebUser() {
 // number is the snapshot; we read the store in render.
 // ---------------------------------------------------------------------------
 
-export function useLiveVehicles(): Vehicle[] {
+// Mock mode: re-render off the simulation-driven store version.
+function useSimulatedLiveVehicles(): Vehicle[] {
   useSyncExternalStore(subscribe, getVersion, getVersion)
   return getDB().vehicles
 }
+
+// Real backend: poll the /vehicles/map snapshot. The verification stream patches
+// this cache (see verification-stream.ts) for instant updates between polls.
+function usePolledLiveVehicles(): Vehicle[] {
+  const { data } = useQuery({
+    queryKey: qk.vehiclesMap,
+    queryFn: api.listVehiclesMap,
+    refetchInterval: 4000,
+    refetchIntervalInBackground: true,
+    // Polls every 4s — don't spam the global error toast on each failure (e.g.
+    // before login / missing permission); the map just shows no vehicles.
+    meta: { suppressGlobalError: true },
+  })
+  return data ?? []
+}
+
+// Pick the implementation once at module load — `isRealApi` is a build-time
+// constant, so the hook identity is stable (no conditional-hook violation).
+export const useLiveVehicles: () => Vehicle[] = api.isRealApi
+  ? usePolledLiveVehicles
+  : useSimulatedLiveVehicles
 
 export function useLiveEvents(limit?: number): FleetEvent[] {
   useSyncExternalStore(subscribe, getVersion, getVersion)

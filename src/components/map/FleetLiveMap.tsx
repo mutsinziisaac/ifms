@@ -1,14 +1,9 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 
-import {
-  useDrivers,
-  useGeozones,
-  useLiveVehicles,
-  useRoutes,
-} from "@/data/hooks"
+import { isRealApi } from "@/data/api"
+import { useGeozones, useLiveVehicles, useRoutes } from "@/data/hooks"
 import type { Vehicle } from "@/data/types"
-import { fullName } from "@/lib/format"
 import { boundsOf, padBounds } from "@/lib/maps"
 
 import { FleetMap } from "./FleetMap"
@@ -25,14 +20,9 @@ import { VehicleMarker } from "./VehicleMarker"
 export function FleetLiveMap({ className }: { className?: string }) {
   const navigate = useNavigate()
   const vehicles = useLiveVehicles()
-  const drivers = useDrivers().data ?? []
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
 
-  const driverNameById = useMemo(
-    () => new Map(drivers.map((d) => [d.id, fullName(d)])),
-    [drivers]
-  )
   const geozoneNameById = useMemo(
     () => new Map(geozones.map((z) => [z.id, z.name])),
     [geozones]
@@ -44,8 +34,10 @@ export function FleetLiveMap({ className }: { className?: string }) {
     return base ? padBounds(base, 0.18) : null
   }, [vehicles])
 
-  const poiZones = geozones.filter((z) => z.isPOI && z.visible)
-  const activeRoutes = routes.filter((r) => r.active)
+  // Geozones and routes are still seeded (not migrated to the backend), so hide
+  // them against the real backend — the map then shows only real vehicles.
+  const poiZones = isRealApi ? [] : geozones.filter((z) => z.isPOI && z.visible)
+  const activeRoutes = isRealApi ? [] : routes.filter((r) => r.active)
 
   return (
     <FleetMap bounds={bounds} className={className} enableRightClickCoords={false}>
@@ -64,9 +56,6 @@ export function FleetLiveMap({ className }: { className?: string }) {
         <VehicleMarker
           key={vehicle.id}
           vehicle={vehicle}
-          driverName={
-            vehicle.driverId ? driverNameById.get(vehicle.driverId) : undefined
-          }
           geozoneName={
             vehicle.insideGeozoneId
               ? geozoneNameById.get(vehicle.insideGeozoneId)

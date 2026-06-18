@@ -1,31 +1,31 @@
 // Amharic (አማርኛ) — Providers feature. Shape mirrors en/providers.ts.
 export default {
   title: "አቅራቢዎች",
-  description: "ለ MoTL መድረክ የመሳሪያ መረጃ የሚያስተላልፉ የመንግሥት ሚኒስቴሮችና ተቋማት።",
+  description: "ለ MoTL መድረክ የመሳሪያ መረጃ የሚያስተላልፉ የመንግሥት ተቋማት።",
   searchPlaceholder: "አቅራቢዎችን ፈልግ…",
   emptyTitle: "ምንም አቅራቢ አልተገኘም",
   emptyDescription: "ሌላ ፍለጋ ይሞክሩ።",
+  active: "ንቁ",
+  inactive: "ቦዝኗል",
 
   stats: {
     providers: "አቅራቢዎች",
-    providersHint: "ሚኒስቴሮች፣ ኤጀንሲዎችና ድርጅቶች",
+    providersHint: "በመድረኩ የተመዘገቡ",
+    activeProviders: "ንቁ አቅራቢዎች",
+    activeProvidersHint: "በአሁኑ ጊዜ የነቁ",
     devicesTransmitting: "ስርጭት እያደረጉ ያሉ መሳሪያዎች",
     devicesTransmittingHint: "ከተመዘገቡ {{count}} መሳሪያዎች",
     fleetOnline: "በመስመር ላይ ያለ ፍሊት",
     fleetOnlineHint: "ንቁ ምልክት ያላቸው መሳሪያዎች",
-    messagesReceived: "የተቀበሉ መልዕክቶች",
-    messagesReceivedHint: "በዚህ ክፍለ ጊዜ የቦታ ሪፖርቶች",
   },
 
   table: {
     provider: "አቅራቢ",
-    type: "ዓይነት",
-    region: "ክልል",
+    status: "ሁኔታ",
     devices: "መሳሪያዎች",
     transmitting: "ስርጭት እያደረጉ",
     lastSync: "መጨረሻ የተገናኘበት",
-    messages: "መልዕክቶች",
-    activity: "እንቅስቃሴ",
+    added: "የተጨመረበት",
   },
 
   detail: {
@@ -33,6 +33,8 @@ export default {
     notFoundTitle: "አቅራቢ አልተገኘም",
     notFoundDescription: "የሚፈልጉት አቅራቢ የለም።",
     backToProviders: "ወደ አቅራቢዎች ተመለስ",
+    added: "የተጨመረበት",
+    updated: "የተሻሻለበት",
 
     stats: {
       devices: "መሳሪያዎች",
@@ -43,13 +45,6 @@ export default {
       allReporting: "ሁሉም መሳሪያዎች ሪፖርት እያደረጉ ናቸው",
       lastSync: "መጨረሻ የተገናኘበት",
       lastSyncHint: "የቅርብ ጊዜው የመሳሪያ ሪፖርት",
-      messagesReceived: "የተቀበሉ መልዕክቶች",
-      messagesReceivedHint: "በዚህ ክፍለ ጊዜ የቦታ ሪፖርቶች",
-    },
-
-    transmission: {
-      title: "የስርጭት እንቅስቃሴ",
-      caption: "በእያንዳንዱ የዝማኔ ዑደት ሪፖርት የሚያደርጉ መሳሪያዎች — የቀጥታ ምግብ።",
     },
 
     events: {

@@ -8,6 +8,8 @@ export default {
   passwordPlaceholder: "ማንኛውንም የይለፍ ቃል ያስገቡ",
   signIn: "ግባ",
   demoNotice: "የማሳያ ስሪት — ማንኛውም መለያ ይቀበላል።",
+  keycloakNotice: "ወደ ድርጅትዎ ደህንነቱ የተጠበቀ መግቢያ ይዛወራሉ።",
+  redirecting: "ወደ መግቢያ በመዛወር ላይ…",
 
   hero: {
     badge: "የኢትዮጵያ–ጅቡቲ ኮሪደር ክትትል",

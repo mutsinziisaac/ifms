@@ -34,10 +34,9 @@ export default {
   },
 
   table: {
-    searchPlaceholder: "በሰሌዳ፣ አሽከርካሪ ወይም ሪፖርት ቁ. ይፈልጉ…",
+    searchPlaceholder: "በሰሌዳ ወይም ሪፖርት ቁ. ይፈልጉ…",
     date: "ቀን",
     vehicle: "ተሽከርካሪ",
-    driver: "አሽከርካሪ",
     severity: "ክብደት",
     rootCause: "መንስኤ",
     casualties: "ጉዳተኞች",
@@ -57,8 +56,6 @@ export default {
     save: "ለውጦችን አስቀምጥ",
     vehicle: "ተሽከርካሪ",
     selectVehicle: "ተሽከርካሪ ይምረጡ",
-    driver: "አሽከርካሪ",
-    noDriver: "— አሽከርካሪ የለም —",
     severity: "ክብደት",
     rootCause: "መንስኤ",
     occurredAt: "ቀንና ሰዓት",

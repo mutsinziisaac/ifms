@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/select"
 import {
   useCreateVehicle,
-  useDrivers,
   useEntities,
   useRoutes,
   useUpdateVehicle,
@@ -26,7 +25,6 @@ import type {
   VehicleType,
 } from "@/data/types"
 import { ETHIOPIA_REGIONS, GPS_PROVIDERS, VEHICLE_TYPES } from "@/data/types"
-import { fullName } from "@/lib/format"
 
 // Radix Select forbids an empty string value, so we use sentinels for the
 // "unassigned" / "no route" options and translate them back to null on submit.
@@ -47,7 +45,6 @@ export function VehicleFormDialog({
   const isEdit = vehicle != null
 
   const entities = useEntities().data ?? []
-  const drivers = useDrivers().data ?? []
   const routes = useRoutes().data ?? []
 
   const createVehicle = useCreateVehicle()
@@ -59,7 +56,6 @@ export function VehicleFormDialog({
   const [entityId, setEntityId] = useState("")
   const [region, setRegion] = useState<EthiopiaRegion>("Addis Ababa")
   const [gpsProvider, setGpsProvider] = useState<GpsProvider>(GPS_PROVIDERS[0])
-  const [driverId, setDriverId] = useState<string>(NONE)
   const [routeId, setRouteId] = useState<string>(NONE)
 
   // Seed the form whenever the dialog opens (create -> blank, edit -> vehicle).
@@ -72,7 +68,6 @@ export function VehicleFormDialog({
       setEntityId(vehicle.entityId)
       setRegion(vehicle.region)
       setGpsProvider(vehicle.gpsProvider)
-      setDriverId(vehicle.driverId ?? NONE)
       setRouteId(vehicle.routeId ?? NONE)
     } else {
       setPlate("")
@@ -81,22 +76,10 @@ export function VehicleFormDialog({
       setEntityId(entities[0]?.id ?? "")
       setRegion("Addis Ababa")
       setGpsProvider(GPS_PROVIDERS[0])
-      setDriverId(NONE)
       setRouteId(NONE)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, vehicle])
-
-  // Driver options: unassigned drivers + the vehicle's current driver (edit).
-  const driverOptions = useMemo(
-    () =>
-      drivers.filter(
-        (d) =>
-          d.assignedVehicleId === null ||
-          (vehicle != null && d.id === vehicle.driverId)
-      ),
-    [drivers, vehicle]
-  )
 
   // Route options: active routes + the vehicle's current route (edit).
   const routeOptions = useMemo(
@@ -120,7 +103,6 @@ export function VehicleFormDialog({
       entityId,
       region,
       gpsProvider,
-      driverId: driverId === NONE ? null : driverId,
       routeId: routeId === NONE ? null : routeId,
     }
 
@@ -252,42 +234,23 @@ export function VehicleFormDialog({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="vehicle-gps">{t("forms.gpsProvider")}</Label>
-          <Select
-            value={gpsProvider}
-            onValueChange={(v) => setGpsProvider(v as GpsProvider)}
-          >
-            <SelectTrigger id="vehicle-gps" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {GPS_PROVIDERS.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="vehicle-driver">{t("forms.driver")}</Label>
-          <Select value={driverId} onValueChange={setDriverId}>
-            <SelectTrigger id="vehicle-driver" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>{t("common.unassigned")}</SelectItem>
-              {driverOptions.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {fullName(d)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <div className="space-y-2">
+        <Label htmlFor="vehicle-gps">{t("forms.gpsProvider")}</Label>
+        <Select
+          value={gpsProvider}
+          onValueChange={(v) => setGpsProvider(v as GpsProvider)}
+        >
+          <SelectTrigger id="vehicle-gps" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {GPS_PROVIDERS.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-2">

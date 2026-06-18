@@ -40,6 +40,18 @@ export interface Entity {
   region: EthiopiaRegion
 }
 
+// The provider record as returned by the live backend `GET /providers`. Lean by
+// design — the endpoint carries only identity + lifecycle, no name/category/
+// region/contact (those existed only on the in-memory `Entity` seed). The
+// Providers feature reads this; the rest of the app still uses `Entity`.
+export interface Provider {
+  id: ID // numeric backend id, stringified (used for routing)
+  code: string // provider_code — the displayed identifier + fleet-link key
+  active: boolean
+  createdAt: string // creation_time (ISO)
+  modifiedAt: string // time_last_modified (ISO)
+}
+
 // ---------------------------------------------------------------------------
 // Vehicles
 // ---------------------------------------------------------------------------
@@ -76,6 +88,32 @@ export const GPS_PROVIDERS = [
 ] as const
 export type GpsProvider = (typeof GPS_PROVIDERS)[number]
 
+/**
+ * ITMS catalogue verification state, mirroring the backend's
+ * `itms_verification_status` (GET /api/v1/vehicles). VERIFIED = matched in the
+ * ITMS registry; NOT_FOUND = no registry match ("Failed"); UNVERIFIED = not yet
+ * checked. SCREAMING_CASE matches the wire format and the `?verification=` param.
+ */
+export const ITMS_VERIFICATION_STATUSES = [
+  "VERIFIED",
+  "NOT_FOUND",
+  "UNVERIFIED",
+] as const
+export type ItmsVerificationStatus = (typeof ITMS_VERIFICATION_STATUSES)[number]
+
+/**
+ * Vehicle registry status from the catalogue (`status` on GET /api/v1/vehicles)
+ * — the registration lifecycle, distinct from the operational `VehicleStatus`
+ * (moving/idling/…) that comes from live telemetry.
+ */
+export const VEHICLE_REGISTRY_STATUSES = [
+  "ACTIVE",
+  "SUSPENDED",
+  "RETIRED",
+  "BLOCKED",
+] as const
+export type VehicleRegistryStatus = (typeof VEHICLE_REGISTRY_STATUSES)[number]
+
 export interface Vehicle {
   id: ID
   /** Ethiopian plate, e.g. "3-45821 ET" */
@@ -86,7 +124,6 @@ export interface Vehicle {
   entityId: ID
   region: EthiopiaRegion
   gpsProvider: GpsProvider
-  driverId: ID | null
   status: VehicleStatus
   /** ISO timestamp the current status began (drives "status duration") */
   statusSince: string
@@ -103,57 +140,22 @@ export interface Vehicle {
   /** Geozone the vehicle is currently inside (computed by the simulation) */
   insideGeozoneId: ID | null
   createdAt: string
+  /** ITMS catalogue verification state (from GET /api/v1/vehicles). */
+  itmsVerificationStatus: ItmsVerificationStatus
+  /** Make, e.g. "Sinotruk" — only the backend catalogue supplies it. */
+  make?: string
+  /** Model, e.g. "Howo A7" — only the backend catalogue supplies it. */
+  model?: string
+  /** Telematics provider slug, e.g. "geotrack-et" (backend catalogue). */
+  provider?: string
+  /** Provider's external device/vehicle id (backend catalogue). */
+  externalId?: string
+  /** Registration lifecycle status (backend catalogue `status`). */
+  registryStatus?: VehicleRegistryStatus
   // --- simulation bookkeeping (not rendered directly) ---
   /** 0..1 progress along the assigned route path */
   routeProgress: number
   routeDir: 1 | -1
-}
-
-// ---------------------------------------------------------------------------
-// Drivers
-// ---------------------------------------------------------------------------
-
-export const LICENSE_CATEGORIES = [
-  "B",
-  "C1",
-  "C",
-  "D",
-  "E",
-  "Public I",
-  "Public II",
-] as const
-export type LicenseCategory = (typeof LICENSE_CATEGORIES)[number]
-
-export const DRIVER_STATUSES = [
-  "active",
-  "on_leave",
-  "suspended",
-  "inactive",
-] as const
-export type DriverStatus = (typeof DRIVER_STATUSES)[number]
-
-export interface Driver {
-  id: ID
-  firstName: string
-  lastName: string
-  licenseNo: string
-  licenseCategory: LicenseCategory
-  /** ISO date */
-  licenseExpiry: string
-  phone: string
-  email: string
-  entityId: ID
-  status: DriverStatus
-  assignedVehicleId: ID | null
-  /** ISO date */
-  hireDate: string
-  emergencyContactName: string
-  emergencyContactPhone: string
-  /** 0..100 — drives the safety panel on the driver detail page */
-  safetyScore: number
-  harshBrakingCount: number
-  harshAccelCount: number
-  speedingCount: number
 }
 
 // ---------------------------------------------------------------------------
@@ -364,25 +366,6 @@ export interface Trip {
 }
 
 // ---------------------------------------------------------------------------
-// Driver assignment history
-// ---------------------------------------------------------------------------
-
-/**
- * Who drove a vehicle, and when. The open assignment (endAt === null) for a
- * vehicle always matches its current `driverId`. Travel history is attributed
- * by finding the assignment whose window covers a trip's start time.
- */
-export interface VehicleDriverAssignment {
-  id: ID
-  vehicleId: ID
-  driverId: ID
-  /** ISO timestamp the assignment began */
-  startAt: string
-  /** ISO timestamp it ended, or null for the current/open assignment */
-  endAt: string | null
-}
-
-// ---------------------------------------------------------------------------
 // Safety & incidents (accident records — SRS Safety & Incident Dashboard)
 // ---------------------------------------------------------------------------
 
@@ -402,8 +385,6 @@ export interface AccidentRecord {
   vehicleId: ID
   /** Denormalized plate so the record survives a since-deleted vehicle */
   vehiclePlate: string
-  driverId: ID | null
-  driverName: string | null
   entityId: ID
   severity: IncidentSeverity
   rootCause: IncidentRootCause
@@ -430,7 +411,6 @@ export interface AccidentRecord {
 
 export const PERMISSION_MODULES = [
   "fleet",
-  "drivers",
   "events",
   "geozones",
   "routes",
@@ -501,7 +481,6 @@ export interface SessionUser {
 export interface DB {
   entities: Entity[]
   vehicles: Vehicle[]
-  drivers: Driver[]
   geozones: Geozone[]
   geozoneGroups: GeozoneGroup[]
   eventRules: EventRule[]
@@ -509,7 +488,6 @@ export interface DB {
   providerTelemetry: ProviderTelemetry[]
   routes: RouteDef[]
   trips: Trip[]
-  assignments: VehicleDriverAssignment[]
   accidents: AccidentRecord[]
   roles: Role[]
   webUsers: WebUser[]

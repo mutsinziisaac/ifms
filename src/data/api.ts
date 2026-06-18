@@ -1,13 +1,39 @@
 // Mock API layer. Every function is async with a little artificial latency so
 // the UI exercises real loading states. All writes go through store.mutate so
-// the version bumps and live consumers re-render. No backend exists.
+// the version bumps and live consumers re-render. No backend exists yet.
+//
+// MIGRATING TO THE REAL BACKEND (one resource at a time)
+// ------------------------------------------------------
+// This module is the single seam between the app and its data. Hooks
+// (`src/data/hooks.ts`), query keys, and all UI call these functions and never
+// care how they're implemented — so each function body can be swapped from the
+// in-memory store to a real HTTP call independently, leaving everything mock
+// until its endpoint is ready. The HTTP client (`src/lib/http.ts`) attaches the
+// Keycloak token, unwraps the response envelope, and turns failures into
+// `ApiError`. Keep the same signatures so callers don't change. For example:
+//
+//   import { http, getAll } from "@/lib/http"
+//
+//   export async function listGeozones(): Promise<Geozone[]> {
+//     return getAll<Geozone>("/geozones")            // pages through, returns all
+//   }
+//   export async function getGeozone(id: ID): Promise<Geozone | null> {
+//     return http.get<Geozone>(`/geozones/${id}`)
+//   }
+//   export async function createGeozone(input: GeozoneInput): Promise<Geozone> {
+//     return http.post<Geozone>("/geozones", input)
+//   }
+//
+// Notes: an empty VITE_API_BASE_URL keeps these on mock data (no requests). The
+// live map hooks (useLiveVehicles/Events/ProviderTelemetry in hooks.ts) read
+// the simulation-driven store directly and are NOT covered here — they need a
+// separate polling/stream decision once vehicles/events go real.
 
 import { densifyPath, nearestPlaceName } from "./geo"
 import { getDB, mutate } from "./store"
 import type {
-  Driver,
-  DriverStatus,
   Entity,
+  Provider,
   EthiopiaRegion,
   EventRule,
   EventRuleNotify,
@@ -19,12 +45,11 @@ import type {
   GeozoneShape,
   GpsProvider,
   ID,
+  ItmsVerificationStatus,
   LatLng,
-  LicenseCategory,
   RouteDef,
   Trip,
   Vehicle,
-  VehicleDriverAssignment,
   VehicleType,
   Waypoint,
   AccidentRecord,
@@ -37,6 +62,41 @@ import type {
   WebUserStatus,
 } from "./types"
 import { centroidOf, isInsideGeozone, pathLengthKm } from "@/lib/maps"
+import { ApiError, getAll, http } from "@/lib/http"
+import {
+  mapProviderResponse,
+  mapVehicleMapItem,
+  mapVehicleResponse,
+  type ProviderResponse,
+  type VehicleMapItem,
+  type VehicleResponse,
+} from "./mappers"
+
+/**
+ * When VITE_API_BASE_URL is set we hit the real backend; otherwise every
+ * function below stays on the in-memory mock. Resources migrate to real HTTP
+ * one at a time (see the note at the top of this file) — `listVehicles` is the
+ * first.
+ */
+export const isRealApi = Boolean(import.meta.env.VITE_API_BASE_URL)
+
+/**
+ * `http.get` unwraps the standard `{ header, data }` envelope. A few endpoints
+ * (e.g. /vehicles/map) return a bare `{ data: … }` with no `header`, which
+ * `http.get` leaves wrapped — so peel one more `data` level when present. The
+ * domain entities themselves have no top-level `data` field, so this is safe.
+ */
+function unwrapData<T>(body: unknown): T {
+  if (
+    body !== null &&
+    typeof body === "object" &&
+    !Array.isArray(body) &&
+    "data" in body
+  ) {
+    return (body as { data: T }).data
+  }
+  return body as T
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -86,24 +146,7 @@ export interface VehicleInput {
   entityId: ID
   region: EthiopiaRegion
   gpsProvider: GpsProvider
-  driverId: ID | null
   routeId: ID | null
-}
-
-export interface DriverInput {
-  firstName: string
-  lastName: string
-  licenseNo: string
-  licenseCategory: LicenseCategory
-  licenseExpiry: string
-  phone: string
-  email: string
-  entityId: ID
-  status: DriverStatus
-  assignedVehicleId: ID | null
-  hireDate: string
-  emergencyContactName: string
-  emergencyContactPhone: string
 }
 
 export interface GeozoneInput {
@@ -135,74 +178,6 @@ function findVehicle(
   return db.vehicles.find((v) => v.id === id)
 }
 
-function findDriver(db: ReturnType<typeof getDB>, id: ID): Driver | undefined {
-  return db.drivers.find((d) => d.id === id)
-}
-
-/**
- * Keep the driver assignment history consistent when a vehicle's driver
- * changes: close the current open assignment and open a new one. No-op when
- * the driver is unchanged. Pass newDriverId null to just close the open one.
- */
-function recordAssignmentChange(
-  db: ReturnType<typeof getDB>,
-  vehicleId: ID,
-  newDriverId: ID | null
-): void {
-  const open = db.assignments.find(
-    (a) => a.vehicleId === vehicleId && a.endAt === null
-  )
-  const currentDriverId = open?.driverId ?? null
-  if (currentDriverId === newDriverId) return
-  const now = nowIso()
-  if (open) open.endAt = now
-  if (newDriverId !== null) {
-    db.assignments.push({
-      id: nextId("asn"),
-      vehicleId,
-      driverId: newDriverId,
-      startAt: now,
-      endAt: null,
-    })
-  }
-}
-
-/**
- * Keep the bidirectional driver<->vehicle link consistent. Assigning a driver
- * to a vehicle clears that driver from any other vehicle and clears the
- * vehicle's previous driver. Pass driverId null to detach.
- */
-function linkDriverToVehicle(
-  db: ReturnType<typeof getDB>,
-  vehicle: Vehicle,
-  driverId: ID | null
-): void {
-  const previousDriverId = vehicle.driverId
-
-  if (driverId !== null) {
-    // Clear the incoming driver off any other vehicle.
-    for (const other of db.vehicles) {
-      if (other.id !== vehicle.id && other.driverId === driverId) {
-        other.driverId = null
-        recordAssignmentChange(db, other.id, null)
-      }
-    }
-    const incoming = findDriver(db, driverId)
-    if (incoming) incoming.assignedVehicleId = vehicle.id
-  }
-
-  // Clear the vehicle's previous driver's back-reference.
-  if (previousDriverId !== null && previousDriverId !== driverId) {
-    const prev = findDriver(db, previousDriverId)
-    if (prev && prev.assignedVehicleId === vehicle.id) {
-      prev.assignedVehicleId = null
-    }
-  }
-
-  recordAssignmentChange(db, vehicle.id, driverId)
-  vehicle.driverId = driverId
-}
-
 function computeInsideGeozone(
   db: ReturnType<typeof getDB>,
   position: LatLng
@@ -223,15 +198,85 @@ export async function listEntities(): Promise<Entity[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Providers
+// ---------------------------------------------------------------------------
+
+// Always hits the live backend — providers are API-only (no mock fallback).
+// `getAll` pages through PayloadArrayProviderResponse; the default page size
+// returns the whole catalogue in one request.
+export async function listProviders(): Promise<Provider[]> {
+  const rows = await getAll<ProviderResponse>("/providers")
+  return rows.map(mapProviderResponse)
+}
+
+// ---------------------------------------------------------------------------
 // Vehicles
 // ---------------------------------------------------------------------------
 
-export async function listVehicles(): Promise<Vehicle[]> {
+// First resource on the real backend. `getAll` pages through
+// PayloadArrayVehicleResponse; the dedicated `verification=` param matches the
+// `GET /api/v1/vehicles?verification=NOT_FOUND` contract (the generic
+// `filter=verification::NOT_FOUND` form is a one-line swap). The mock fallback
+// filters the seed in-memory so the prototype demos the same behaviour offline.
+export async function listVehicles(
+  verification?: ItmsVerificationStatus
+): Promise<Vehicle[]> {
+  if (isRealApi) {
+    const rows = await getAll<VehicleResponse>(
+      "/vehicles",
+      verification ? { verification } : undefined
+    )
+    return rows.map(mapVehicleResponse)
+  }
+  await latency()
+  const all = getDB().vehicles
+  return verification
+    ? all.filter((v) => v.itmsVerificationStatus === verification)
+    : [...all]
+}
+
+// The Fleet page's verification queue — vehicles flagged for ITMS review
+// (GET /api/v1/vehicles?filter=verification). `getAll` pages through and the
+// rows carry only catalogue fields (plate/provider/external_id/registry status/
+// verification), no telemetry. Mock fallback returns the non-VERIFIED seed so
+// the prototype demos the same queue offline.
+export async function listVerificationVehicles(): Promise<Vehicle[]> {
+  if (isRealApi) {
+    const rows = await getAll<VehicleResponse>("/vehicles", {
+      filter: "verification",
+    })
+    return rows.map(mapVehicleResponse)
+  }
+  await latency()
+  return getDB().vehicles.filter(
+    (v) => v.itmsVerificationStatus !== "VERIFIED"
+  )
+}
+
+// Live map snapshot — current position + movement state + verification for the
+// whole fleet (drives the map and dashboard live widgets). Mock fallback returns
+// the simulation-driven store (used only when VITE_API_BASE_URL is blank).
+export async function listVehiclesMap(): Promise<Vehicle[]> {
+  if (isRealApi) {
+    const body = await http.get<unknown>("/vehicles/map")
+    const items = unwrapData<VehicleMapItem[]>(body)
+    return (Array.isArray(items) ? items : []).map(mapVehicleMapItem)
+  }
   await latency()
   return [...getDB().vehicles]
 }
 
+// Detail catalogue record. Writes stay on the mock until their endpoints land.
 export async function getVehicle(id: ID): Promise<Vehicle | null> {
+  if (isRealApi) {
+    try {
+      const body = await http.get<unknown>(`/vehicles/${id}`)
+      return mapVehicleResponse(unwrapData<VehicleResponse>(body))
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null
+      throw err
+    }
+  }
   await latency()
   return getDB().vehicles.find((v) => v.id === id) ?? null
 }
@@ -253,7 +298,6 @@ export async function createVehicle(input: VehicleInput): Promise<Vehicle> {
       entityId: input.entityId,
       region: input.region,
       gpsProvider: input.gpsProvider,
-      driverId: null,
       status: "ignition_off",
       statusSince: now,
       position,
@@ -265,13 +309,11 @@ export async function createVehicle(input: VehicleInput): Promise<Vehicle> {
       routeId: input.routeId,
       insideGeozoneId: computeInsideGeozone(db, position),
       createdAt: now,
+      itmsVerificationStatus: "UNVERIFIED",
       routeProgress: 0,
       routeDir: 1,
     }
     db.vehicles.push(vehicle)
-    if (input.driverId !== null) {
-      linkDriverToVehicle(db, vehicle, input.driverId)
-    }
     created = vehicle
   })
   return created!
@@ -303,10 +345,6 @@ export async function updateVehicle(
       }
     }
 
-    if (patch.driverId !== undefined) {
-      linkDriverToVehicle(db, vehicle, patch.driverId)
-    }
-
     updated = vehicle
   })
   return updated!
@@ -317,173 +355,7 @@ export async function deleteVehicle(id: ID): Promise<void> {
   mutate((db) => {
     const vehicle = findVehicle(db, id)
     if (!vehicle) return
-    // Clear the driver back-reference.
-    if (vehicle.driverId !== null) {
-      const driver = findDriver(db, vehicle.driverId)
-      if (driver && driver.assignedVehicleId === id) {
-        driver.assignedVehicleId = null
-      }
-    }
-    // Drop its assignment history.
-    db.assignments = db.assignments.filter((a) => a.vehicleId !== id)
     db.vehicles = db.vehicles.filter((v) => v.id !== id)
-  })
-}
-
-// ---------------------------------------------------------------------------
-// Drivers
-// ---------------------------------------------------------------------------
-
-export async function listDrivers(): Promise<Driver[]> {
-  await latency()
-  return [...getDB().drivers]
-}
-
-export async function getDriver(id: ID): Promise<Driver | null> {
-  await latency()
-  return getDB().drivers.find((d) => d.id === id) ?? null
-}
-
-export async function createDriver(input: DriverInput): Promise<Driver> {
-  await latency()
-  let created: Driver | null = null
-  mutate((db) => {
-    const driver: Driver = {
-      id: nextId("drv"),
-      firstName: input.firstName,
-      lastName: input.lastName,
-      licenseNo: input.licenseNo,
-      licenseCategory: input.licenseCategory,
-      licenseExpiry: input.licenseExpiry,
-      phone: input.phone,
-      email: input.email,
-      entityId: input.entityId,
-      status: input.status,
-      assignedVehicleId: null,
-      hireDate: input.hireDate,
-      emergencyContactName: input.emergencyContactName,
-      emergencyContactPhone: input.emergencyContactPhone,
-      safetyScore: Math.round(randomBetween(70, 99)),
-      harshBrakingCount: Math.round(randomBetween(0, 12)),
-      harshAccelCount: Math.round(randomBetween(0, 12)),
-      speedingCount: Math.round(randomBetween(0, 8)),
-    }
-    db.drivers.push(driver)
-    if (input.assignedVehicleId !== null) {
-      const vehicle = findVehicle(db, input.assignedVehicleId)
-      if (vehicle) linkDriverToVehicle(db, vehicle, driver.id)
-    }
-    created = driver
-  })
-  return created!
-}
-
-export async function updateDriver(
-  id: ID,
-  patch: Partial<DriverInput>
-): Promise<Driver> {
-  await latency()
-  let updated: Driver | null = null
-  mutate((db) => {
-    const driver = findDriver(db, id)
-    if (!driver) throw new Error(`Driver ${id} not found`)
-
-    if (patch.firstName !== undefined) driver.firstName = patch.firstName
-    if (patch.lastName !== undefined) driver.lastName = patch.lastName
-    if (patch.licenseNo !== undefined) driver.licenseNo = patch.licenseNo
-    if (patch.licenseCategory !== undefined)
-      driver.licenseCategory = patch.licenseCategory
-    if (patch.licenseExpiry !== undefined)
-      driver.licenseExpiry = patch.licenseExpiry
-    if (patch.phone !== undefined) driver.phone = patch.phone
-    if (patch.email !== undefined) driver.email = patch.email
-    if (patch.entityId !== undefined) driver.entityId = patch.entityId
-    if (patch.status !== undefined) driver.status = patch.status
-    if (patch.hireDate !== undefined) driver.hireDate = patch.hireDate
-    if (patch.emergencyContactName !== undefined)
-      driver.emergencyContactName = patch.emergencyContactName
-    if (patch.emergencyContactPhone !== undefined)
-      driver.emergencyContactPhone = patch.emergencyContactPhone
-
-    if (patch.assignedVehicleId !== undefined) {
-      applyDriverVehicleAssignment(db, driver, patch.assignedVehicleId)
-    }
-
-    updated = driver
-  })
-  return updated!
-}
-
-export async function deleteDriver(id: ID): Promise<void> {
-  await latency()
-  mutate((db) => {
-    const driver = findDriver(db, id)
-    if (!driver) return
-    // Clear vehicle.driverId for any vehicle that referenced this driver and
-    // close its open assignment. Past assignments are kept (the UI tolerates a
-    // since-removed driver).
-    for (const vehicle of db.vehicles) {
-      if (vehicle.driverId === id) {
-        vehicle.driverId = null
-        recordAssignmentChange(db, vehicle.id, null)
-      }
-    }
-    db.drivers = db.drivers.filter((d) => d.id !== id)
-  })
-}
-
-/**
- * Assign (or detach) a vehicle to/from a driver, keeping the bidirectional
- * link consistent — same logic as create/update Vehicle.
- */
-function applyDriverVehicleAssignment(
-  db: ReturnType<typeof getDB>,
-  driver: Driver,
-  vehicleId: ID | null
-): void {
-  const previousVehicleId = driver.assignedVehicleId
-
-  // Detach the driver from its previous vehicle if it changed.
-  if (previousVehicleId !== null && previousVehicleId !== vehicleId) {
-    const prevVehicle = findVehicle(db, previousVehicleId)
-    if (prevVehicle && prevVehicle.driverId === driver.id) {
-      prevVehicle.driverId = null
-      recordAssignmentChange(db, prevVehicle.id, null)
-    }
-  }
-
-  if (vehicleId !== null) {
-    const vehicle = findVehicle(db, vehicleId)
-    if (vehicle) {
-      // Clear whoever else was holding this vehicle.
-      if (vehicle.driverId !== null && vehicle.driverId !== driver.id) {
-        const otherDriver = findDriver(db, vehicle.driverId)
-        if (otherDriver) otherDriver.assignedVehicleId = null
-      }
-      // Clear this driver off any other vehicle.
-      for (const other of db.vehicles) {
-        if (other.id !== vehicle.id && other.driverId === driver.id) {
-          other.driverId = null
-          recordAssignmentChange(db, other.id, null)
-        }
-      }
-      recordAssignmentChange(db, vehicle.id, driver.id)
-      vehicle.driverId = driver.id
-    }
-  }
-
-  driver.assignedVehicleId = vehicleId
-}
-
-export async function assignVehicleToDriver(
-  driverId: ID,
-  vehicleId: ID | null
-): Promise<void> {
-  await latency()
-  mutate((db) => {
-    const driver = findDriver(db, driverId)
-    if (!driver) throw new Error(`Driver ${driverId} not found`)
-    applyDriverVehicleAssignment(db, driver, vehicleId)
   })
 }
 
@@ -950,25 +822,11 @@ export async function listTripsForVehicle(vehicleId: ID): Promise<Trip[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Driver assignment history
-// ---------------------------------------------------------------------------
-
-export async function listAssignmentsForVehicle(
-  vehicleId: ID
-): Promise<VehicleDriverAssignment[]> {
-  await latency()
-  return getDB()
-    .assignments.filter((a) => a.vehicleId === vehicleId)
-    .sort((a, b) => (a.startAt < b.startAt ? 1 : -1))
-}
-
-// ---------------------------------------------------------------------------
 // Accident / incident records
 // ---------------------------------------------------------------------------
 
 export interface AccidentInput {
   vehicleId: ID
-  driverId: ID | null
   severity: IncidentSeverity
   rootCause: IncidentRootCause
   address: string
@@ -981,24 +839,20 @@ export interface AccidentInput {
   notes: string
 }
 
-/** Denormalize a vehicle + driver into the fields stored on accidents. */
+/** Denormalize a vehicle into the fields stored on accidents. */
 function denormalizeParties(
   db: ReturnType<typeof getDB>,
-  vehicleId: ID,
-  driverId: ID | null
+  vehicleId: ID
 ): {
   vehiclePlate: string
   entityId: ID
   location: LatLng
-  driverName: string | null
 } {
   const vehicle = findVehicle(db, vehicleId)
-  const driver = driverId ? findDriver(db, driverId) : undefined
   return {
     vehiclePlate: vehicle?.plate ?? "—",
     entityId: vehicle?.entityId ?? "",
     location: vehicle?.position ?? ADDIS,
-    driverName: driver ? `${driver.firstName} ${driver.lastName}` : null,
   }
 }
 
@@ -1013,13 +867,11 @@ export async function createAccident(
   await latency()
   let created: AccidentRecord | null = null
   mutate((db) => {
-    const parties = denormalizeParties(db, input.vehicleId, input.driverId)
+    const parties = denormalizeParties(db, input.vehicleId)
     const record: AccidentRecord = {
       id: nextId("acc"),
       vehicleId: input.vehicleId,
       vehiclePlate: parties.vehiclePlate,
-      driverId: input.driverId,
-      driverName: parties.driverName,
       entityId: parties.entityId,
       severity: input.severity,
       rootCause: input.rootCause,
@@ -1049,16 +901,12 @@ export async function updateAccident(
     const record = db.accidents.find((a) => a.id === id)
     if (!record) throw new Error(`Accident ${id} not found`)
 
-    if (patch.vehicleId !== undefined || patch.driverId !== undefined) {
-      const vehicleId = patch.vehicleId ?? record.vehicleId
-      const driverId =
-        patch.driverId !== undefined ? patch.driverId : record.driverId
-      const parties = denormalizeParties(db, vehicleId, driverId)
+    if (patch.vehicleId !== undefined) {
+      const vehicleId = patch.vehicleId
+      const parties = denormalizeParties(db, vehicleId)
       record.vehicleId = vehicleId
-      record.driverId = driverId
       record.vehiclePlate = parties.vehiclePlate
       record.entityId = parties.entityId
-      record.driverName = parties.driverName
     }
     if (patch.severity !== undefined) record.severity = patch.severity
     if (patch.rootCause !== undefined) record.rootCause = patch.rootCause

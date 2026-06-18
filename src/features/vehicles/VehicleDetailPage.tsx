@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useDeleteVehicle, useEntities, useVehicle } from "@/data/hooks"
 
-import { VehicleDriverCard } from "./components/VehicleDriverCard"
 import { VehicleEventsCard } from "./components/VehicleEventsCard"
 import { VehicleFormDialog } from "./components/VehicleFormDialog"
 import { VehicleIdentityHeader } from "./components/VehicleIdentityHeader"
@@ -100,10 +99,7 @@ export function VehicleDetailPage() {
           }
         />
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-          <VehicleMapCard vehicle={vehicle} />
-          <VehicleDriverCard vehicle={vehicle} />
-        </div>
+        <VehicleMapCard vehicle={vehicle} />
 
         <VehicleLiveStatusCard vehicle={vehicle} />
 

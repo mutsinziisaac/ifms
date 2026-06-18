@@ -1,25 +1,19 @@
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { Activity, Building2, MessagesSquare, RadioTower } from "lucide-react"
+import { Activity, Building2, CheckCircle2, RadioTower } from "lucide-react"
 
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable"
 import { RelativeTime } from "@/components/common/RelativeTime"
-import { Sparkline } from "@/components/common/Sparkline"
 import { StatCard } from "@/components/common/StatCard"
 import { PageHeader } from "@/components/layout/PageHeader"
-import {
-  useEntities,
-  useLiveProviderTelemetry,
-  useLiveVehicles,
-} from "@/data/hooks"
-import type { Entity } from "@/data/types"
+import { Badge } from "@/components/ui/badge"
+import { useLiveVehicles, useProviders } from "@/data/hooks"
+import type { Provider } from "@/data/types"
 import { computeProviderStats, type ProviderStats } from "@/lib/provider-stats"
 import { cn } from "@/lib/utils"
 
-import { ProviderCategoryBadge } from "./components/ProviderCategoryBadge"
-
-interface ProviderRow extends Entity {
+interface ProviderRow extends Provider {
   stats: ProviderStats
 }
 
@@ -46,40 +40,35 @@ function OnlineBar({ stats }: { stats: ProviderStats }) {
 export function ProvidersPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const entities = useEntities().data ?? []
+  const providers = useProviders().data ?? []
   const vehicles = useLiveVehicles()
-  const telemetry = useLiveProviderTelemetry()
   const [search, setSearch] = useState("")
 
   const rows = useMemo<ProviderRow[]>(
     () =>
-      entities
-        .map((e) => ({
-          ...e,
-          stats: computeProviderStats(e, vehicles, telemetry),
+      providers
+        .map((p) => ({
+          ...p,
+          stats: computeProviderStats(p.code, vehicles),
         }))
         .filter((row) => {
           const q = search.trim().toLowerCase()
           if (!q) return true
-          return (
-            row.name.toLowerCase().includes(q) ||
-            row.shortName.toLowerCase().includes(q) ||
-            row.region.toLowerCase().includes(q)
-          )
+          return row.code.toLowerCase().includes(q)
         })
         .sort((a, b) => b.stats.deviceCount - a.stats.deviceCount),
-    [entities, vehicles, telemetry, search]
+    [providers, vehicles, search]
   )
 
+  const activeProviders = providers.filter((p) => p.active).length
   const totalDevices = vehicles.length
   const onlineDevices = vehicles.filter((v) => v.status !== "no_signal").length
   const onlinePct =
     totalDevices > 0 ? Math.round((onlineDevices / totalDevices) * 100) : 0
-  const messagesTotal = telemetry.reduce((sum, t) => sum + t.messagesTotal, 0)
 
   const columns: DataTableColumn<ProviderRow>[] = [
     {
-      key: "name",
+      key: "code",
       header: t("providers.table.provider"),
       render: (row) => (
         <div className="flex min-w-0 items-center gap-3">
@@ -87,21 +76,22 @@ export function ProvidersPage() {
             <Building2 className="size-4" />
           </div>
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{row.name}</p>
-            <p className="text-xs text-muted-foreground">{row.shortName}</p>
+            <p className="truncate font-mono text-sm font-medium">{row.code}</p>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              #{row.id}
+            </p>
           </div>
         </div>
       ),
     },
     {
-      key: "category",
-      header: t("providers.table.type"),
-      render: (row) => <ProviderCategoryBadge category={row.category} />,
-    },
-    {
-      key: "region",
-      header: t("providers.table.region"),
-      render: (row) => <span className="text-sm">{row.region}</span>,
+      key: "status",
+      header: t("providers.table.status"),
+      render: (row) => (
+        <Badge variant={row.active ? "default" : "secondary"}>
+          {row.active ? t("providers.active") : t("providers.inactive")}
+        </Badge>
+      ),
     },
     {
       key: "devices",
@@ -131,21 +121,13 @@ export function ProvidersPage() {
         ),
     },
     {
-      key: "messages",
-      header: t("providers.table.messages"),
+      key: "added",
+      header: t("providers.table.added"),
       render: (row) => (
-        <span className="text-sm tabular-nums">
-          {row.stats.messagesTotal.toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      key: "trend",
-      header: t("providers.table.activity"),
-      render: (row) => (
-        <div className="h-8 w-24 text-primary">
-          <Sparkline data={row.stats.history} />
-        </div>
+        <RelativeTime
+          iso={row.createdAt}
+          className="text-sm text-muted-foreground"
+        />
       ),
     },
   ]
@@ -161,9 +143,16 @@ export function ProvidersPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             label={t("providers.stats.providers")}
-            value={entities.length}
+            value={providers.length}
             icon={Building2}
             hint={t("providers.stats.providersHint")}
+          />
+          <StatCard
+            label={t("providers.stats.activeProviders")}
+            value={activeProviders}
+            icon={CheckCircle2}
+            intent="success"
+            hint={t("providers.stats.activeProvidersHint")}
           />
           <StatCard
             label={t("providers.stats.devicesTransmitting")}
@@ -180,12 +169,6 @@ export function ProvidersPage() {
             icon={Activity}
             intent={onlinePct >= 90 ? "success" : "warning"}
             hint={t("providers.stats.fleetOnlineHint")}
-          />
-          <StatCard
-            label={t("providers.stats.messagesReceived")}
-            value={messagesTotal.toLocaleString()}
-            icon={MessagesSquare}
-            hint={t("providers.stats.messagesReceivedHint")}
           />
         </div>
 

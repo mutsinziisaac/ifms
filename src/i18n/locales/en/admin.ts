@@ -104,7 +104,6 @@ export default {
 
   modules: {
     fleet: "Fleet",
-    drivers: "Drivers",
     events: "Events",
     geozones: "Geozones",
     routes: "Routes",

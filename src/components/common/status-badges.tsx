@@ -3,18 +3,20 @@ import { useTranslation } from "react-i18next"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import {
-  DRIVER_STATUS_CONFIG,
   EVENT_SEVERITY_CONFIG,
   EVENT_STATUS_CONFIG,
   INCIDENT_SEVERITY_CONFIG,
+  ITMS_VERIFICATION_CONFIG,
+  VEHICLE_REGISTRY_CONFIG,
   VEHICLE_STATUS_CONFIG,
   WEB_USER_STATUS_CONFIG,
 } from "@/lib/status"
 import type {
-  DriverStatus,
   EventSeverity,
   EventStatus,
   IncidentSeverity,
+  ItmsVerificationStatus,
+  VehicleRegistryStatus,
   VehicleStatus,
   WebUserStatus,
 } from "@/data/types"
@@ -30,12 +32,32 @@ export function VehicleStatusBadge({ status }: { status: VehicleStatus }) {
   )
 }
 
-export function DriverStatusBadge({ status }: { status: DriverStatus }) {
+export function VerificationBadge({
+  status,
+}: {
+  status: ItmsVerificationStatus
+}) {
   const { t } = useTranslation()
-  const config = DRIVER_STATUS_CONFIG[status]
+  const config = ITMS_VERIFICATION_CONFIG[status]
   return (
     <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
-      {t(`enums.driverStatus.${status}`)}
+      <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+      {t(`enums.itmsVerificationStatus.${status}`)}
+    </Badge>
+  )
+}
+
+export function RegistryStatusBadge({
+  status,
+}: {
+  status: VehicleRegistryStatus
+}) {
+  const { t } = useTranslation()
+  const config = VEHICLE_REGISTRY_CONFIG[status]
+  return (
+    <Badge variant="outline" className={cn(config.badgeClass, "gap-1.5")}>
+      <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+      {t(`enums.vehicleRegistryStatus.${status}`)}
     </Badge>
   )
 }

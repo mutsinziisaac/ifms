@@ -2,6 +2,7 @@ import { ChevronDown, Moon, Pause, Play, Sun } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { cn } from "@/lib/utils"
+import { isRealApi } from "@/data/api"
 import { useTheme } from "@/components/theme-provider"
 import { useSimulation } from "@/sim/SimulationProvider"
 import { Button } from "@/components/ui/button"
@@ -51,33 +52,42 @@ export function Topbar() {
         <span className="text-xs font-medium">
           {paused ? t("topbar.paused") : t("topbar.live")}
         </span>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="xs">
-              {speed}x
-              <ChevronDown className="size-3" />
+        {/* Speed/pause drive the simulation only — hide them against the real
+            backend, where the feed is genuinely live (polling + SSE). */}
+        {!isRealApi && (
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="xs">
+                  {speed}x
+                  <ChevronDown className="size-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-20">
+                {SPEED_OPTIONS.map((option) => (
+                  <DropdownMenuItem
+                    key={option}
+                    onSelect={() => setSpeed(option)}
+                  >
+                    {option}x
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setPaused(!paused)}
+            >
+              {paused ? <Play /> : <Pause />}
+              <span className="sr-only">
+                {paused
+                  ? t("topbar.resumeSimulation")
+                  : t("topbar.pauseSimulation")}
+              </span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-20">
-            {SPEED_OPTIONS.map((option) => (
-              <DropdownMenuItem key={option} onSelect={() => setSpeed(option)}>
-                {option}x
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={() => setPaused(!paused)}
-        >
-          {paused ? <Play /> : <Pause />}
-          <span className="sr-only">
-            {paused
-              ? t("topbar.resumeSimulation")
-              : t("topbar.pauseSimulation")}
-          </span>
-        </Button>
+          </>
+        )}
       </div>
 
       <NotificationsBell />

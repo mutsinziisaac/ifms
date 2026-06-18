@@ -25,14 +25,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import {
   useDeleteRoute,
-  useDrivers,
   useGeozones,
   useLiveVehicles,
   useRoutes,
   useSetRouteActive,
 } from "@/data/hooks"
 import type { RouteDef } from "@/data/types"
-import { fullName } from "@/lib/format"
 import { boundsOf, padBounds, type GeoBounds } from "@/lib/maps"
 import { cn } from "@/lib/utils"
 
@@ -57,7 +55,6 @@ export function RoutesPage() {
   const isLoading = routesQuery.isLoading
 
   const liveVehicles = useLiveVehicles()
-  const drivers = useDrivers().data ?? []
   const geozones = useGeozones().data ?? []
 
   const setActive = useSetRouteActive()
@@ -72,11 +69,6 @@ export function RoutesPage() {
   useEffect(() => {
     if (linkedId) setSelectedId(linkedId)
   }, [linkedId])
-
-  const driverName = useMemo(() => {
-    const map = new Map(drivers.map((d) => [d.id, fullName(d)]))
-    return (id: string | null) => (id ? map.get(id) : undefined)
-  }, [drivers])
 
   const geozoneName = useMemo(() => {
     const map = new Map(geozones.map((z) => [z.id, z.name]))
@@ -325,7 +317,6 @@ export function RoutesPage() {
               <VehicleMarker
                 key={vehicle.id}
                 vehicle={vehicle}
-                driverName={driverName(vehicle.driverId)}
                 geozoneName={geozoneName(vehicle.insideGeozoneId)}
                 onClick={() => setSelectedId(vehicle.routeId)}
               />

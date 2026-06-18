@@ -1,10 +1,9 @@
 import * as React from "react"
 import { useNavigate } from "react-router-dom"
-import { Hexagon, IdCard, Route, Search, Truck } from "lucide-react"
+import { Hexagon, Route, Search, Truck } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { fullName } from "@/lib/format"
-import { useDrivers, useGeozones, useRoutes, useVehicles } from "@/data/hooks"
+import { useGeozones, useRoutes, useVehicles } from "@/data/hooks"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -26,7 +25,6 @@ export function GlobalSearch() {
   const [query, setQuery] = React.useState("")
 
   const vehicles = useVehicles().data ?? []
-  const drivers = useDrivers().data ?? []
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
 
@@ -57,12 +55,6 @@ export function GlobalSearch() {
             v.plate.toLowerCase().includes(term) ||
             v.description.toLowerCase().includes(term)
         )
-        .slice(0, MAX_PER_GROUP)
-    : []
-
-  const driverMatches = enough
-    ? drivers
-        .filter((d) => fullName(d).toLowerCase().includes(term))
         .slice(0, MAX_PER_GROUP)
     : []
 
@@ -120,21 +112,6 @@ export function GlobalSearch() {
                   </CommandGroup>
                 ) : null}
 
-                {driverMatches.length > 0 ? (
-                  <CommandGroup heading={t("common.search.groups.drivers")}>
-                    {driverMatches.map((d) => (
-                      <CommandItem
-                        key={d.id}
-                        value={`driver-${d.id}`}
-                        onSelect={() => go(`/drivers/${d.id}`)}
-                      >
-                        <IdCard />
-                        <span>{fullName(d)}</span>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                ) : null}
-
                 {geozoneMatches.length > 0 ? (
                   <CommandGroup heading={t("common.search.groups.geozones")}>
                     {geozoneMatches.map((g) => (
@@ -166,7 +143,6 @@ export function GlobalSearch() {
                 ) : null}
 
                 {vehicleMatches.length === 0 &&
-                driverMatches.length === 0 &&
                 geozoneMatches.length === 0 &&
                 routeMatches.length === 0 ? (
                   <CommandEmpty>{t("common.search.noResults")}</CommandEmpty>

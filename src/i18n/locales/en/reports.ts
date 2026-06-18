@@ -4,7 +4,7 @@
 export default {
   title: "Reports & Analytics",
   description:
-    "Generate Events and Geozone activity reports for selected vehicles or drivers over a date range, then export to PDF, Excel or CSV.",
+    "Generate Events and Geozone activity reports for selected vehicles over a date range, then export to PDF, Excel or CSV.",
 
   filtersTitle: "Report parameters",
   type: {
@@ -12,18 +12,12 @@ export default {
     events: "Events report",
     geozones: "Geozones report",
   },
-  base: {
-    label: "Report base",
-    vehicles: "Vehicles",
-    drivers: "Drivers",
-  },
   dateFrom: "From",
   dateTo: "To",
 
   selection: {
     title: "Selection",
     searchVehicles: "Search vehicles…",
-    searchDrivers: "Search drivers…",
     selectAll: "Select all",
     selectedCount: "{{count}} selected",
     countShown: "{{count}} shown",
@@ -37,9 +31,7 @@ export default {
     csv: "Export CSV",
     generatedAt: "Generated {{date}}",
     baseVehiclesAll: "Vehicles: all",
-    baseDriversAll: "Drivers: all",
     baseVehicles: "Vehicles: {{count}} selected",
-    baseDrivers: "Drivers: {{count}} selected",
     dateRangeAll: "Date range: all dates",
     dateRange: "Date range: {{from}} → {{to}}",
     sheetEvents: "Events",
@@ -57,7 +49,6 @@ export default {
     severity: "Severity",
     startTime: "Start time",
     vehicle: "Vehicle reg.",
-    driver: "Driver",
     location: "Location",
     coordinates: "Coordinates",
     status: "Status",

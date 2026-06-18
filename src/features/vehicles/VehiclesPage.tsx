@@ -1,94 +1,64 @@
-import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import {
-  Building2,
-  Navigation,
-  PauseCircle,
-  Plus,
-  PowerOff,
-  Truck,
-  WifiOff,
-} from "lucide-react"
+import { Building2, ListChecks, ShieldAlert, ShieldQuestion } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import { StatCard } from "@/components/common/StatCard"
 import { PageHeader } from "@/components/layout/PageHeader"
-import { useEntities, useVehicles } from "@/data/hooks"
+import { useVerificationVehicles } from "@/data/hooks"
 
-import { VehicleFormDialog } from "./components/VehicleFormDialog"
-import { VehicleTable } from "./components/VehicleTable"
+import { FleetVerificationTable } from "./components/FleetVerificationTable"
 
 export function VehiclesPage() {
   const { t } = useTranslation()
 
-  const vehiclesQuery = useVehicles()
-  const vehicles = vehiclesQuery.data ?? []
-  const entities = useEntities().data ?? []
+  // The Fleet page is the ITMS verification queue — vehicles the backend has
+  // flagged for review (GET /vehicles?filter=verification). It shows only the
+  // catalogue fields the endpoint returns; live telemetry lives on the map.
+  const query = useVerificationVehicles()
+  const vehicles = query.data ?? []
 
-  const [createOpen, setCreateOpen] = useState(false)
-
-  // Stat cards — every vehicle falls into exactly one of these buckets, so the
-  // breakdown reconciles with the total. "Stopped" folds the two parked states
-  // (ignition off + ignition blocked).
-  const movingCount = vehicles.filter((v) => v.status === "moving").length
-  const idlingCount = vehicles.filter((v) => v.status === "idling").length
-  const stoppedCount = vehicles.filter(
-    (v) => v.status === "ignition_off" || v.status === "ignition_blocked"
+  const failedCount = vehicles.filter(
+    (v) => v.itmsVerificationStatus === "NOT_FOUND"
   ).length
-  const noSignalCount = vehicles.filter((v) => v.status === "no_signal").length
+  const unverifiedCount = vehicles.filter(
+    (v) => v.itmsVerificationStatus === "UNVERIFIED"
+  ).length
+  const providerCount = new Set(
+    vehicles.map((v) => v.provider).filter(Boolean)
+  ).size
 
   return (
     <div>
       <PageHeader
         title={t("vehicles.title")}
         description={t("vehicles.description")}
-        actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" />
-            {t("vehicles.addVehicle")}
-          </Button>
-        }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label={t("vehicles.stats.total")}
+          label={t("vehicles.stats.inQueue")}
           value={vehicles.length}
-          icon={Truck}
+          icon={ListChecks}
         />
         <StatCard
-          label={t("vehicles.stats.moving")}
-          value={movingCount}
-          icon={Navigation}
-          intent="success"
-        />
-        <StatCard
-          label={t("vehicles.stats.idling")}
-          value={idlingCount}
-          icon={PauseCircle}
-          intent="warning"
-        />
-        <StatCard
-          label={t("vehicles.stats.stopped")}
-          value={stoppedCount}
-          icon={PowerOff}
-        />
-        <StatCard
-          label={t("vehicles.stats.noSignal")}
-          value={noSignalCount}
-          icon={WifiOff}
+          label={t("vehicles.stats.verificationFailed")}
+          value={failedCount}
+          icon={ShieldAlert}
           intent="danger"
         />
         <StatCard
-          label={t("vehicles.stats.entitiesMonitored")}
-          value={entities.length}
+          label={t("vehicles.stats.unverified")}
+          value={unverifiedCount}
+          icon={ShieldQuestion}
+          intent="warning"
+        />
+        <StatCard
+          label={t("vehicles.stats.providers")}
+          value={providerCount}
           icon={Building2}
         />
       </div>
 
-      <VehicleTable vehicles={vehicles} isLoading={vehiclesQuery.isLoading} />
-
-      <VehicleFormDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <FleetVerificationTable vehicles={vehicles} isLoading={query.isLoading} />
     </div>
   )
 }

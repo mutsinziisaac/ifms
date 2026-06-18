@@ -6,8 +6,6 @@ import { AdminRolesPage } from "@/features/admin/AdminRolesPage"
 import { AdminUsersPage } from "@/features/admin/AdminUsersPage"
 import { LoginPage } from "@/features/auth/LoginPage"
 import { DashboardPage } from "@/features/dashboard/DashboardPage"
-import { DriverDetailPage } from "@/features/drivers/DriverDetailPage"
-import { DriversPage } from "@/features/drivers/DriversPage"
 import { EventRulesPage } from "@/features/events/EventRulesPage"
 import { EventRuleWizardPage } from "@/features/events/EventRuleWizardPage"
 import { EventsPage } from "@/features/events/EventsPage"
@@ -36,8 +34,6 @@ export function App() {
         <Route path="live-map" element={<LiveMapPage />} />
         <Route path="fleet" element={<VehiclesPage />} />
         <Route path="fleet/:id" element={<VehicleDetailPage />} />
-        <Route path="drivers" element={<DriversPage />} />
-        <Route path="drivers/:id" element={<DriverDetailPage />} />
         <Route path="events" element={<EventsPage />} />
         <Route path="providers" element={<ProvidersPage />} />
         <Route path="providers/:id" element={<ProviderDetailPage />} />

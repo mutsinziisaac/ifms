@@ -17,69 +17,19 @@ import {
 import { FleetMap } from "@/components/map/FleetMap"
 import { RoutePolyline } from "@/components/map/RoutePolyline"
 import { TripPlayback } from "@/components/map/TripPlayback"
-import {
-  useAssignmentsForVehicle,
-  useDrivers,
-  useTripsForVehicle,
-} from "@/data/hooks"
+import { useTripsForVehicle } from "@/data/hooks"
 import type { Trip } from "@/data/types"
-import { formatDateTime, formatKm, fullName } from "@/lib/format"
+import { formatDateTime, formatKm } from "@/lib/format"
 import { boundsOf, padBounds } from "@/lib/maps"
 import { cn } from "@/lib/utils"
 
-import { buildDriverColorMap, driverIdAt } from "./driver-attribution"
-
-const UNKNOWN_COLOR = "#908e86"
+const TRIP_COLOR = "#0d9488"
 
 export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
   const { t } = useTranslation()
   const tripsQuery = useTripsForVehicle(vehicleId)
-  const assignmentsQuery = useAssignmentsForVehicle(vehicleId)
-  const driversQuery = useDrivers()
   const trips = useMemo(() => tripsQuery.data ?? [], [tripsQuery.data])
-  const assignments = useMemo(
-    () => assignmentsQuery.data ?? [],
-    [assignmentsQuery.data]
-  )
-  const drivers = useMemo(() => driversQuery.data ?? [], [driversQuery.data])
   const [selected, setSelected] = useState<Trip | null>(null)
-
-  const colorOf = useMemo(() => buildDriverColorMap(assignments), [assignments])
-
-  // Attribute each trip to the driver assigned at its start time.
-  const attributed = useMemo(
-    () =>
-      trips.map((trip) => {
-        const driverId = driverIdAt(assignments, trip.startAt)
-        const driver = driverId
-          ? drivers.find((d) => d.id === driverId)
-          : undefined
-        return {
-          trip,
-          driverId,
-          driverName: driver ? fullName(driver) : null,
-          color: driverId
-            ? (colorOf.get(driverId) ?? UNKNOWN_COLOR)
-            : UNKNOWN_COLOR,
-        }
-      }),
-    [trips, assignments, drivers, colorOf]
-  )
-
-  // Distinct drivers present in this vehicle's trips, for the legend.
-  const legend = useMemo(() => {
-    const seen = new Map<string, { name: string; color: string }>()
-    for (const a of attributed) {
-      const key = a.driverId ?? "unknown"
-      if (!seen.has(key)) {
-        seen.set(key, {
-          name: a.driverName ?? t("vehicles.detail.travel.unattributed"),
-          color: a.color,
-        })
-      }
-    }
-    return [...seen.values()]
-  }, [attributed, t])
 
   const bounds = useMemo(() => {
     const raw = boundsOf(trips.flatMap((t) => t.path))
@@ -91,9 +41,6 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
       <RouteIcon className="size-4 text-muted-foreground" />
       <span className="text-sm font-medium">
         {t("vehicles.detail.travel.title")}
-      </span>
-      <span className="text-xs text-muted-foreground">
-        {t("vehicles.detail.travel.attributedByDriver")}
       </span>
     </div>
   )
@@ -130,33 +77,16 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
 
       <div className="h-[300px] overflow-hidden rounded-xl border">
         <FleetMap bounds={bounds}>
-          {attributed.map((a) => (
+          {trips.map((trip) => (
             <RoutePolyline
-              key={a.trip.id}
-              path={a.trip.path}
-              color={a.color}
-              selected={selected?.id === a.trip.id}
+              key={trip.id}
+              path={trip.path}
+              color={TRIP_COLOR}
+              selected={selected?.id === trip.id}
             />
           ))}
         </FleetMap>
       </div>
-
-      {legend.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
-          {legend.map((l) => (
-            <span
-              key={l.name}
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
-            >
-              <span
-                className="size-2.5 rounded-full"
-                style={{ backgroundColor: l.color }}
-              />
-              {l.name}
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       <div className="mt-4 overflow-hidden rounded-xl border">
         <Table>
@@ -171,13 +101,10 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
               <TableHead className="text-right text-xs tracking-wider text-muted-foreground uppercase">
                 {t("vehicles.detail.travel.colDistance")}
               </TableHead>
-              <TableHead className="text-right text-xs tracking-wider text-muted-foreground uppercase">
-                {t("vehicles.detail.travel.colDriver")}
-              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {attributed.map(({ trip, driverName, color }) => (
+            {trips.map((trip) => (
               <TableRow
                 key={trip.id}
                 onClick={() => setSelected(trip)}
@@ -202,15 +129,6 @@ export function VehicleTravelHistory({ vehicleId }: { vehicleId: string }) {
                 </TableCell>
                 <TableCell className="text-right text-sm tabular-nums">
                   {formatKm(trip.distanceKm)}
-                </TableCell>
-                <TableCell className="text-right text-sm">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ backgroundColor: color }}
-                    />
-                    {driverName ?? "—"}
-                  </span>
                 </TableCell>
               </TableRow>
             ))}
