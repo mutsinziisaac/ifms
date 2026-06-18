@@ -10,34 +10,14 @@ import { EventSeverityBadge } from "@/components/common/status-badges"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import type { EventRuleInput } from "@/data/api"
 import {
   useDeleteEventRule,
   useEventRules,
   useGeozones,
   useRoutes,
-  useUpsertEventRule,
+  useSetEventRuleActive,
 } from "@/data/hooks"
 import type { EventRule } from "@/data/types"
-
-/** Build a full EventRuleInput from an existing rule, optionally patched. */
-function toInput(r: EventRule, patch: Partial<EventRuleInput> = {}): EventRuleInput {
-  return {
-    id: r.id,
-    name: r.name,
-    type: r.type,
-    geozoneId: r.geozoneId,
-    routeId: r.routeId,
-    speedLimitKmh: r.speedLimitKmh,
-    thresholdMinutes: r.thresholdMinutes,
-    deviationMeters: r.deviationMeters,
-    vehicleIds: r.vehicleIds,
-    severity: r.severity,
-    notify: r.notify,
-    active: r.active,
-    ...patch,
-  }
-}
 
 function NotifyIcons({ rule }: { rule: EventRule }) {
   return (
@@ -55,7 +35,7 @@ export function EventRulesPage() {
   const rules = useEventRules().data ?? []
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
-  const upsert = useUpsertEventRule()
+  const setActive = useSetEventRuleActive()
   const deleteRule = useDeleteEventRule()
 
   const [deleteTarget, setDeleteTarget] = useState<EventRule | null>(null)
@@ -70,9 +50,10 @@ export function EventRulesPage() {
   )
 
   const toggleRule = (rule: EventRule, active: boolean) => {
-    upsert.mutate(toInput(rule, { active }), {
-      onError: () => toast.error(t("events.rules.toast.updateError")),
-    })
+    setActive.mutate(
+      { id: rule.id, active },
+      { onError: () => toast.error(t("events.rules.toast.updateError")) }
+    )
   }
 
   const columns: DataTableColumn<EventRule>[] = [
@@ -189,7 +170,6 @@ export function EventRulesPage() {
       <DataTable
         data={rules}
         columns={columns}
-        onRowClick={(rule) => navigate(`/config/events/${rule.id}/edit`)}
         pageSize={12}
         emptyTitle={t("events.rules.targeted.emptyTitle")}
         emptyDescription={t("events.rules.targeted.emptyDescription")}

@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Navigate, useLocation, useNavigate } from "react-router-dom"
 import { LogIn, Truck } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -6,8 +5,6 @@ import { useTranslation } from "react-i18next"
 import { useAuth } from "@/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 
 interface LocationState {
@@ -36,21 +33,16 @@ export function LoginPage() {
     return <Navigate to="/" replace />
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const form = event.currentTarget
-    const email = (
-      form.elements.namedItem("email") as HTMLInputElement | null
-    )?.value.trim()
-
+  const handleSignIn = () => {
     if (isKeycloak) {
-      // Redirects to Keycloak (the email is an optional login hint); this page
-      // unloads, so there's nothing to navigate to afterwards.
-      login(email && email.length > 0 ? email : undefined)
+      // Redirects to Keycloak's hosted login; this page unloads, so there's
+      // nothing to navigate to afterwards.
+      login()
       return
     }
 
-    login(email && email.length > 0 ? email : "officer@motl.gov.et")
+    // Mock fallback (no Keycloak env): sign in with the default demo user.
+    login()
     const state = location.state as LocationState | null
     navigate(state?.from?.pathname ?? "/", { replace: true })
   }
@@ -82,33 +74,15 @@ export function LoginPage() {
             </p>
           </div>
 
-          <Card className="space-y-4 p-6">
-            <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <Label htmlFor="email">{t("auth.workEmail")}</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  defaultValue={isKeycloak ? "" : "officer@motl.gov.et"}
-                />
-              </div>
-              {!isKeycloak && (
-                <div className="space-y-2">
-                  <Label htmlFor="password">{t("auth.password")}</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder={t("auth.passwordPlaceholder")}
-                  />
-                </div>
-              )}
-              <Button type="submit" className="w-full">
-                <LogIn className="size-4" />
-                {t("auth.signIn")}
-              </Button>
-            </form>
+          <Card className="p-6">
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handleSignIn}
+            >
+              <LogIn className="size-4" />
+              {t(isKeycloak ? "auth.signInWithKeycloak" : "auth.signIn")}
+            </Button>
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">

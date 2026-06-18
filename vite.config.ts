@@ -29,6 +29,18 @@ export default defineConfig(({ mode }) => {
               target: proxyTarget,
               changeOrigin: true,
               secure: true,
+              // `changeOrigin` rewrites Host but NOT Origin, so the browser's
+              // same-origin Origin (http://localhost:5173) still rides along on
+              // state-changing requests (POST/PUT/DELETE) and the backend's CORS
+              // filter rejects it ("403 CORS Rejected - Invalid origin"). GETs
+              // work only because browsers omit Origin on same-origin GETs.
+              // Strip Origin on the proxied request so every method reads as a
+              // server-to-server call and bypasses the filter.
+              configure: (proxy) => {
+                proxy.on("proxyReq", (proxyReq) => {
+                  proxyReq.removeHeader("origin")
+                })
+              },
             },
           },
         }

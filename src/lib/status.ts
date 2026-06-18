@@ -164,6 +164,7 @@ export const EVENT_RULE_TYPE_LABEL: Record<EventRuleType, string> = {
   global_speeding: "Fleet speed limit",
   idle: "Excessive idle",
   no_signal: "Signal timeout",
+  ignition: "Ignition state",
 }
 
 /**

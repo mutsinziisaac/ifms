@@ -64,9 +64,11 @@ import type {
 import { centroidOf, isInsideGeozone, pathLengthKm } from "@/lib/maps"
 import { ApiError, getAll, http } from "@/lib/http"
 import {
+  mapAlertRuleResponse,
   mapProviderResponse,
   mapVehicleMapItem,
   mapVehicleResponse,
+  type AlertRuleResponse,
   type ProviderResponse,
   type VehicleMapItem,
   type VehicleResponse,
@@ -534,9 +536,37 @@ export interface EventRuleInput {
   active: boolean
 }
 
+// Alert rules come from the real backend (GET /api/v1/alert-rules, paged via
+// `getAll`); the rows are condition-based and map onto the app's EventRule (see
+// mapAlertRuleResponse). The mock fallback returns the seed so the prototype
+// still lists rules when VITE_API_BASE_URL is blank.
 export async function listEventRules(): Promise<EventRule[]> {
+  if (isRealApi) {
+    const rows = await getAll<AlertRuleResponse>("/alert-rules")
+    return rows.map(mapAlertRuleResponse)
+  }
   await latency()
   return [...getDB().eventRules]
+}
+
+// Activate/deactivate a single alert rule via the backend's dedicated action
+// endpoints (POST /api/v1/alert-rules/:id/{activate,deactivate}). The mock just
+// flips the flag on the in-memory rule so the toggle works offline too.
+export async function setEventRuleActive(
+  id: ID,
+  active: boolean
+): Promise<void> {
+  if (isRealApi) {
+    await http.post<unknown>(
+      `/alert-rules/${id}/${active ? "activate" : "deactivate"}`
+    )
+    return
+  }
+  await latency()
+  mutate((db) => {
+    const rule = db.eventRules.find((r) => r.id === id)
+    if (rule) rule.active = active
+  })
 }
 
 export async function upsertEventRule(

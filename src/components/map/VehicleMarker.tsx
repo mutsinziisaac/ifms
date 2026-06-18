@@ -1,10 +1,10 @@
 import { useState } from "react"
 import { AdvancedMarker } from "@vis.gl/react-google-maps"
-import { Bus, Car, Fuel, Navigation2, Truck } from "lucide-react"
+import { Navigation2 } from "lucide-react"
 
 import { formatRelativeTime, formatSpeed } from "@/lib/format"
 import { VEHICLE_STATUS_CONFIG } from "@/lib/status"
-import type { Vehicle, VehicleType } from "@/data/types"
+import type { Vehicle } from "@/data/types"
 import { cn } from "@/lib/utils"
 
 export interface VehicleMarkerProps {
@@ -12,29 +12,6 @@ export interface VehicleMarkerProps {
   geozoneName?: string
   selected?: boolean
   onClick?: (vehicle: Vehicle) => void
-}
-
-function VehicleTypeIcon({
-  type,
-  className,
-}: {
-  type: VehicleType
-  className?: string
-}) {
-  switch (type) {
-    case "tanker":
-      return <Fuel className={className} />
-    case "bus":
-    case "minibus":
-      return <Bus className={className} />
-    case "pickup":
-    case "saloon":
-    case "suv":
-    case "van":
-      return <Car className={className} />
-    default:
-      return <Truck className={className} />
-  }
 }
 
 export function VehicleMarker(props: VehicleMarkerProps) {
@@ -93,16 +70,23 @@ export function VehicleMarker(props: VehicleMarkerProps) {
 
         <div
           className={cn(
-            "grid size-8 place-items-center rounded-full shadow-md ring-2 ring-white/80 transition-transform dark:ring-black/40",
-            selected && "scale-110 ring-2 ring-offset-2"
+            "relative transition-transform",
+            selected && "scale-110"
           )}
-          style={{ backgroundColor: config.color }}
         >
-          <VehicleTypeIcon type={vehicle.type} className="size-4 text-white" />
+          <img
+            src="/truck.png"
+            alt=""
+            draggable={false}
+            className="h-12 w-20 object-contain drop-shadow-md"
+          />
           {moving ? (
             <Navigation2
-              className="absolute -top-1.5 size-3 text-white drop-shadow"
-              style={{ transform: `rotate(${vehicle.heading}deg)` }}
+              className="absolute -top-1.5 left-1/2 size-3 drop-shadow"
+              style={{
+                color: config.color,
+                transform: `translateX(-50%) rotate(${vehicle.heading}deg)`,
+              }}
               fill="currentColor"
             />
           ) : null}

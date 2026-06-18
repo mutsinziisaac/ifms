@@ -542,6 +542,7 @@ const RULE_NAME: Record<EventRuleType, string> = {
   global_speeding: "Fleet speed limit",
   idle: "Excessive idle",
   no_signal: "Signal loss",
+  ignition: "Ignition",
 }
 
 /** Fresh in-app-only notification config (each rule gets its own object). */

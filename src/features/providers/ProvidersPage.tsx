@@ -20,20 +20,14 @@ interface ProviderRow extends Provider {
 function OnlineBar({ stats }: { stats: ProviderStats }) {
   const healthy = stats.onlinePct >= 90
   return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "h-full rounded-full transition-all",
-            healthy ? "bg-emerald-500" : "bg-amber-500"
-          )}
-          style={{ width: `${stats.onlinePct}%` }}
-        />
-      </div>
-      <span className="text-xs text-muted-foreground tabular-nums">
-        {stats.onlineCount}/{stats.deviceCount}
-      </span>
-    </div>
+    <span
+      className={cn(
+        "text-sm font-medium tabular-nums",
+        healthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+      )}
+    >
+      {stats.onlineCount}/{stats.deviceCount}
+    </span>
   )
 }
 
@@ -119,16 +113,6 @@ export function ProvidersPage() {
         ) : (
           <span className="text-sm text-muted-foreground">—</span>
         ),
-    },
-    {
-      key: "added",
-      header: t("providers.table.added"),
-      render: (row) => (
-        <RelativeTime
-          iso={row.createdAt}
-          className="text-sm text-muted-foreground"
-        />
-      ),
     },
   ]
 

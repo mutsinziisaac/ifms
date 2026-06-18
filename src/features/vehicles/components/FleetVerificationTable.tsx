@@ -8,10 +8,7 @@ import {
   type DataTableFilter,
 } from "@/components/common/DataTable"
 import { RelativeTime } from "@/components/common/RelativeTime"
-import {
-  RegistryStatusBadge,
-  VerificationBadge,
-} from "@/components/common/status-badges"
+import { VerificationBadge } from "@/components/common/status-badges"
 import type { ItmsVerificationStatus, Vehicle } from "@/data/types"
 import { verificationRowAccent } from "@/lib/status"
 
@@ -36,7 +33,7 @@ export interface FleetVerificationTableProps {
 /**
  * Fleet verification queue table — renders only the fields the
  * `GET /vehicles?filter=verification` catalogue actually returns (plate,
- * provider, external id, registry status, ITMS verification, last updated). No
+ * provider, external id, ITMS verification, last updated). No
  * fabricated telemetry columns. The verification filter narrows the loaded
  * queue client-side; row click opens the vehicle detail page.
  */
@@ -94,16 +91,6 @@ export function FleetVerificationTable({
       render: (v) => (
         <span className="text-muted-foreground">{v.provider ?? "—"}</span>
       ),
-    },
-    {
-      key: "registryStatus",
-      header: t("vehicles.table.registryStatus"),
-      render: (v) =>
-        v.registryStatus ? (
-          <RegistryStatusBadge status={v.registryStatus} />
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        ),
     },
     {
       key: "verification",

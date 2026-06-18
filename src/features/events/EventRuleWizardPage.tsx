@@ -11,6 +11,7 @@ import {
   Mail,
   MessageSquareText,
   PauseCircle,
+  Power,
   SatelliteDish,
   Waypoints,
   Zap,
@@ -72,6 +73,7 @@ const TYPE_ICON: Record<EventRuleType, LucideIcon> = {
   global_speeding: Zap,
   idle: PauseCircle,
   no_signal: SatelliteDish,
+  ignition: Power,
 }
 
 type ScopeKind = "zone" | "route" | "fleet"

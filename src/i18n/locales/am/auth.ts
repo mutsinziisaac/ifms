@@ -7,6 +7,7 @@ export default {
   password: "የይለፍ ቃል",
   passwordPlaceholder: "ማንኛውንም የይለፍ ቃል ያስገቡ",
   signIn: "ግባ",
+  signInWithKeycloak: "በ Keycloak ይግቡ",
   demoNotice: "የማሳያ ስሪት — ማንኛውም መለያ ይቀበላል።",
   keycloakNotice: "ወደ ድርጅትዎ ደህንነቱ የተጠበቀ መግቢያ ይዛወራሉ።",
   redirecting: "ወደ መግቢያ በመዛወር ላይ…",

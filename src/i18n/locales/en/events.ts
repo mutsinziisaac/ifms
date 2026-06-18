@@ -235,6 +235,7 @@ export default {
         idle: "Fires when a vehicle idles beyond the threshold.",
         no_signal:
           "Fires when a device stops transmitting beyond the threshold.",
+        ignition: "Fires on a vehicle ignition state change.",
       },
     },
   },
