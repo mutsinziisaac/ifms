@@ -142,9 +142,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-1 py-1">
-          <div className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-800 ring-1 ring-sidebar-primary/60">
-            <Truck className="size-5 text-white" />
-          </div>
+          <img
+            src="/logo.jpeg"
+            alt={t("nav.brand")}
+            className="size-9 rounded-lg object-cover ring-1 ring-sidebar-primary/60"
+          />
           <div className="grid group-data-[collapsible=icon]:hidden">
             <span className="font-heading leading-none font-bold">
               {t("nav.brand")}

@@ -1,5 +1,5 @@
 import { Navigate, useLocation, useNavigate } from "react-router-dom"
-import { LogIn, Truck } from "lucide-react"
+import { LogIn } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { useAuth } from "@/auth/auth-context"
@@ -52,9 +52,11 @@ export function LoginPage() {
       <div className="flex items-center justify-center p-8">
         <div className="w-full max-w-sm space-y-8">
           <div className="flex items-center gap-3">
-            <div className="grid size-12 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-800 ring-1 ring-primary/40">
-              <Truck className="size-6 text-white" />
-            </div>
+            <img
+              src="/logo.jpeg"
+              alt={t("nav.brand")}
+              className="size-12 rounded-xl object-cover ring-1 ring-primary/40"
+            />
             <div>
               <p className="font-heading text-xl leading-none font-bold">
                 {t("nav.brand")}
@@ -91,16 +93,14 @@ export function LoginPage() {
         </div>
       </div>
 
-      <div className="relative hidden flex-col justify-end overflow-hidden bg-gradient-to-br from-[oklch(0.27_0.06_155)] via-[oklch(0.22_0.05_155)] to-[oklch(0.18_0.012_145)] p-12 lg:flex">
-        <div
-          className="absolute inset-0 opacity-60"
-          style={{
-            backgroundImage:
-              "radial-gradient(oklch(1 0 0 / 0.08) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
-          }}
+      <div className="relative hidden flex-col justify-end overflow-hidden bg-[oklch(0.18_0.012_145)] p-12 lg:flex">
+        <img
+          src="/Ethiopia.jpeg"
+          alt=""
+          className="absolute inset-0 size-full object-cover"
         />
-        <div className="absolute -top-24 -right-24 size-96 rounded-full bg-[oklch(0.77_0.15_75)]/20 blur-3xl" />
+        <div className="absolute inset-0 bg-[oklch(0.27_0.06_155)]/45 mix-blend-multiply" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/20" />
 
         <div className="relative space-y-6 text-white">
           <span className="w-fit rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs">
