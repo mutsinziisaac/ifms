@@ -2,7 +2,6 @@
 // for status colors across tables, badges, map markers and charts.
 
 import type {
-  DriverStatus,
   EventRuleType,
   EventSeverity,
   EventStatus,
@@ -10,6 +9,9 @@ import type {
   FleetEvent,
   IncidentRootCause,
   IncidentSeverity,
+  ItmsVerificationStatus,
+  Vehicle,
+  VehicleRegistryStatus,
   VehicleStatus,
   WebUserStatus,
 } from "@/data/types"
@@ -68,33 +70,77 @@ export const VEHICLE_STATUS_CONFIG: Record<VehicleStatus, VehicleStatusConfig> =
   }
 
 // ---------------------------------------------------------------------------
-// Driver status
+// ITMS verification — colors only; labels are translated via
+// t(`enums.itmsVerificationStatus.${value}`).
 // ---------------------------------------------------------------------------
 
-export const DRIVER_STATUS_CONFIG: Record<
-  DriverStatus,
-  { label: string; badgeClass: string }
+export const ITMS_VERIFICATION_CONFIG: Record<
+  ItmsVerificationStatus,
+  { color: string; badgeClass: string; dotClass: string }
 > = {
-  active: {
-    label: "Active",
+  VERIFIED: {
+    color: "#10b981",
     badgeClass:
       "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    dotClass: "bg-emerald-500",
   },
-  on_leave: {
-    label: "On leave",
-    badgeClass:
-      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
-  },
-  suspended: {
-    label: "Suspended",
+  NOT_FOUND: {
+    color: "#f43f5e",
     badgeClass:
       "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    dotClass: "bg-rose-500",
   },
-  inactive: {
-    label: "Inactive",
+  UNVERIFIED: {
+    color: "#f59e0b",
+    badgeClass:
+      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    dotClass: "bg-amber-500",
+  },
+}
+
+// ---------------------------------------------------------------------------
+// Vehicle registry status — colors only; labels are translated via
+// t(`enums.vehicleRegistryStatus.${value}`).
+// ---------------------------------------------------------------------------
+
+export const VEHICLE_REGISTRY_CONFIG: Record<
+  VehicleRegistryStatus,
+  { color: string; badgeClass: string; dotClass: string }
+> = {
+  ACTIVE: {
+    color: "#10b981",
+    badgeClass:
+      "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    dotClass: "bg-emerald-500",
+  },
+  SUSPENDED: {
+    color: "#f59e0b",
+    badgeClass:
+      "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    dotClass: "bg-amber-500",
+  },
+  RETIRED: {
+    color: "#64748b",
     badgeClass:
       "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30",
+    dotClass: "bg-slate-400",
   },
+  BLOCKED: {
+    color: "#f43f5e",
+    badgeClass:
+      "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30",
+    dotClass: "bg-rose-500",
+  },
+}
+
+/**
+ * Tailwind row accent for the fleet table — gives vehicles that failed ITMS
+ * verification (NOT_FOUND) a red left rail so they read as "needs attention".
+ */
+export function verificationRowAccent(vehicle: Vehicle): string {
+  return vehicle.itmsVerificationStatus === "NOT_FOUND"
+    ? "border-l-2 border-l-rose-500 bg-rose-500/5"
+    : ""
 }
 
 // ---------------------------------------------------------------------------

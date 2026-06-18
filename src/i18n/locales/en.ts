@@ -4,7 +4,6 @@ import admin from "./en/admin"
 import auth from "./en/auth"
 import common from "./en/common"
 import dashboard from "./en/dashboard"
-import drivers from "./en/drivers"
 import enums from "./en/enums"
 import events from "./en/events"
 import forms from "./en/forms"
@@ -26,7 +25,6 @@ export const en = {
   forms,
   dashboard,
   vehicles,
-  drivers,
   events,
   providers,
   geozones,

@@ -1,8 +1,9 @@
-// Live transmission stats per provider (government entity). Derived from the
-// vehicle fleet + sim-fed telemetry so both Providers pages share one
-// computation.
+// Live fleet stats per provider. Derived purely from the vehicle fleet (matched
+// by provider code) so both Providers pages share one computation. Telemetry
+// (messages/activity) is intentionally excluded — the live `/providers` endpoint
+// carries no transmission data.
 
-import type { Entity, ProviderTelemetry, Vehicle } from "@/data/types"
+import type { Vehicle } from "@/data/types"
 
 export interface ProviderStats {
   deviceCount: number
@@ -10,16 +11,15 @@ export interface ProviderStats {
   noSignalCount: number
   onlinePct: number
   lastSyncAt: string | null
-  messagesTotal: number
-  history: number[]
 }
 
+// In real-backend mode a vehicle's `entityId` carries its provider code, so the
+// fleet for a provider is every vehicle whose entityId matches that code.
 export function computeProviderStats(
-  entity: Entity,
-  vehicles: Vehicle[],
-  telemetry: ProviderTelemetry[]
+  code: string,
+  vehicles: Vehicle[]
 ): ProviderStats {
-  const fleet = vehicles.filter((v) => v.entityId === entity.id)
+  const fleet = vehicles.filter((v) => v.entityId === code)
   const noSignalCount = fleet.filter((v) => v.status === "no_signal").length
   const onlineCount = fleet.length - noSignalCount
   const lastSyncAt = fleet.reduce<string | null>(
@@ -27,7 +27,6 @@ export function computeProviderStats(
       latest === null || v.lastSyncAt > latest ? v.lastSyncAt : latest,
     null
   )
-  const t = telemetry.find((x) => x.entityId === entity.id)
   return {
     deviceCount: fleet.length,
     onlineCount,
@@ -35,7 +34,5 @@ export function computeProviderStats(
     onlinePct:
       fleet.length > 0 ? Math.round((onlineCount / fleet.length) * 100) : 0,
     lastSyncAt,
-    messagesTotal: t?.messagesTotal ?? 0,
-    history: t?.history ?? [],
   }
 }

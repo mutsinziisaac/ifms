@@ -7,12 +7,6 @@ export default {
     no_signal: "ምልክት የለም",
     ignition_blocked: "ሞተር ታግዷል", // review: "Ignition blocked"
   },
-  driverStatus: {
-    active: "ንቁ",
-    on_leave: "በፈቃድ ላይ",
-    suspended: "ታግዷል",
-    inactive: "ንቁ ያልሆነ",
-  },
   eventStatus: {
     open: "ክፍት",
     acknowledged: "ታውቋል", // review: "Acknowledged"
@@ -57,6 +51,17 @@ export default {
     suv: "ኤስዩቪ", // review: "SUV" (4x4 / field vehicle)
     minibus: "ሚኒባስ", // review: "Minibus"
     van: "ቫን", // review: "Van"
+  },
+  itmsVerificationStatus: {
+    VERIFIED: "ተረጋግጧል",
+    NOT_FOUND: "አልተገኘም", // review: "Failed / not found in ITMS"
+    UNVERIFIED: "ያልተረጋገጠ", // review: "Unverified / not yet checked"
+  },
+  vehicleRegistryStatus: {
+    ACTIVE: "ንቁ", // review: "Active"
+    SUSPENDED: "ታግዷል", // review: "Suspended"
+    RETIRED: "ከአገልግሎት የወጣ", // review: "Retired"
+    BLOCKED: "ተቆልፏል", // review: "Blocked"
   },
   incidentSeverity: {
     minor: "ቀላል",

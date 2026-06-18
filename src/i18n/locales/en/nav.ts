@@ -14,7 +14,6 @@ export default {
   items: {
     overview: "Overview",
     fleet: "Fleet",
-    drivers: "Drivers",
     events: "Events",
     providers: "Providers",
     reports: "Reports",

@@ -4,17 +4,10 @@ import { toast } from "sonner"
 
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  useAssignmentsForVehicle,
-  useDrivers,
-  useEvents,
-  useTripsForVehicle,
-} from "@/data/hooks"
+import { useEvents, useTripsForVehicle } from "@/data/hooks"
 import type { Vehicle } from "@/data/types"
 import { downloadTextFile, toCsv } from "@/lib/csv"
-import { formatDateTime, fullName } from "@/lib/format"
-
-import { driverIdAt } from "./driver-attribution"
+import { formatDateTime } from "@/lib/format"
 
 /** Filesystem-safe slug from a plate, e.g. "3-45821 ET" -> "3-45821-ET". */
 function slug(plate: string): string {
@@ -25,8 +18,6 @@ export function VehicleReportExport({ vehicle }: { vehicle: Vehicle }) {
   const { t } = useTranslation()
   const events = useEvents().data ?? []
   const trips = useTripsForVehicle(vehicle.id).data ?? []
-  const assignments = useAssignmentsForVehicle(vehicle.id).data ?? []
-  const drivers = useDrivers().data ?? []
 
   const exportEvents = () => {
     const rows = events
@@ -63,22 +54,15 @@ export function VehicleReportExport({ vehicle }: { vehicle: Vehicle }) {
       toast.info(t("vehicles.detail.report.noTravel"))
       return
     }
-    const rows = trips.map((trip) => {
-      const driverId = driverIdAt(assignments, trip.startAt)
-      const driver = driverId
-        ? drivers.find((d) => d.id === driverId)
-        : undefined
-      return [
-        formatDateTime(trip.startAt),
-        formatDateTime(trip.endAt),
-        trip.startAddress,
-        trip.endAddress,
-        trip.distanceKm,
-        trip.avgSpeedKmh,
-        trip.maxSpeedKmh,
-        driver ? fullName(driver) : t("vehicles.detail.report.unattributed"),
-      ]
-    })
+    const rows = trips.map((trip) => [
+      formatDateTime(trip.startAt),
+      formatDateTime(trip.endAt),
+      trip.startAddress,
+      trip.endAddress,
+      trip.distanceKm,
+      trip.avgSpeedKmh,
+      trip.maxSpeedKmh,
+    ])
     const csv = toCsv(
       [
         t("vehicles.detail.report.travelHeaders.start"),
@@ -88,7 +72,6 @@ export function VehicleReportExport({ vehicle }: { vehicle: Vehicle }) {
         t("vehicles.detail.report.travelHeaders.distance"),
         t("vehicles.detail.report.travelHeaders.avgSpeed"),
         t("vehicles.detail.report.travelHeaders.maxSpeed"),
-        t("vehicles.detail.report.travelHeaders.driver"),
       ],
       rows
     )

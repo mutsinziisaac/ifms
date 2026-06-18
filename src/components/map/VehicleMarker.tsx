@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils"
 
 export interface VehicleMarkerProps {
   vehicle: Vehicle
-  driverName?: string
   geozoneName?: string
   selected?: boolean
   onClick?: (vehicle: Vehicle) => void
@@ -39,7 +38,7 @@ function VehicleTypeIcon({
 }
 
 export function VehicleMarker(props: VehicleMarkerProps) {
-  const { vehicle, driverName, geozoneName, selected, onClick } = props
+  const { vehicle, geozoneName, selected, onClick } = props
   const [hovered, setHovered] = useState(false)
 
   const config = VEHICLE_STATUS_CONFIG[vehicle.status]
@@ -77,12 +76,6 @@ export function VehicleMarker(props: VehicleMarkerProps) {
                   </span>
                 </p>
               ) : null}
-              <p className="text-muted-foreground">
-                Driver{" "}
-                <span className="font-medium text-foreground">
-                  {driverName ?? "Unassigned"}
-                </span>
-              </p>
               {geozoneName ? (
                 <p className="text-muted-foreground">
                   Inside{" "}

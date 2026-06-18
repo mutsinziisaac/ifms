@@ -1,21 +1,26 @@
 // Fleet (vehicles) feature: list page, detail page, form dialog, and the
-// per-vehicle cards (live status, driver history, events, map,
-// travel history, report export). Shared terms live under common/enums/forms.
+// per-vehicle cards (live status, events, map, travel history, report export).
+// Shared terms live under common/enums/forms.
 export default {
   title: "Fleet",
   description: "Vehicles operated by monitored entities across the corridor.",
   addVehicle: "Add vehicle",
   searchPlaceholder: "Search plate, model or entity…",
+  searchByPlateProvider: "Search plate, provider or ID…",
   emptyTitle: "No vehicles found",
   emptyDescription: "Try adjusting your search or filters.",
 
   stats: {
     total: "Total vehicles",
+    verificationFailed: "Verification failed",
     moving: "Moving",
     idling: "Idling",
     stopped: "Stopped",
     noSignal: "No signal",
     entitiesMonitored: "Entities monitored",
+    inQueue: "In verification queue",
+    unverified: "Unverified",
+    providers: "Providers",
   },
 
   filters: {
@@ -24,16 +29,21 @@ export default {
     entity: "Entity",
     region: "Region",
     gps: "GPS",
+    verification: "Verification",
   },
 
   table: {
     plate: "Plate",
     entity: "Entity",
-    driver: "Driver",
     status: "Status",
+    verification: "Verification",
     speed: "Speed",
     lastSync: "Last sync",
     region: "Region",
+    provider: "Provider",
+    externalId: "External ID",
+    registryStatus: "Registry",
+    lastUpdated: "Last updated",
   },
 
   form: {
@@ -58,6 +68,7 @@ export default {
     createFailed: "Failed to add vehicle",
     updateFailed: "Failed to update vehicle",
     deleteFailed: "Failed to delete vehicle",
+    verificationChanged: "{{plate}} verification: {{status}}",
   },
 
   detail: {
@@ -82,17 +93,6 @@ export default {
       synced: "Synced",
     },
 
-    driver: {
-      title: "Driver assignment history",
-      activeNow: "Active now",
-      unassigned: "Unassigned",
-      noneAtWheel: "No driver is currently at the wheel.",
-      since: "since {{date}}",
-      previous: "Previous",
-      removedDriver: "Removed driver",
-      present: "present",
-    },
-
     live: {
       title: "Live status",
       status: "Status",
@@ -113,15 +113,12 @@ export default {
 
     travel: {
       title: "Travel history",
-      attributedByDriver: "· attributed by driver",
       emptyTitle: "No trip history",
       emptyDescription:
         "Completed trips for this vehicle will appear here for playback.",
-      unattributed: "Unattributed",
       colWhen: "When",
       colTrip: "Trip",
       colDistance: "Distance",
-      colDriver: "Driver",
       playbackTitle: "Trip playback",
       closePlayback: "Close playback",
     },
@@ -135,7 +132,6 @@ export default {
       noTravel: "No travel history to export for this vehicle",
       eventsExported: "Events report exported",
       travelExported: "Travel history exported",
-      unattributed: "Unattributed",
       eventHeaders: {
         severity: "Severity",
         event: "Event",
@@ -152,7 +148,6 @@ export default {
         distance: "Distance (km)",
         avgSpeed: "Avg speed (km/h)",
         maxSpeed: "Max speed (km/h)",
-        driver: "Driver",
       },
     },
   },

@@ -2,7 +2,7 @@
 export default {
   title: "ሪፖርቶችና ትንታኔ",
   description:
-    "ለተመረጡ ተሽከርካሪዎች ወይም አሽከርካሪዎች በተወሰነ የቀን ክልል የክስተት እና የጂኦ-ዞን እንቅስቃሴ ሪፖርቶችን ይፍጠሩ፣ ከዚያም ወደ PDF፣ Excel ወይም CSV ይላኩ።",
+    "ለተመረጡ ተሽከርካሪዎች በተወሰነ የቀን ክልል የክስተት እና የጂኦ-ዞን እንቅስቃሴ ሪፖርቶችን ይፍጠሩ፣ ከዚያም ወደ PDF፣ Excel ወይም CSV ይላኩ።",
 
   filtersTitle: "የሪፖርት መለኪያዎች",
   type: {
@@ -10,18 +10,12 @@ export default {
     events: "የክስተት ሪፖርት",
     geozones: "የጂኦ-ዞን ሪፖርት",
   },
-  base: {
-    label: "የሪፖርት መሰረት",
-    vehicles: "ተሽከርካሪዎች",
-    drivers: "አሽከርካሪዎች",
-  },
   dateFrom: "ከ",
   dateTo: "እስከ",
 
   selection: {
     title: "ምርጫ",
     searchVehicles: "ተሽከርካሪዎችን ይፈልጉ…",
-    searchDrivers: "አሽከርካሪዎችን ይፈልጉ…",
     selectAll: "ሁሉንም ይምረጡ",
     selectedCount: "{{count}} ተመርጧል",
     countShown: "{{count}} ይታያል",
@@ -35,9 +29,7 @@ export default {
     csv: "CSV ላክ",
     generatedAt: "የተፈጠረው {{date}}",
     baseVehiclesAll: "ተሽከርካሪዎች: ሁሉም",
-    baseDriversAll: "አሽከርካሪዎች: ሁሉም",
     baseVehicles: "ተሽከርካሪዎች: {{count}} ተመርጧል",
-    baseDrivers: "አሽከርካሪዎች: {{count}} ተመርጧል",
     dateRangeAll: "የቀን ክልል: ሁሉም ቀናት",
     dateRange: "የቀን ክልል: {{from}} → {{to}}",
     sheetEvents: "ክስተቶች",
@@ -55,7 +47,6 @@ export default {
     severity: "ክብደት",
     startTime: "የመጀመሪያ ሰዓት",
     vehicle: "የተሽከርካሪ ሰሌዳ",
-    driver: "አሽከርካሪ",
     location: "አካባቢ",
     coordinates: "መጋጠሚያዎች",
     status: "ሁኔታ",

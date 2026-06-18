@@ -15,7 +15,6 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import {
   useCreateAccident,
-  useDrivers,
   useUpdateAccident,
   useVehicles,
 } from "@/data/hooks"
@@ -26,11 +25,9 @@ import type {
   IncidentSeverity,
 } from "@/data/types"
 import { INCIDENT_ROOT_CAUSES, INCIDENT_SEVERITIES } from "@/data/types"
-import { fullName } from "@/lib/format"
 
 interface IncidentFormState {
   vehicleId: string
-  driverId: string
   severity: IncidentSeverity
   rootCause: IncidentRootCause
   occurredDate: string
@@ -49,7 +46,6 @@ function todayIso(): string {
 function blankState(): IncidentFormState {
   return {
     vehicleId: "",
-    driverId: "",
     severity: "minor",
     rootCause: "driver_error",
     occurredDate: todayIso(),
@@ -65,7 +61,6 @@ function blankState(): IncidentFormState {
 function fromRecord(record: AccidentRecord): IncidentFormState {
   return {
     vehicleId: record.vehicleId,
-    driverId: record.driverId ?? "",
     severity: record.severity,
     rootCause: record.rootCause,
     occurredDate: record.occurredAt.slice(0, 10),
@@ -89,7 +84,6 @@ export function IncidentFormDialog({
 }) {
   const { t } = useTranslation()
   const vehicles = useVehicles().data ?? []
-  const drivers = useDrivers().data ?? []
   const createAccident = useCreateAccident()
   const updateAccident = useUpdateAccident()
   const isEdit = Boolean(record)
@@ -110,23 +104,12 @@ export function IncidentFormDialog({
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  function onVehicleChange(vehicleId: string): void {
-    const vehicle = vehicles.find((v) => v.id === vehicleId)
-    setForm((prev) => ({
-      ...prev,
-      vehicleId,
-      // Default the driver to the vehicle's current driver when none chosen.
-      driverId: prev.driverId || (vehicle?.driverId ?? ""),
-    }))
-  }
-
   const isPending = createAccident.isPending || updateAccident.isPending
   const canSubmit = form.vehicleId.length > 0 && form.occurredDate.length > 0
 
   function buildInput(): AccidentInput {
     return {
       vehicleId: form.vehicleId,
-      driverId: form.driverId || null,
       severity: form.severity,
       rootCause: form.rootCause,
       address: form.address.trim(),
@@ -183,9 +166,6 @@ export function IncidentFormDialog({
   const sortedVehicles = [...vehicles].sort((a, b) =>
     a.plate.localeCompare(b.plate, undefined, { numeric: true })
   )
-  const sortedDrivers = [...drivers].sort((a, b) =>
-    fullName(a).localeCompare(fullName(b))
-  )
 
   return (
     <FormDialog
@@ -206,7 +186,10 @@ export function IncidentFormDialog({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label>{t("incidents.form.vehicle")}</Label>
-          <Select value={form.vehicleId} onValueChange={onVehicleChange}>
+          <Select
+            value={form.vehicleId}
+            onValueChange={(v) => patch("vehicleId", v)}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder={t("incidents.form.selectVehicle")} />
             </SelectTrigger>
@@ -214,25 +197,6 @@ export function IncidentFormDialog({
               {sortedVehicles.map((v) => (
                 <SelectItem key={v.id} value={v.id}>
                   {v.plate}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t("incidents.form.driver")}</Label>
-          <Select
-            value={form.driverId || "none"}
-            onValueChange={(v) => patch("driverId", v === "none" ? "" : v)}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">{t("incidents.form.noDriver")}</SelectItem>
-              {sortedDrivers.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {fullName(d)}
                 </SelectItem>
               ))}
             </SelectContent>

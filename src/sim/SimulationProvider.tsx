@@ -5,6 +5,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState } from "react"
 
+import { isRealApi } from "@/data/api"
+import { subscribeVerificationStream } from "@/data/verification-stream"
+
 import { startSimulation, type SimulationHandle } from "./simulation"
 
 export type SimulationSpeed = 1 | 4 | 16
@@ -28,9 +31,12 @@ export function SimulationProvider({
   const [speed, setSpeed] = useState<number>(4)
   const handleRef = useRef<SimulationHandle | null>(null)
 
-  // Start the engine once. The ref guard keeps it single under StrictMode's
-  // double-invoked effects.
+  // Against the real backend we don't simulate — live vehicles come from
+  // /vehicles/map and verification updates from the SSE stream. In mock mode the
+  // simulation drives the fleet. The ref guard keeps the engine single under
+  // StrictMode's double-invoked effects.
   useEffect(() => {
+    if (isRealApi) return subscribeVerificationStream()
     const handle = startSimulation()
     handleRef.current = handle
     return () => {

@@ -15,7 +15,6 @@ export default {
   address: "አድራሻ",
   severity: "የክብደት ደረጃ",
   threshold: "ገደብ",
-  driver: "አሽከርካሪ",
   route: "መስመር",
   geozone: "ጂኦ ዞን",
   gpsProvider: "የጂፒኤስ አቅራቢ",

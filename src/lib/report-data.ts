@@ -1,20 +1,18 @@
 // Report row builders for the Reports & Analytics module (SRS Reporting ID
-// 31–34). Reports are *derived* from the existing FleetEvent / Vehicle / Driver
-// / Geozone data — no new entity. Pure functions: given the data + filters,
+// 31–34). Reports are *derived* from the existing FleetEvent / Vehicle /
+// Geozone data — no new entity. Pure functions: given the data + filters,
 // return a { columns, rows } table that feeds the on-screen preview and every
 // export format (PDF / Excel / CSV) through @/lib/export.
 
-import type { Driver, FleetEvent, Geozone, Vehicle } from "@/data/types"
+import type { FleetEvent, Geozone, Vehicle } from "@/data/types"
 import type { ExportColumn, ExportRow } from "@/lib/export"
-import { formatCoords, formatDateTime, fullName } from "@/lib/format"
+import { formatCoords, formatDateTime } from "@/lib/format"
 import i18n from "@/i18n"
 
 export type ReportType = "events" | "geozones"
-export type ReportBase = "vehicles" | "drivers"
 
 export interface ReportFilters {
-  base: ReportBase
-  /** Selected vehicle ids (base="vehicles") or driver ids; empty = all. */
+  /** Selected vehicle ids; empty = all vehicles. */
   selection: string[]
   /** Inclusive yyyy-mm-dd bounds, or null for open-ended. */
   fromDate: string | null
@@ -24,7 +22,6 @@ export interface ReportFilters {
 export interface ReportContext {
   events: FleetEvent[]
   vehicles: Vehicle[]
-  drivers: Driver[]
   geozones: Geozone[]
 }
 
@@ -43,28 +40,9 @@ function dateBounds(filters: ReportFilters): { from: number; to: number } {
   return { from, to }
 }
 
-function buildLookups(ctx: ReportContext) {
-  const vehicleById = new Map(ctx.vehicles.map((v) => [v.id, v]))
-  const driverById = new Map(ctx.drivers.map((d) => [d.id, d]))
-  const driverIdOfVehicle = (vehicleId: string): string | null =>
-    vehicleById.get(vehicleId)?.driverId ?? null
-  const driverNameOfVehicle = (vehicleId: string): string => {
-    const id = driverIdOfVehicle(vehicleId)
-    const driver = id ? driverById.get(id) : undefined
-    return driver ? fullName(driver) : "—"
-  }
-  return { driverIdOfVehicle, driverNameOfVehicle }
-}
-
-function matchesSelection(
-  filters: ReportFilters,
-  vehicleId: string,
-  driverIdOfVehicle: (vehicleId: string) => string | null
-): boolean {
+function matchesSelection(filters: ReportFilters, vehicleId: string): boolean {
   if (filters.selection.length === 0) return true
-  if (filters.base === "vehicles") return filters.selection.includes(vehicleId)
-  const driverId = driverIdOfVehicle(vehicleId)
-  return driverId !== null && filters.selection.includes(driverId)
+  return filters.selection.includes(vehicleId)
 }
 
 /** "2h 14m" / "45m" / "3d 4h" from a positive millisecond span. */
@@ -84,7 +62,6 @@ export function buildEventsReport(
   filters: ReportFilters
 ): ReportTable {
   const t = i18n.t.bind(i18n)
-  const { driverIdOfVehicle, driverNameOfVehicle } = buildLookups(ctx)
   const { from, to } = dateBounds(filters)
 
   const columns: ExportColumn[] = [
@@ -93,7 +70,6 @@ export function buildEventsReport(
     { header: t("reports.columns.severity"), key: "severity" },
     { header: t("reports.columns.startTime"), key: "time" },
     { header: t("reports.columns.vehicle"), key: "vehicle" },
-    { header: t("reports.columns.driver"), key: "driver" },
     { header: t("reports.columns.location"), key: "location" },
     { header: t("reports.columns.coordinates"), key: "coords" },
     { header: t("reports.columns.status"), key: "status" },
@@ -104,7 +80,7 @@ export function buildEventsReport(
       const ms = new Date(e.at).getTime()
       return ms >= from && ms <= to
     })
-    .filter((e) => matchesSelection(filters, e.vehicleId, driverIdOfVehicle))
+    .filter((e) => matchesSelection(filters, e.vehicleId))
     .sort((a, b) => +new Date(b.at) - +new Date(a.at))
     .map((e) => [
       t(`enums.eventType.${e.type}`),
@@ -112,7 +88,6 @@ export function buildEventsReport(
       t(`enums.eventSeverity.${e.severity}`),
       formatDateTime(e.at),
       e.vehiclePlate,
-      driverNameOfVehicle(e.vehicleId),
       e.geozoneName ?? "—",
       formatCoords(e.location),
       t(`enums.eventStatus.${e.status}`),
@@ -132,13 +107,11 @@ export function buildGeozonesReport(
   filters: ReportFilters
 ): ReportTable {
   const t = i18n.t.bind(i18n)
-  const { driverIdOfVehicle, driverNameOfVehicle } = buildLookups(ctx)
   const { from, to } = dateBounds(filters)
 
   const columns: ExportColumn[] = [
     { header: t("reports.columns.geozone"), key: "geozone" },
     { header: t("reports.columns.vehicle"), key: "vehicle" },
-    { header: t("reports.columns.driver"), key: "driver" },
     { header: t("reports.columns.entered"), key: "entered" },
     { header: t("reports.columns.exited"), key: "exited" },
     { header: t("reports.columns.dwell"), key: "dwell" },
@@ -150,7 +123,7 @@ export function buildGeozonesReport(
       (e) =>
         (e.type === "entry" || e.type === "exit") &&
         e.geozoneId !== null &&
-        matchesSelection(filters, e.vehicleId, driverIdOfVehicle)
+        matchesSelection(filters, e.vehicleId)
     )
     .sort((a, b) => +new Date(a.at) - +new Date(b.at))
 
@@ -176,7 +149,6 @@ export function buildGeozonesReport(
       return [
         entry.geozoneName ?? "—",
         entry.vehiclePlate,
-        driverNameOfVehicle(entry.vehicleId),
         formatDateTime(entry.at),
         exit ? formatDateTime(exit.at) : "—",
         dwell,

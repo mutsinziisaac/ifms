@@ -35,10 +35,9 @@ export default {
   },
 
   table: {
-    searchPlaceholder: "Search by plate, driver or report no…",
+    searchPlaceholder: "Search by plate or report no…",
     date: "Date",
     vehicle: "Vehicle",
-    driver: "Driver",
     severity: "Severity",
     rootCause: "Root cause",
     casualties: "Casualties",
@@ -58,8 +57,6 @@ export default {
     save: "Save changes",
     vehicle: "Vehicle",
     selectVehicle: "Select a vehicle",
-    driver: "Driver",
-    noDriver: "— No driver —",
     severity: "Severity",
     rootCause: "Root cause",
     occurredAt: "Date & time",

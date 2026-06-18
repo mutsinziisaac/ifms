@@ -17,7 +17,6 @@ export default {
   address: "Address",
   severity: "Severity",
   threshold: "Threshold",
-  driver: "Driver",
   route: "Route",
   geozone: "Geozone",
   gpsProvider: "GPS provider",

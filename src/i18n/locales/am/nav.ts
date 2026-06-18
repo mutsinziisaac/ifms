@@ -14,7 +14,6 @@ export default {
   items: {
     overview: "አጠቃላይ እይታ",
     fleet: "ተሽከርካሪዎች", // review: "Fleet" — using "Vehicles"
-    drivers: "አሽከርካሪዎች",
     events: "ክስተቶች",
     providers: "አቅራቢዎች",
     reports: "ሪፖርቶች",

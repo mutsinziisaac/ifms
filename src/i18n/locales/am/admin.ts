@@ -104,7 +104,6 @@ export default {
 
   modules: {
     fleet: "ተሽከርካሪዎች",
-    drivers: "አሽከርካሪዎች",
     events: "ክስተቶች",
     geozones: "ጂኦ-ዞኖች",
     routes: "መስመሮች",

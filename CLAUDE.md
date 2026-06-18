@@ -5,7 +5,7 @@ Ethiopia to monitor vehicles operated by **other entities** — government minis
 agencies and public enterprises ("providers") — along the Addis Ababa–Djibouti
 corridor. All data is dummy and lives in an in-memory store — there is no backend.
 
-Scope (per `ver.2 SRS Document 11.10.2024.docx`, since extended): Driver Management,
+Scope (per `ver.2 SRS Document 11.10.2024.docx`, since extended):
 Vehicle/Fleet Management, Geozone Management, Routes Management, an Events workspace
 (violations with an open → acknowledged → escalated → closed workflow), a Providers
 dashboard (per-ministry device/transmission stats), an Event Rules configuration page,
@@ -31,7 +31,7 @@ degrade to a styled placeholder. `.env` is git-ignored.
   `src/index.css`, Outfit font, dark mode via `d` key), shadcn/ui (`src/components/ui/`),
   react-router-dom 7, TanStack Query 5, recharts, `@vis.gl/react-google-maps`.
 - **Data layer** (`src/data/`): `types.ts` (domain model) → `seed.ts` (stable seeded
-  Ethiopian dummy data: 9 entities = government institutions, 48 vehicles, 36 drivers,
+  Ethiopian dummy data: 9 entities = government institutions, 48 vehicles,
   12 geozones, 6 routes, 26 events with seeded workflow states,
   ~51 event rules incl. 3 fleet-wide ones, provider telemetry baselines) → `store.ts`
   (in-memory singleton DB + `subscribe`/`mutate`) → `api.ts` (async mock API with fake
@@ -52,11 +52,20 @@ degrade to a styled placeholder. `.env` is git-ignored.
   (`VehicleMarker`, `GeozoneOverlay`, `RoutePolyline`, `TrailPolyline`, `FollowCamera`,
   `DrawingManager`, `TripPlayback`).
   **All overlays must be rendered as children of `<FleetMap>`** (they use `useMap()`).
-- **Shell/auth**: mock auth in `src/auth/` (any credentials, localStorage `ifms.auth`);
+- **Shell/auth** (`src/auth/`): `AuthProvider` exposes `useAuth()` =
+  `{ user, login, logout, initializing, mode }`. When all three `VITE_KEYCLOAK_*`
+  vars are set it runs **Keycloak (OIDC/PKCE)** via `keycloak-js` (`keycloak.ts`:
+  singleton + memoized `check-sso` init guarded against StrictMode double-init,
+  token-refresh handlers, `sessionUserFromKeycloak` maps token claims → `SessionUser`,
+  realm roles → display role; `public/silent-check-sso.html`); otherwise it falls
+  back to the prototype's **mock auth** (any credentials, localStorage `ifms.auth`) —
+  mirroring `MapsProvider`'s graceful degradation. `LoginPage` redirects to Keycloak
+  in keycloak mode (password field hidden, email = login hint) and keeps the form in
+  mock mode; `RequireAuth` shows a spinner while `initializing`.
   `AppShell` = sidebar (Management + collapsible Configuration groups) + topbar +
   routed `<Outlet>`. Routes in `src/App.tsx` — `/events`, `/providers`,
   `/providers/:id`, `/config/events` joined the original set.
-- **Features** (`src/features/<area>/`): `dashboard`, `vehicles`, `drivers`, `events`
+- **Features** (`src/features/<area>/`): `dashboard`, `vehicles`, `events`
   (workspace + `EventRulesPage` at `/config/events`), `providers`, `geozones`,
   `routes`, `auth`. Shared building blocks in `src/components/common/`
   (`DataTable`, `StatCard`, `Sparkline`, status badges, `FormDialog`, `ConfirmDialog`,

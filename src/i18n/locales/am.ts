@@ -5,7 +5,6 @@ import admin from "./am/admin"
 import auth from "./am/auth"
 import common from "./am/common"
 import dashboard from "./am/dashboard"
-import drivers from "./am/drivers"
 import enums from "./am/enums"
 import events from "./am/events"
 import forms from "./am/forms"
@@ -27,7 +26,6 @@ export const am: Resources = {
   forms,
   dashboard,
   vehicles,
-  drivers,
   events,
   providers,
   geozones,

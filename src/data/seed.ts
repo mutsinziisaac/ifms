@@ -30,6 +30,7 @@ import {
   type EventType,
   type FleetEvent,
   type IncidentSeverity,
+  type ItmsVerificationStatus,
   type Permission,
   type PermissionAction,
   type PermissionModule,
@@ -39,17 +40,13 @@ import {
   type WebUser,
   type WebUserStatus,
   type ZoneRuleType,
-  type Driver,
-  type DriverStatus,
   type EthiopiaRegion,
   type Geozone,
   type GeozoneGroup,
   type LatLng,
-  type LicenseCategory,
   type RouteDef,
   type Trip,
   type Vehicle,
-  type VehicleDriverAssignment,
   type VehicleType,
   type Waypoint,
 } from "@/data/types"
@@ -221,7 +218,7 @@ interface EntitySeed {
 
 // The "providers" — government ministries and institutions whose fleets
 // transmit device data to the MoTL platform. IDs stay ent-01..ent-09 so all
-// vehicle/driver links remain stable.
+// vehicle links remain stable.
 const ENTITY_SEEDS: EntitySeed[] = [
   {
     name: "Ministry of Health",
@@ -776,6 +773,12 @@ function buildVehicles(
     lastSyncMs: number
   ): Vehicle => {
     idx++
+    // ITMS verification: ~13% fail (NOT_FOUND), ~11% pending (UNVERIFIED), rest
+    // verified. Seeded RNG keeps the failed set stable so the failed-first
+    // ordering is reproducible offline.
+    const vRoll = rng.next()
+    const itmsVerificationStatus: ItmsVerificationStatus =
+      vRoll < 0.13 ? "NOT_FOUND" : vRoll < 0.24 ? "UNVERIFIED" : "VERIFIED"
     return {
       id: `veh-${pad(idx, 3)}`,
       plate: plate(rng),
@@ -784,7 +787,6 @@ function buildVehicles(
       entityId: `ent-${pad(rng.int(1, ENTITY_SEEDS.length), 2)}`,
       region: rng.pick(ETHIOPIA_REGIONS),
       gpsProvider: rng.pick(GPS_PROVIDERS),
-      driverId: null,
       status,
       statusSince: ago(statusSinceMs, now),
       position,
@@ -796,6 +798,7 @@ function buildVehicles(
       routeId,
       insideGeozoneId: null,
       createdAt: ago(rng.float(30 * DAY, 2 * 365 * DAY), now),
+      itmsVerificationStatus,
       routeProgress,
       routeDir,
     }
@@ -945,171 +948,6 @@ function buildVehicles(
 }
 
 // ---------------------------------------------------------------------------
-// Drivers
-// ---------------------------------------------------------------------------
-
-interface NameSeed {
-  first: string
-  last: string
-  female: boolean
-}
-
-const DRIVER_NAMES: NameSeed[] = [
-  { first: "Abebe", last: "Bekele", female: false },
-  { first: "Tigist", last: "Alemu", female: true },
-  { first: "Dawit", last: "Haile", female: false },
-  { first: "Selamawit", last: "Tesfaye", female: true },
-  { first: "Yonas", last: "Gebre", female: false },
-  { first: "Hanna", last: "Mekonnen", female: true },
-  { first: "Mulugeta", last: "Assefa", female: false },
-  { first: "Sara", last: "Tadesse", female: true },
-  { first: "Getachew", last: "Worku", female: false },
-  { first: "Meron", last: "Abate", female: true },
-  { first: "Bereket", last: "Fikre", female: false },
-  { first: "Almaz", last: "Negash", female: true },
-  { first: "Kebede", last: "Lemma", female: false },
-  { first: "Rahel", last: "Girma", female: true },
-  { first: "Tesfaye", last: "Demissie", female: false },
-  { first: "Bethlehem", last: "Hailu", female: true },
-  { first: "Solomon", last: "Tariku", female: false },
-  { first: "Martha", last: "Yohannes", female: true },
-  { first: "Eyob", last: "Shiferaw", female: false },
-  { first: "Helen", last: "Desta", female: true },
-  { first: "Biniam", last: "Asrat", female: false },
-  { first: "Genet", last: "Mengistu", female: true },
-  { first: "Henok", last: "Abera", female: false },
-  { first: "Liya", last: "Kassahun", female: true },
-  { first: "Samuel", last: "Bogale", female: false },
-  { first: "Ruth", last: "Endale", female: true },
-  { first: "Fitsum", last: "Zeleke", female: false },
-  { first: "Hiwot", last: "Berhanu", female: true },
-  { first: "Nahom", last: "Tsegaye", female: false },
-  { first: "Mahlet", last: "Ayele", female: true },
-  { first: "Robel", last: "Mekuria", female: false },
-  { first: "Senait", last: "Gebremariam", female: true },
-  { first: "Kaleb", last: "Wondimu", female: false },
-  { first: "Feven", last: "Asfaw", female: true },
-  { first: "Mikias", last: "Teshome", female: false },
-  { first: "Aster", last: "Kifle", female: true },
-]
-
-// Driver status distribution: 30 active, 3 on_leave, 2 suspended, 1 inactive.
-function driverStatusPool(): DriverStatus[] {
-  const pool: DriverStatus[] = []
-  for (let i = 0; i < 30; i++) pool.push("active")
-  for (let i = 0; i < 3; i++) pool.push("on_leave")
-  for (let i = 0; i < 2; i++) pool.push("suspended")
-  pool.push("inactive")
-  return pool
-}
-
-interface BuiltDrivers {
-  drivers: Driver[]
-}
-
-function buildDrivers(
-  rng: Rng,
-  vehicles: Vehicle[],
-  entityDomains: string[],
-  now: number
-): BuiltDrivers {
-  const statusPool = driverStatusPool() // 36 entries
-
-  const drivers: Driver[] = DRIVER_NAMES.map((nm, i) => {
-    const status = statusPool[i]!
-    const entityIdx = rng.int(0, entityDomains.length - 1)
-    const domain = entityDomains[entityIdx]!
-    // Safety score and inverse-correlated incident counts.
-    const safetyScore = rng.int(55, 98)
-    const risk = (98 - safetyScore) / 43 // 0 (safe) .. 1 (risky)
-    const harshBrakingCount = Math.round(risk * rng.float(2, 14))
-    const harshAccelCount = Math.round(risk * rng.float(2, 12))
-    const speedingCount = Math.round(risk * rng.float(1, 10))
-    // License expiry between -3 and +30 months; first two are expired.
-    let expiryMs: number
-    if (i < 2) {
-      expiryMs = now - rng.float(10 * DAY, 80 * DAY)
-    } else {
-      expiryMs = now + rng.float(-30 * DAY, 30 * 30 * DAY)
-    }
-    return {
-      id: `drv-${pad(i + 1, 3)}`,
-      firstName: nm.first,
-      lastName: nm.last,
-      licenseNo: `ETH-DL-1${pad(rng.int(0, 99999), 5)}`,
-      licenseCategory: "C" as LicenseCategory, // refined below once vehicle known
-      licenseExpiry: new Date(expiryMs).toISOString(),
-      phone: `+2519${pad(rng.int(0, 99999999), 8)}`,
-      email: `${nm.first.toLowerCase()}.${nm.last.toLowerCase()}@${domain}.et`,
-      entityId: `ent-${pad(entityIdx + 1, 2)}`,
-      status,
-      assignedVehicleId: null,
-      hireDate: ago(rng.float(1 * 365 * DAY, 15 * 365 * DAY), now),
-      emergencyContactName: rng.pick(DRIVER_NAMES.filter((d) => d !== nm))
-        .first,
-      emergencyContactPhone: `+2519${pad(rng.int(0, 99999999), 8)}`,
-      safetyScore,
-      harshBrakingCount,
-      harshAccelCount,
-      speedingCount,
-    }
-  })
-
-  // Assign ~27 drivers to vehicles (eligible = active drivers first), keeping
-  // back-references consistent and never double-assigning.
-  const assignableDrivers = drivers.filter((d) => d.status === "active")
-  // Prefer assigning to a varied set of vehicles; keep some unassigned.
-  const shuffledVehicles = [...vehicles]
-  // Deterministic Fisher–Yates.
-  for (let i = shuffledVehicles.length - 1; i > 0; i--) {
-    const j = rng.int(0, i)
-    const tmp = shuffledVehicles[i]!
-    shuffledVehicles[i] = shuffledVehicles[j]!
-    shuffledVehicles[j] = tmp
-  }
-
-  const assignCount = Math.min(
-    27,
-    assignableDrivers.length,
-    shuffledVehicles.length
-  )
-  for (let k = 0; k < assignCount; k++) {
-    const driver = assignableDrivers[k]!
-    const vehicle = shuffledVehicles[k]!
-    driver.assignedVehicleId = vehicle.id
-    vehicle.driverId = driver.id
-    // License category weighted by vehicle type.
-    if (vehicle.type === "bus" || vehicle.type === "minibus") {
-      driver.licenseCategory = rng.bool(0.6) ? "Public II" : "D"
-    } else if (
-      vehicle.type === "pickup" ||
-      vehicle.type === "saloon" ||
-      vehicle.type === "suv" ||
-      vehicle.type === "van"
-    ) {
-      driver.licenseCategory = rng.bool(0.5) ? "B" : "C1"
-    } else {
-      driver.licenseCategory = rng.bool(0.6) ? "E" : "C"
-    }
-  }
-
-  // Unassigned drivers still need a sensible category.
-  for (const d of drivers) {
-    if (d.assignedVehicleId === null) {
-      d.licenseCategory = rng.pick([
-        "C",
-        "E",
-        "C1",
-        "D",
-        "Public II",
-      ] as LicenseCategory[])
-    }
-  }
-
-  return { drivers }
-}
-
-// ---------------------------------------------------------------------------
 // Trips
 // ---------------------------------------------------------------------------
 
@@ -1166,69 +1004,6 @@ function buildTrips(
   // Newest first.
   trips.sort((a, b) => +new Date(b.endAt) - +new Date(a.endAt))
   return trips
-}
-
-// ---------------------------------------------------------------------------
-// Driver assignment history
-// ---------------------------------------------------------------------------
-
-function buildAssignments(
-  rng: Rng,
-  vehicles: Vehicle[],
-  drivers: Driver[],
-  now: number
-): VehicleDriverAssignment[] {
-  const assignments: VehicleDriverAssignment[] = []
-  let n = 0
-
-  // Group drivers by entity so prior drivers come from the same company.
-  const driversByEntity = new Map<string, Driver[]>()
-  for (const d of drivers) {
-    const list = driversByEntity.get(d.entityId) ?? []
-    list.push(d)
-    driversByEntity.set(d.entityId, list)
-  }
-
-  for (const v of vehicles) {
-    if (v.driverId === null) continue
-
-    // Open (current) assignment — started a few hours to ~8 days ago.
-    const openStartMs = now - rng.float(3 * HOUR, 8 * DAY)
-    n++
-    assignments.push({
-      id: `asn-${pad(n, 3)}`,
-      vehicleId: v.id,
-      driverId: v.driverId,
-      startAt: new Date(openStartMs).toISOString(),
-      endAt: null,
-    })
-
-    // 1–3 prior assignments using other drivers from the same entity. The
-    // earliest segment is stretched back ≥40 days so the seeded trips (last
-    // 30 days) reliably fall inside a driver segment.
-    const pool = (driversByEntity.get(v.entityId) ?? drivers).filter(
-      (d) => d.id !== v.driverId
-    )
-    const priorCount = pool.length === 0 ? 0 : rng.int(1, 3)
-    let segEndMs = openStartMs
-    for (let p = 0; p < priorCount; p++) {
-      const driver = rng.pick(pool)
-      const isLast = p === priorCount - 1
-      let segStartMs = segEndMs - rng.float(4 * DAY, 16 * DAY)
-      if (isLast) segStartMs = Math.min(segStartMs, now - 40 * DAY)
-      n++
-      assignments.push({
-        id: `asn-${pad(n, 3)}`,
-        vehicleId: v.id,
-        driverId: driver.id,
-        startAt: new Date(segStartMs).toISOString(),
-        endAt: new Date(segEndMs).toISOString(),
-      })
-      segEndMs = segStartMs
-    }
-  }
-
-  return assignments
 }
 
 // ---------------------------------------------------------------------------
@@ -1427,16 +1202,13 @@ function buildProviderTelemetry(
 function buildAccidents(
   rng: Rng,
   vehicles: Vehicle[],
-  drivers: Driver[],
   now: number
 ): AccidentRecord[] {
-  const driverById = new Map(drivers.map((d) => [d.id, d]))
   const records: AccidentRecord[] = []
   const count = 16
 
   for (let i = 0; i < count; i++) {
     const v = rng.pick(vehicles)
-    const driver = v.driverId ? (driverById.get(v.driverId) ?? null) : null
     const roll = rng.next()
     const severity: IncidentSeverity =
       roll < 0.55 ? "minor" : roll < 0.85 ? "medium" : "major"
@@ -1464,8 +1236,6 @@ function buildAccidents(
       id: `acc-${pad(i + 1, 3)}`,
       vehicleId: v.id,
       vehiclePlate: v.plate,
-      driverId: driver?.id ?? null,
-      driverName: driver ? `${driver.firstName} ${driver.lastName}` : null,
       entityId: v.entityId,
       severity,
       rootCause: rng.pick(INCIDENT_ROOT_CAUSES),
@@ -1544,7 +1314,7 @@ function buildRoles(rng: Rng, now: number): Role[] {
       "Day-to-day monitoring — view, create and edit operational records.",
       [
         ...permsFor(
-          ["fleet", "drivers", "events", "geozones", "routes", "providers"],
+          ["fleet", "events", "geozones", "routes", "providers"],
           ["view", "create", "edit"]
         ),
         ...permsFor(["reports", "incidents"], ["view"]),
@@ -1654,7 +1424,6 @@ export function createSeedDB(): DB {
   const now = Date.now()
 
   const entities = buildEntities()
-  const entityDomains = ENTITY_SEEDS.map((e) => e.domain)
   const routes = buildRoutes(rng, now)
   const { geozones, groups, byName } = buildGeozones(rng, routes, now)
   const eventRules = buildEventRules(byName, routes)
@@ -1683,19 +1452,16 @@ export function createSeedDB(): DB {
       active: true,
     })
   }
-  const { drivers } = buildDrivers(rng, vehicles, entityDomains, now)
   const trips = buildTrips(rng, vehicles, routes, now)
-  const assignments = buildAssignments(rng, vehicles, drivers, now)
   const events = buildEvents(rng, vehicles, geozones, now)
   const providerTelemetry = buildProviderTelemetry(rng, entities, vehicles)
-  const accidents = buildAccidents(rng, vehicles, drivers, now)
+  const accidents = buildAccidents(rng, vehicles, now)
   const roles = buildRoles(rng, now)
   const webUsers = buildWebUsers(rng, entities, now)
 
   return {
     entities,
     vehicles,
-    drivers,
     geozones,
     geozoneGroups: groups,
     eventRules,
@@ -1703,7 +1469,6 @@ export function createSeedDB(): DB {
     providerTelemetry,
     routes,
     trips,
-    assignments,
     accidents,
     roles,
     webUsers,

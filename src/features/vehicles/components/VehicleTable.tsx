@@ -9,22 +9,42 @@ import {
 } from "@/components/common/DataTable"
 import { EntityBadge } from "@/components/common/EntityBadge"
 import { RelativeTime } from "@/components/common/RelativeTime"
-import { VehicleStatusBadge } from "@/components/common/status-badges"
-import { useDrivers, useEntities } from "@/data/hooks"
-import type { Vehicle } from "@/data/types"
+import {
+  VehicleStatusBadge,
+  VerificationBadge,
+} from "@/components/common/status-badges"
+import { useEntities } from "@/data/hooks"
+import type { ItmsVerificationStatus, Vehicle } from "@/data/types"
 import {
   ETHIOPIA_REGIONS,
   GPS_PROVIDERS,
+  ITMS_VERIFICATION_STATUSES,
   VEHICLE_STATUSES,
   VEHICLE_TYPES,
 } from "@/data/types"
-import { fullName, formatSpeed } from "@/lib/format"
+import { formatSpeed } from "@/lib/format"
+import { verificationRowAccent } from "@/lib/status"
 
 const ALL = "all"
+
+// Failed vehicles first, then unverified, then verified.
+const VERIFICATION_RANK: Record<ItmsVerificationStatus, number> = {
+  NOT_FOUND: 0,
+  UNVERIFIED: 1,
+  VERIFIED: 2,
+}
 
 export interface VehicleTableProps {
   vehicles: Vehicle[]
   isLoading?: boolean
+  /**
+   * Show the ITMS verification column + filter and order failed (NOT_FOUND)
+   * vehicles first. Off by default so the live map table is unaffected.
+   */
+  showVerification?: boolean
+  /** Server-driven verification filter value (owned by the page). */
+  verificationFilter?: ItmsVerificationStatus | "all"
+  onVerificationFilterChange?: (value: ItmsVerificationStatus | "all") => void
 }
 
 /**
@@ -32,12 +52,17 @@ export interface VehicleTableProps {
  * navigates to the vehicle detail page on row click; the caller supplies the
  * vehicle list (Query data on the fleet page, live data on the map page).
  */
-export function VehicleTable({ vehicles, isLoading }: VehicleTableProps) {
+export function VehicleTable({
+  vehicles,
+  isLoading,
+  showVerification = false,
+  verificationFilter = ALL,
+  onVerificationFilterChange,
+}: VehicleTableProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
   const entities = useEntities().data ?? []
-  const drivers = useDrivers().data ?? []
 
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState(ALL)
@@ -49,10 +74,6 @@ export function VehicleTable({ vehicles, isLoading }: VehicleTableProps) {
   const entityById = useMemo(
     () => new Map(entities.map((e) => [e.id, e])),
     [entities]
-  )
-  const driverById = useMemo(
-    () => new Map(drivers.map((d) => [d.id, d])),
-    [drivers]
   )
 
   // Search + filter the data before handing it to the DataTable.
@@ -82,6 +103,19 @@ export function VehicleTable({ vehicles, isLoading }: VehicleTableProps) {
     entityById,
   ])
 
+  // Failed-first ordering (only on the fleet page). The verification filter is
+  // server-driven, so `filtered` is already scoped to the selected status —
+  // this just surfaces NOT_FOUND vehicles at the top, tie-broken by plate.
+  const ordered = useMemo(() => {
+    if (!showVerification) return filtered
+    return [...filtered].sort((a, b) => {
+      const rank =
+        VERIFICATION_RANK[a.itmsVerificationStatus] -
+        VERIFICATION_RANK[b.itmsVerificationStatus]
+      return rank !== 0 ? rank : a.plate.localeCompare(b.plate)
+    })
+  }, [filtered, showVerification])
+
   const columns: DataTableColumn<Vehicle>[] = [
     {
       key: "plate",
@@ -103,24 +137,21 @@ export function VehicleTable({ vehicles, isLoading }: VehicleTableProps) {
       ),
     },
     {
-      key: "driver",
-      header: t("vehicles.table.driver"),
-      render: (v) => {
-        const driver = v.driverId ? driverById.get(v.driverId) : undefined
-        return driver ? (
-          <span>{fullName(driver)}</span>
-        ) : (
-          <span className="text-muted-foreground">
-            {t("common.unassigned")}
-          </span>
-        )
-      },
-    },
-    {
       key: "status",
       header: t("vehicles.table.status"),
       render: (v) => <VehicleStatusBadge status={v.status} />,
     },
+    ...(showVerification
+      ? [
+          {
+            key: "verification",
+            header: t("vehicles.table.verification"),
+            render: (v: Vehicle) => (
+              <VerificationBadge status={v.itmsVerificationStatus} />
+            ),
+          },
+        ]
+      : []),
     {
       key: "speed",
       header: t("vehicles.table.speed"),
@@ -147,6 +178,21 @@ export function VehicleTable({ vehicles, isLoading }: VehicleTableProps) {
   ]
 
   const filters: DataTableFilter[] = [
+    ...(showVerification && onVerificationFilterChange
+      ? [
+          {
+            key: "verification",
+            label: t("vehicles.filters.verification"),
+            value: verificationFilter,
+            onChange: (value: string) =>
+              onVerificationFilterChange(value as ItmsVerificationStatus | "all"),
+            options: ITMS_VERIFICATION_STATUSES.map((s) => ({
+              value: s,
+              label: t(`enums.itmsVerificationStatus.${s}`),
+            })),
+          },
+        ]
+      : []),
     {
       key: "status",
       label: t("vehicles.filters.status"),
@@ -192,13 +238,14 @@ export function VehicleTable({ vehicles, isLoading }: VehicleTableProps) {
 
   return (
     <DataTable
-      data={filtered}
+      data={ordered}
       columns={columns}
       isLoading={isLoading}
       searchValue={search}
       onSearchChange={setSearch}
       searchPlaceholder={t("vehicles.searchPlaceholder")}
       filters={filters}
+      rowClassName={showVerification ? verificationRowAccent : undefined}
       onRowClick={(v) => navigate(`/fleet/${v.id}`)}
       emptyTitle={t("vehicles.emptyTitle")}
       emptyDescription={t("vehicles.emptyDescription")}

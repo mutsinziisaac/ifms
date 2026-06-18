@@ -13,21 +13,15 @@ import { FollowCamera } from "@/components/map/FollowCamera"
 import { RoutePolyline } from "@/components/map/RoutePolyline"
 import { TrailPolyline } from "@/components/map/TrailPolyline"
 import { VehicleMarker } from "@/components/map/VehicleMarker"
-import {
-  useDrivers,
-  useGeozones,
-  useLiveVehicles,
-  useRoutes,
-} from "@/data/hooks"
+import { useGeozones, useLiveVehicles, useRoutes } from "@/data/hooks"
 import type { Vehicle } from "@/data/types"
-import { formatCoords, formatSpeed, fullName } from "@/lib/format"
+import { formatCoords, formatSpeed } from "@/lib/format"
 import { boundsOf, padBounds } from "@/lib/maps"
 
 import { usePositionTrail } from "../hooks/usePositionTrail"
 
 export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
   const { t } = useTranslation()
-  const drivers = useDrivers().data ?? []
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
   const [copied, setCopied] = useState(false)
@@ -39,9 +33,6 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
     [liveVehicles, vehicle]
   )
 
-  const driver = live.driverId
-    ? drivers.find((d) => d.id === live.driverId)
-    : undefined
   const geozone = live.insideGeozoneId
     ? geozones.find((g) => g.id === live.insideGeozoneId)
     : undefined
@@ -116,7 +107,6 @@ export function VehicleMapCard({ vehicle }: { vehicle: Vehicle }) {
           <TrailPolyline path={trail} />
           <VehicleMarker
             vehicle={live}
-            driverName={driver ? fullName(driver) : undefined}
             geozoneName={geozone?.name}
             selected
           />

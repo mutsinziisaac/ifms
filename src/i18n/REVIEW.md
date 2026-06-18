@@ -28,9 +28,7 @@ presentation. Each is also marked with a `// review:` comment at its definition 
 ### Vehicles (`am/vehicles.ts`, `am/enums.ts`)
 - Coordinates → መጋጠሚያዎች · Trip playback → የጉዞ ድጋሚ ማጫወት · Severity → ክብደት
 - Vehicle types: Saloon → ሳሎን መኪና · SUV → ኤስዩቪ · Minibus → ሚኒባስ · Van → ቫን
-
-### Drivers (`am/drivers.ts`)
-- Fair (safety band) → መካከለኛ · Harsh braking → ኃይለኛ ብሬክ · Harsh acceleration → ኃይለኛ ፍጥነት መጨመር
+- ITMS verification: Verified → ተረጋግጧል · Failed (NOT_FOUND) → አልተገኘም · Unverified → ያልተረጋገጠ · Verification → ማረጋገጫ · "Verification failed" → ማረጋገጫ ያልተሳካላቸው
 
 ### Events (`am/events.ts`)
 - "With a higher authority", "No events match", Location, "Handling timeline", resolution note

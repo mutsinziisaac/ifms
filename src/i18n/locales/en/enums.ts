@@ -9,12 +9,6 @@ export default {
     no_signal: "No signal",
     ignition_blocked: "Ignition blocked",
   },
-  driverStatus: {
-    active: "Active",
-    on_leave: "On leave",
-    suspended: "Suspended",
-    inactive: "Inactive",
-  },
   eventStatus: {
     open: "Open",
     acknowledged: "Acknowledged",
@@ -59,6 +53,17 @@ export default {
     suv: "SUV",
     minibus: "Minibus",
     van: "Van",
+  },
+  itmsVerificationStatus: {
+    VERIFIED: "Verified",
+    NOT_FOUND: "Failed",
+    UNVERIFIED: "Unverified",
+  },
+  vehicleRegistryStatus: {
+    ACTIVE: "Active",
+    SUSPENDED: "Suspended",
+    RETIRED: "Retired",
+    BLOCKED: "Blocked",
   },
   incidentSeverity: {
     minor: "Minor",

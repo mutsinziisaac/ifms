@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Spinner } from "@/components/ui/spinner"
 
 interface LocationState {
   from?: {
@@ -17,9 +18,19 @@ interface LocationState {
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const { user, login } = useAuth()
+  const { user, login, initializing, mode } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const isKeycloak = mode === "keycloak"
+
+  // While Keycloak resolves the initial SSO check, avoid flashing the form.
+  if (initializing) {
+    return (
+      <div className="grid min-h-svh place-items-center">
+        <Spinner className="size-6 text-muted-foreground" />
+      </div>
+    )
+  }
 
   if (user) {
     return <Navigate to="/" replace />
@@ -31,6 +42,14 @@ export function LoginPage() {
     const email = (
       form.elements.namedItem("email") as HTMLInputElement | null
     )?.value.trim()
+
+    if (isKeycloak) {
+      // Redirects to Keycloak (the email is an optional login hint); this page
+      // unloads, so there's nothing to navigate to afterwards.
+      login(email && email.length > 0 ? email : undefined)
+      return
+    }
+
     login(email && email.length > 0 ? email : "officer@motl.gov.et")
     const state = location.state as LocationState | null
     navigate(state?.from?.pathname ?? "/", { replace: true })
@@ -71,18 +90,20 @@ export function LoginPage() {
                   id="email"
                   name="email"
                   type="email"
-                  defaultValue="officer@motl.gov.et"
+                  defaultValue={isKeycloak ? "" : "officer@motl.gov.et"}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">{t("auth.password")}</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder={t("auth.passwordPlaceholder")}
-                />
-              </div>
+              {!isKeycloak && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">{t("auth.password")}</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder={t("auth.passwordPlaceholder")}
+                  />
+                </div>
+              )}
               <Button type="submit" className="w-full">
                 <LogIn className="size-4" />
                 {t("auth.signIn")}
@@ -91,7 +112,7 @@ export function LoginPage() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">
-            {t("auth.demoNotice")}
+            {t(isKeycloak ? "auth.keycloakNotice" : "auth.demoNotice")}
           </p>
         </div>
       </div>

@@ -14,7 +14,7 @@ export interface SelectionOption {
 }
 
 /**
- * Generic multi-select panel for the report base (vehicles or drivers).
+ * Generic multi-select panel for the report vehicle selection.
  * An empty selection means "all records" — surfaced in the hint line.
  */
 export function ReportSelectionPanel({

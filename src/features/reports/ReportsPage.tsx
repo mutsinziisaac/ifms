@@ -16,12 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useDrivers, useEntities, useEvents, useGeozones, useVehicles } from "@/data/hooks"
+import { useEntities, useEvents, useGeozones, useVehicles } from "@/data/hooks"
 import { exportToCsv, exportToPdf, exportToXlsx } from "@/lib/export"
-import { formatDateTime, fullName } from "@/lib/format"
+import { formatDateTime } from "@/lib/format"
 import {
   buildReport,
-  type ReportBase,
   type ReportFilters,
   type ReportType,
 } from "@/lib/report-data"
@@ -37,12 +36,10 @@ export function ReportsPage() {
   const { t } = useTranslation()
   const events = useEvents().data ?? []
   const vehicles = useVehicles().data ?? []
-  const drivers = useDrivers().data ?? []
   const geozones = useGeozones().data ?? []
   const entities = useEntities().data ?? []
 
   const [reportType, setReportType] = useState<ReportType>("events")
-  const [base, setBase] = useState<ReportBase>("vehicles")
   const [selection, setSelection] = useState<string[]>([])
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
@@ -53,9 +50,9 @@ export function ReportsPage() {
     return map
   }, [entities])
 
-  const selectionOptions = useMemo(() => {
-    if (base === "vehicles") {
-      return [...vehicles]
+  const selectionOptions = useMemo(
+    () =>
+      [...vehicles]
         .sort((a, b) =>
           a.plate.localeCompare(b.plate, undefined, { numeric: true })
         )
@@ -63,26 +60,22 @@ export function ReportsPage() {
           value: v.id,
           label: v.plate,
           sub: `${entityShortById.get(v.entityId) ?? "—"} · ${t(`enums.vehicleType.${v.type}`)}`,
-        }))
-    }
-    return [...drivers]
-      .sort((a, b) => fullName(a).localeCompare(fullName(b)))
-      .map((d) => ({ value: d.id, label: fullName(d), sub: d.licenseNo }))
-  }, [base, vehicles, drivers, entityShortById, t])
+        })),
+    [vehicles, entityShortById, t]
+  )
 
   const filters: ReportFilters = useMemo(
     () => ({
-      base,
       selection,
       fromDate: fromDate || null,
       toDate: toDate || null,
     }),
-    [base, selection, fromDate, toDate]
+    [selection, fromDate, toDate]
   )
 
   const report = useMemo(
-    () => buildReport(reportType, { events, vehicles, drivers, geozones }, filters),
-    [reportType, events, vehicles, drivers, geozones, filters]
+    () => buildReport(reportType, { events, vehicles, geozones }, filters),
+    [reportType, events, vehicles, geozones, filters]
   )
 
   const previewRows: PreviewRow[] = useMemo(
@@ -106,19 +99,11 @@ export function ReportsPage() {
         date: formatDateTime(new Date().toISOString()),
       }),
     ]
-    if (base === "vehicles") {
-      lines.push(
-        selection.length === 0
-          ? t("reports.export.baseVehiclesAll")
-          : t("reports.export.baseVehicles", { count: selection.length })
-      )
-    } else {
-      lines.push(
-        selection.length === 0
-          ? t("reports.export.baseDriversAll")
-          : t("reports.export.baseDrivers", { count: selection.length })
-      )
-    }
+    lines.push(
+      selection.length === 0
+        ? t("reports.export.baseVehiclesAll")
+        : t("reports.export.baseVehicles", { count: selection.length })
+    )
     lines.push(
       fromDate || toDate
         ? t("reports.export.dateRange", {
@@ -201,7 +186,7 @@ export function ReportsPage() {
 
       <div className="space-y-4">
         <Card className="gap-4 p-4">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-1.5">
               <Label>{t("reports.type.label")}</Label>
               <Select
@@ -217,28 +202,6 @@ export function ReportsPage() {
                   </SelectItem>
                   <SelectItem value="geozones">
                     {t("reports.type.geozones")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("reports.base.label")}</Label>
-              <Select
-                value={base}
-                onValueChange={(v) => {
-                  setBase(v as ReportBase)
-                  setSelection([])
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vehicles">
-                    {t("reports.base.vehicles")}
-                  </SelectItem>
-                  <SelectItem value="drivers">
-                    {t("reports.base.drivers")}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -269,11 +232,7 @@ export function ReportsPage() {
               options={selectionOptions}
               value={selection}
               onChange={setSelection}
-              searchPlaceholder={
-                base === "vehicles"
-                  ? t("reports.selection.searchVehicles")
-                  : t("reports.selection.searchDrivers")
-              }
+              searchPlaceholder={t("reports.selection.searchVehicles")}
             />
           </div>
         </Card>

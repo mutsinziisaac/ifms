@@ -45,12 +45,11 @@ export default {
   // global search (topbar)
   search: {
     trigger: "ፍሊትን ፈልግ…", // review: "fleet"
-    placeholder: "ተሽከርካሪዎች፣ አሽከርካሪዎች፣ ጂኦ ዞኖች፣ መስመሮች ፈልግ…",
+    placeholder: "ተሽከርካሪዎች፣ ጂኦ ዞኖች፣ መስመሮች ፈልግ…",
     minChars: "ለመፈለግ ቢያንስ 3 ፊደላት ይተይቡ።",
     noResults: "ምንም ውጤት አልተገኘም።",
     groups: {
       vehicles: "ተሽከርካሪዎች",
-      drivers: "አሽከርካሪዎች",
       geozones: "ጂኦ ዞኖች",
       routes: "መስመሮች",
     },

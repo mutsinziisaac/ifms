@@ -110,8 +110,7 @@ export function IncidentsPage() {
     const needle = search.trim().toLowerCase()
     return accidents.filter((a) => {
       if (needle) {
-        const hay =
-          `${a.vehiclePlate} ${a.driverName ?? ""} ${a.policeReportNo}`.toLowerCase()
+        const hay = `${a.vehiclePlate} ${a.policeReportNo}`.toLowerCase()
         if (!hay.includes(needle)) return false
       }
       if (severityFilter !== "all" && a.severity !== severityFilter) return false
@@ -135,13 +134,6 @@ export function IncidentsPage() {
           <p className="text-sm font-medium tabular-nums">{a.vehiclePlate}</p>
           <EntityBadge name={entityShortById.get(a.entityId) ?? "—"} />
         </div>
-      ),
-    },
-    {
-      key: "driver",
-      header: t("incidents.table.driver"),
-      render: (a) => (
-        <span className="text-sm">{a.driverName ?? "—"}</span>
       ),
     },
     {
@@ -211,7 +203,6 @@ export function IncidentsPage() {
     const columnsDef = [
       { header: t("incidents.table.date") },
       { header: t("incidents.table.vehicle") },
-      { header: t("incidents.table.driver") },
       { header: t("incidents.table.severity") },
       { header: t("incidents.table.rootCause") },
       { header: t("incidents.table.casualties") },
@@ -222,7 +213,6 @@ export function IncidentsPage() {
     const rows = filtered.map((a) => [
       formatDate(a.occurredAt),
       a.vehiclePlate,
-      a.driverName ?? "—",
       t(`enums.incidentSeverity.${a.severity}`),
       t(`enums.incidentRootCause.${a.rootCause}`),
       a.casualties,
