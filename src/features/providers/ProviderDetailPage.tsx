@@ -2,31 +2,28 @@ import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import {
-  Activity,
   ArrowLeft,
   Building2,
+  CheckCircle2,
   ChevronRight,
   Clock,
+  Clock3,
   Hash,
-  RadioTower,
+  Truck,
+  XCircle,
 } from "lucide-react"
 
-import { DataTable, type DataTableColumn } from "@/components/common/DataTable"
 import { EmptyState } from "@/components/common/EmptyState"
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { StatCard } from "@/components/common/StatCard"
-import {
-  EventSeverityBadge,
-  VehicleStatusBadge,
-} from "@/components/common/status-badges"
+import { EventSeverityBadge } from "@/components/common/status-badges"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useEvents, useLiveVehicles, useProviders } from "@/data/hooks"
-import type { Vehicle } from "@/data/types"
-import { formatSpeed } from "@/lib/format"
-import { computeProviderStats } from "@/lib/provider-stats"
+import { useEvents, useProviderPositions, useProviders } from "@/data/hooks"
+
+import { ProviderFleetTable } from "./components/ProviderFleetTable"
 
 const MAX_RECENT_EVENTS = 6
 
@@ -36,21 +33,15 @@ export function ProviderDetailPage() {
   const navigate = useNavigate()
 
   const providersQuery = useProviders()
-  const vehicles = useLiveVehicles()
   const events = useEvents().data ?? []
 
   const provider = (providersQuery.data ?? []).find((p) => p.id === id)
   const code = provider?.code
 
-  const stats = useMemo(
-    () => (code ? computeProviderStats(code, vehicles) : null),
-    [code, vehicles]
-  )
-
-  const fleet = useMemo(
-    () => (code ? vehicles.filter((v) => v.entityId === code) : []),
-    [vehicles, code]
-  )
+  // No backend endpoint lists a provider's vehicles, so the fleet table renders
+  // seeded dummy positions — sized to the submitted tally and distributed across
+  // verified/unverified/notFound to match the stat cards. See provider-positions.ts.
+  const positionsQuery = useProviderPositions(code, provider?.vehicleStats)
 
   const recentEvents = useMemo(
     () => events.filter((e) => e.entityId === id).slice(0, MAX_RECENT_EVENTS),
@@ -73,55 +64,9 @@ export function ProviderDetailPage() {
     )
   }
 
-  if (!provider || !stats) return null
+  if (!provider) return null
 
-  const deviceColumns: DataTableColumn<Vehicle>[] = [
-    {
-      key: "plate",
-      header: t("providers.detail.devicesTable.plate"),
-      render: (v) => (
-        <span className="font-mono text-sm font-medium tabular-nums">
-          {v.plate}
-        </span>
-      ),
-    },
-    {
-      key: "type",
-      header: t("providers.detail.devicesTable.type"),
-      render: (v) => (
-        <span className="text-sm">{t(`enums.vehicleType.${v.type}`)}</span>
-      ),
-    },
-    {
-      key: "status",
-      header: t("providers.detail.devicesTable.status"),
-      render: (v) => <VehicleStatusBadge status={v.status} />,
-    },
-    {
-      key: "gpsProvider",
-      header: t("providers.detail.devicesTable.gpsDevice"),
-      render: (v) => (
-        <span className="text-sm text-muted-foreground">{v.gpsProvider}</span>
-      ),
-    },
-    {
-      key: "speed",
-      header: t("providers.detail.devicesTable.speed"),
-      render: (v) => (
-        <span className="text-sm tabular-nums">{formatSpeed(v.speedKmh)}</span>
-      ),
-    },
-    {
-      key: "lastSync",
-      header: t("providers.detail.devicesTable.lastSync"),
-      render: (v) => (
-        <RelativeTime
-          iso={v.lastSyncAt}
-          className="text-sm text-muted-foreground"
-        />
-      ),
-    },
-  ]
+  const vs = provider.vehicleStats
 
   return (
     <div>
@@ -156,35 +101,33 @@ export function ProviderDetailPage() {
           </span>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
-            label={t("providers.detail.stats.devices")}
-            value={stats.deviceCount}
-            icon={RadioTower}
-            hint={t("providers.detail.stats.devicesHint", {
-              count: stats.onlineCount,
-            })}
+            label={t("providers.detail.stats.submitted")}
+            value={vs.submitted}
+            icon={Truck}
+            hint={t("providers.detail.stats.submittedHint")}
           />
           <StatCard
-            label={t("providers.detail.stats.fleetOnline")}
-            value={`${stats.onlinePct}%`}
-            icon={Activity}
-            intent={stats.onlinePct >= 90 ? "success" : "warning"}
-            hint={
-              stats.noSignalCount > 0
-                ? t("providers.detail.stats.fleetOnlineHint", {
-                    count: stats.noSignalCount,
-                  })
-                : t("providers.detail.stats.allReporting")
-            }
+            label={t("providers.detail.stats.verified")}
+            value={vs.verified}
+            icon={CheckCircle2}
+            intent={vs.verified > 0 ? "success" : undefined}
+            hint={t("providers.detail.stats.verifiedHint")}
           />
           <StatCard
-            label={t("providers.detail.stats.lastSync")}
-            value={
-              stats.lastSyncAt ? <RelativeTime iso={stats.lastSyncAt} /> : "—"
-            }
-            icon={RadioTower}
-            hint={t("providers.detail.stats.lastSyncHint")}
+            label={t("providers.detail.stats.unverified")}
+            value={vs.unverified}
+            icon={Clock3}
+            intent={vs.unverified > 0 ? "warning" : "success"}
+            hint={t("providers.detail.stats.unverifiedHint")}
+          />
+          <StatCard
+            label={t("providers.detail.stats.notFound")}
+            value={vs.notFound}
+            icon={XCircle}
+            intent={vs.notFound > 0 ? "danger" : undefined}
+            hint={t("providers.detail.stats.notFoundHint")}
           />
         </div>
 
@@ -229,12 +172,9 @@ export function ProviderDetailPage() {
           </CardContent>
         </Card>
 
-        <DataTable
-          data={fleet}
-          columns={deviceColumns}
-          onRowClick={(v) => navigate(`/fleet/${v.id}`)}
-          emptyTitle={t("providers.detail.devicesTable.emptyTitle")}
-          emptyDescription={t("providers.detail.devicesTable.emptyDescription")}
+        <ProviderFleetTable
+          positions={positionsQuery.data ?? []}
+          isLoading={positionsQuery.isLoading}
         />
       </div>
     </div>

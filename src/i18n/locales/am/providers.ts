@@ -13,18 +13,19 @@ export default {
     providersHint: "በመድረኩ የተመዘገቡ",
     activeProviders: "ንቁ አቅራቢዎች",
     activeProvidersHint: "በአሁኑ ጊዜ የነቁ",
-    devicesTransmitting: "ስርጭት እያደረጉ ያሉ መሳሪያዎች",
-    devicesTransmittingHint: "ከተመዘገቡ {{count}} መሳሪያዎች",
-    fleetOnline: "በመስመር ላይ ያለ ፍሊት",
-    fleetOnlineHint: "ንቁ ምልክት ያላቸው መሳሪያዎች",
+    vehiclesSubmitted: "የቀረቡ ተሽከርካሪዎች",
+    vehiclesSubmittedHint: "{{count}} በ ITMS መዝገብ የተረጋገጡ",
+    unverified: "ያልተረጋገጡ",
+    unverifiedHint: "{{count}} በመዝገቡ ያልተገኙ",
   },
 
   table: {
     provider: "አቅራቢ",
     status: "ሁኔታ",
-    devices: "ተሽከርካሪዎች",
-    transmitting: "የስኬት ምጣኔ",
-    lastSync: "መጨረሻ የተገናኘበት",
+    vehicles: "ተሽከርካሪዎች",
+    verified: "የተረጋገጡ",
+    unverified: "ያልተረጋገጡ",
+    notFound: "ያልተገኙ",
   },
 
   detail: {
@@ -36,14 +37,14 @@ export default {
     updated: "የተሻሻለበት",
 
     stats: {
-      devices: "መሳሪያዎች",
-      devicesHint: "አሁን {{count}} ስርጭት እያደረጉ ናቸው",
-      fleetOnline: "በመስመር ላይ ያለ ፍሊት",
-      fleetOnlineHint_one: "{{count}} መሳሪያ ያለ ምልክት",
-      fleetOnlineHint_other: "{{count}} መሳሪያዎች ያለ ምልክት",
-      allReporting: "ሁሉም መሳሪያዎች ሪፖርት እያደረጉ ናቸው",
-      lastSync: "መጨረሻ የተገናኘበት",
-      lastSyncHint: "የቅርብ ጊዜው የመሳሪያ ሪፖርት",
+      submitted: "የቀረቡ ተሽከርካሪዎች",
+      submittedHint: "በአቅራቢው የተመዘገቡ ጠቅላላ",
+      verified: "የተረጋገጡ",
+      verifiedHint: "በ ITMS መዝገብ የተዛመዱ",
+      unverified: "ያልተረጋገጡ",
+      unverifiedHint: "ማረጋገጫ የሚጠብቁ",
+      notFound: "ያልተገኙ",
+      notFoundHint: "በ ITMS መዝገብ ምንም ዝምድና የለም",
     },
 
     events: {
@@ -52,15 +53,30 @@ export default {
       empty: "ለዚህ አቅራቢ የተመዘገበ ክስተት የለም።",
     },
 
-    devicesTable: {
+    fleet: {
+      searchPlaceholder: "በታርጋ ወይም በመሳሪያ IMEI ፈልግ…",
       plate: "ታርጋ",
-      type: "ዓይነት",
+      verification: "ማረጋገጫ",
       status: "ሁኔታ",
-      gpsDevice: "የጂፒኤስ መሳሪያ",
       speed: "ፍጥነት",
-      lastSync: "መጨረሻ የተገናኘበት",
-      emptyTitle: "መሳሪያዎች የሉም",
-      emptyDescription: "ይህ አቅራቢ የተመዘገበ መሳሪያ የለውም።",
+      heading: "አቅጣጫ",
+      ignition: "ማስነሻ",
+      ignitionOn: "በርቷል",
+      ignitionOff: "ጠፍቷል",
+      odometer: "ኦዶሜትር",
+      recorded: "መጨረሻ ሪፖርት",
+      payload: "JSON",
+      emptyTitle: "ተሽከርካሪዎች የሉም",
+      emptyDescription: "ይህ አቅራቢ አቀማመጥ የሚያስተላልፍ ተሽከርካሪ የለውም።",
+    },
+
+    payload: {
+      view: "ጥሬ JSON ይመልከቱ",
+      title: "ጥሬ የአቀማመጥ ፓይሎድ",
+      description: "ለ{{plate}} የቅርብ ጊዜ የአቀማመጥ ሪፖርት።",
+      copy: "JSON ቅዳ",
+      copied: "ፓይሎድ ወደ ቅንጥብ ሰሌዳ ተቀድቷል",
+      copyFailed: "ፓይሎድ መቅዳት አልተቻለም",
     },
   },
 }

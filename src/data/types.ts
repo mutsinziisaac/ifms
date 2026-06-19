@@ -40,16 +40,28 @@ export interface Entity {
   region: EthiopiaRegion
 }
 
+// Per-provider ITMS verification tally carried on the `/providers` list
+// (`vehicle_stats`). `submitted` is the provider's total registered vehicles;
+// the rest break that total down by verification state — authoritative counts
+// straight from the backend.
+export interface ProviderVehicleStats {
+  submitted: number // total vehicles the provider has registered
+  verified: number // matched in the ITMS registry
+  notFound: number // no registry match ("Failed")
+  unverified: number // not yet checked (in the verification queue)
+}
+
 // The provider record as returned by the live backend `GET /providers`. Lean by
-// design — the endpoint carries only identity + lifecycle, no name/category/
-// region/contact (those existed only on the in-memory `Entity` seed). The
-// Providers feature reads this; the rest of the app still uses `Entity`.
+// design — the endpoint carries only identity + lifecycle + a verification tally,
+// no name/category/region/contact (those existed only on the in-memory `Entity`
+// seed). The Providers feature reads this; the rest of the app still uses `Entity`.
 export interface Provider {
   id: ID // numeric backend id, stringified (used for routing)
   code: string // provider_code — the displayed identifier + fleet-link key
   active: boolean
   createdAt: string // creation_time (ISO)
   modifiedAt: string // time_last_modified (ISO)
+  vehicleStats: ProviderVehicleStats // vehicle_stats verification tally
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +168,54 @@ export interface Vehicle {
   /** 0..1 progress along the assigned route path */
   routeProgress: number
   routeDir: 1 | -1
+}
+
+// ---------------------------------------------------------------------------
+// Provider vehicle positions
+// ---------------------------------------------------------------------------
+
+/**
+ * A single vehicle's latest position report within a provider's transmission
+ * batch. Mirrors the agreed positions wire payload (one entry of `positions[]`),
+ * mapped to the app's vocabulary. There is no backend endpoint that lists a
+ * provider's vehicles/positions yet, so the Provider detail page renders stable
+ * dummy data of this shape — see src/data/provider-positions.ts.
+ */
+export interface VehiclePosition {
+  /** Equals `messageId`; satisfies DataTable's row-id contract. */
+  id: ID
+  /** Ethiopian plate, e.g. "3-45821 ET" */
+  plate: string
+  /** ISO timestamp the device recorded this fix */
+  recordedAt: string
+  position: LatLng
+  speedKmh: number
+  /** Degrees clockwise from north */
+  heading: number
+  ignitionOn: boolean
+  odometerKm: number
+  messageId: string
+  /** GPS fix accuracy in metres */
+  accuracyMeters: number
+  altitudeMeters: number
+  /** Movement state mapped to the app's operational vocabulary */
+  movementStatus: VehicleStatus
+  /** 15-digit device IMEI */
+  deviceImei: string
+  /**
+   * ITMS verification state. Not part of the position (telemetry) payload — the
+   * batch layer assigns it so the provider's fleet matches its `vehicleStats`
+   * tally (verified/unverified/notFound).
+   */
+  itmsVerificationStatus: ItmsVerificationStatus
+}
+
+/** A provider's transmission batch — `provider_code` + a list of positions. */
+export interface ProviderPositions {
+  providerCode: string
+  sentAt: string
+  sequence: number
+  positions: VehiclePosition[]
 }
 
 // ---------------------------------------------------------------------------

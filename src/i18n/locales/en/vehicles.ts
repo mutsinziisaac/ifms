@@ -2,7 +2,7 @@
 // per-vehicle cards (live status, events, map, travel history, report export).
 // Shared terms live under common/enums/forms.
 export default {
-  title: "Fleet",
+  title: "Unverified Fleet",
   description: "Vehicles operated by monitored entities across the corridor.",
   addVehicle: "Add vehicle",
   searchPlaceholder: "Search plate, model or entity…",
@@ -44,6 +44,16 @@ export default {
     externalId: "External ID",
     registryStatus: "Registry",
     lastUpdated: "Last updated",
+    payload: "JSON",
+  },
+
+  payload: {
+    view: "View raw JSON",
+    title: "Raw vehicle payload",
+    description: "The catalogue record for {{plate}} held by IFMS.",
+    copy: "Copy JSON",
+    copied: "Payload copied to clipboard",
+    copyFailed: "Could not copy payload",
   },
 
   form: {

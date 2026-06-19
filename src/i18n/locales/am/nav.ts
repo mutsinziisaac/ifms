@@ -13,7 +13,7 @@ export default {
 
   items: {
     overview: "አጠቃላይ እይታ",
-    fleet: "ተሽከርካሪዎች", // review: "Fleet" — using "Vehicles"
+    fleet: "ያልተረጋገጡ ተሽከርካሪዎች", // review: "Unverified Fleet"
     events: "ክስተቶች",
     providers: "አቅራቢዎች",
     reports: "ሪፖርቶች",

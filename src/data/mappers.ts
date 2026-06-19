@@ -23,6 +23,7 @@ import type {
   Provider,
   RouteDef,
   Vehicle,
+  VehiclePosition,
   VehicleStatus,
   VehicleType,
   Waypoint,
@@ -192,7 +193,8 @@ export function mapVehicleMapItem(dto: VehicleMapItem): Vehicle {
 
 /**
  * A provider record from `GET /api/v1/providers` (`PayloadArrayProviderResponse
- * .data[]`). Identity + lifecycle only — no name/category/region/contact.
+ * .data[]`). Identity + lifecycle, plus a `vehicle_stats` verification tally —
+ * no name/category/region/contact.
  */
 export interface ProviderResponse {
   id: number
@@ -200,17 +202,99 @@ export interface ProviderResponse {
   active: boolean
   creation_time: string | null
   time_last_modified: string | null
+  vehicle_stats?: {
+    submitted: number | null
+    verified: number | null
+    not_found: number | null
+    unverified: number | null
+  } | null
 }
 
 /** Map a `ProviderResponse` onto the app's lean `Provider`. */
 export function mapProviderResponse(dto: ProviderResponse): Provider {
   const created = dto.creation_time ?? new Date().toISOString()
+  const s = dto.vehicle_stats
   return {
     id: String(dto.id),
     code: dto.provider_code ?? `#${dto.id}`,
     active: dto.active,
     createdAt: created,
     modifiedAt: dto.time_last_modified ?? created,
+    vehicleStats: {
+      submitted: s?.submitted ?? 0,
+      verified: s?.verified ?? 0,
+      notFound: s?.not_found ?? 0,
+      unverified: s?.unverified ?? 0,
+    },
+  }
+}
+
+/**
+ * A single vehicle position from a provider's transmission batch — one entry of
+ * `data.positions[]` in the agreed positions payload. snake_case per the wire
+ * contract; there is no live endpoint for this yet, so the only producer today
+ * is the dummy generator (src/data/provider-positions.ts).
+ */
+export interface ProviderPositionItem {
+  vehicle_plate_number: string
+  recorded_at: string
+  latitude: number
+  longitude: number
+  speed_kmh: number
+  heading_degrees: number
+  ignition_on: boolean
+  odometer_km: number
+  message_id: string
+  accuracy_meters: number
+  altitude_meters: number
+  movement_status: string
+  device_imei: string
+  extras: Record<string, string>
+}
+
+/** The positions batch envelope — `data` of the positions payload. */
+export interface ProviderPositionsResponse {
+  provider_code: string
+  sent_at: string
+  sequence: number
+  positions: ProviderPositionItem[]
+}
+
+// Backend movement_status strings → the app's operational VehicleStatus. Unknown
+// → no_signal (mirrors MOVEMENT_STATE_MAP for the /vehicles/map snapshot).
+const POSITION_MOVEMENT_MAP: Record<string, VehicleStatus> = {
+  MOVING: "moving",
+  IDLING: "idling",
+  STOPPED: "ignition_off",
+  PARKED: "ignition_off",
+  OFFLINE: "no_signal",
+  NO_SIGNAL: "no_signal",
+}
+
+/**
+ * Map a wire `ProviderPositionItem` onto the app's `VehiclePosition`. The
+ * telemetry payload carries no verification state, so the caller supplies it (the
+ * batch distributes statuses to match the provider's `vehicleStats`).
+ */
+export function mapVehiclePosition(
+  dto: ProviderPositionItem,
+  verification: ItmsVerificationStatus
+): VehiclePosition {
+  return {
+    id: dto.message_id,
+    plate: dto.vehicle_plate_number,
+    recordedAt: dto.recorded_at,
+    position: { lat: dto.latitude, lng: dto.longitude },
+    speedKmh: dto.speed_kmh,
+    heading: dto.heading_degrees,
+    ignitionOn: dto.ignition_on,
+    odometerKm: dto.odometer_km,
+    messageId: dto.message_id,
+    accuracyMeters: dto.accuracy_meters,
+    altitudeMeters: dto.altitude_meters,
+    movementStatus: POSITION_MOVEMENT_MAP[dto.movement_status] ?? "no_signal",
+    deviceImei: dto.device_imei,
+    itmsVerificationStatus: verification,
   }
 }
 

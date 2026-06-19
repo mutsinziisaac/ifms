@@ -4,6 +4,22 @@
 export const qk = {
   entities: ["entities"] as const,
   providers: ["providers"] as const,
+  // A provider's dummy vehicle-positions batch (no backend endpoint yet). Keyed
+  // by code + the verification tally (which sizes/shapes the fleet) under the
+  // "providers" prefix so it shares their cache scope.
+  providerPositions: (
+    code: string,
+    stats: { submitted: number; verified: number; unverified: number; notFound: number }
+  ) =>
+    [
+      "providers",
+      "positions",
+      code,
+      stats.submitted,
+      stats.verified,
+      stats.unverified,
+      stats.notFound,
+    ] as const,
   vehicles: ["vehicles"] as const,
   // The fleet list, optionally scoped to an ITMS verification status. Keyed
   // under the "vehicles" prefix so the existing invalidations still match it.

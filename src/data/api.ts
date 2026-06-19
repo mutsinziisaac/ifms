@@ -49,9 +49,11 @@ import type {
   ID,
   ItmsVerificationStatus,
   LatLng,
+  ProviderVehicleStats,
   RouteDef,
   Trip,
   Vehicle,
+  VehiclePosition,
   VehicleType,
   Waypoint,
   AccidentRecord,
@@ -78,6 +80,7 @@ import {
   mapProviderResponse,
   mapRouteResponse,
   mapVehicleMapItem,
+  mapVehiclePosition,
   mapVehicleResponse,
   type AlertResponse,
   type AlertRuleResponse,
@@ -87,6 +90,7 @@ import {
   type VehicleMapItem,
   type VehicleResponse,
 } from "./mappers"
+import { generateProviderPositions } from "./provider-positions"
 
 /**
  * When VITE_API_BASE_URL is set we hit the real backend; otherwise every
@@ -228,6 +232,43 @@ export async function listEntities(): Promise<Entity[]> {
 export async function listProviders(): Promise<Provider[]> {
   const rows = await getAll<ProviderResponse>("/providers")
   return rows.map(mapProviderResponse)
+}
+
+// A verification status per generated vehicle, distributed so the fleet matches
+// the provider's `vehicleStats` tally exactly (the N "verified" rows correspond to
+// the verified stat card, etc.). Statuses are emitted in blocks; any shortfall
+// (counts that don't sum to the generated fleet size, e.g. when stats are 0 and
+// the fleet falls back to a default count) is filled with a deterministic spread.
+function verificationOrder(
+  stats: ProviderVehicleStats,
+  total: number
+): ItmsVerificationStatus[] {
+  const order: ItmsVerificationStatus[] = []
+  for (let i = 0; i < stats.verified; i++) order.push("VERIFIED")
+  for (let i = 0; i < stats.unverified; i++) order.push("UNVERIFIED")
+  for (let i = 0; i < stats.notFound; i++) order.push("NOT_FOUND")
+  for (let i = order.length; i < total; i++) {
+    const m = i % 10
+    order.push(m === 0 ? "NOT_FOUND" : m <= 2 ? "UNVERIFIED" : "VERIFIED")
+  }
+  return order.slice(0, total)
+}
+
+// A provider's live vehicle positions. There is no backend endpoint for this yet
+// (no way to list a provider's vehicles), so it always returns stable, seeded
+// dummy data shaped like the agreed positions payload — see provider-positions.ts.
+// `stats` sizes the fleet to the submitted tally and distributes ITMS verification
+// states to match the verified/unverified/notFound counts. When the endpoint
+// lands, swap the body for `http.get` + `unwrapData<ProviderPositionsResponse>`
+// and join verification from the catalogue — the call signature stays put.
+export async function getProviderPositions(
+  code: string,
+  stats: ProviderVehicleStats
+): Promise<VehiclePosition[]> {
+  await latency()
+  const batch = generateProviderPositions(code, stats.submitted)
+  const order = verificationOrder(stats, batch.positions.length)
+  return batch.positions.map((item, i) => mapVehiclePosition(item, order[i]!))
 }
 
 // ---------------------------------------------------------------------------

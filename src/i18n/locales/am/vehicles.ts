@@ -1,6 +1,6 @@
 // Amharic (አማርኛ) — fleet (vehicles) feature. Shape mirrors en/vehicles.ts.
 export default {
-  title: "ፍሊት",
+  title: "ያልተረጋገጡ ተሽከርካሪዎች", // review: "Unverified Fleet"
   description: "በኮሪደሩ ላይ በክትትል ስር ባሉ ተቋማት የሚንቀሳቀሱ ተሽከርካሪዎች።",
   addVehicle: "ተሽከርካሪ ጨምር",
   searchPlaceholder: "ታርጋ፣ ሞዴል ወይም ተቋም ፈልግ…",
@@ -42,6 +42,16 @@ export default {
     externalId: "የውጭ መለያ", // review: "External ID"
     registryStatus: "የምዝገባ ሁኔታ", // review: "Registry status"
     lastUpdated: "መጨረሻ የተዘመነበት", // review: "Last updated"
+    payload: "JSON",
+  },
+
+  payload: {
+    view: "ጥሬ JSON ይመልከቱ", // review: "View raw JSON"
+    title: "ጥሬ የተሽከርካሪ ዳታ", // review: "Raw vehicle payload"
+    description: "በ IFMS የተያዘው የ{{plate}} የካታሎግ መዝገብ።", // review: "The catalogue record for {{plate}} held by IFMS."
+    copy: "JSON ቅዳ", // review: "Copy JSON"
+    copied: "ዳታው ወደ ቅንጥብ ሰሌዳ ተቀድቷል", // review: "Payload copied to clipboard"
+    copyFailed: "ዳታውን መቅዳት አልተቻለም", // review: "Could not copy payload"
   },
 
   form: {
