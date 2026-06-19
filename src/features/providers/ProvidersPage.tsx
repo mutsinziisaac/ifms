@@ -42,7 +42,10 @@ export function ProvidersPage() {
         .filter((row) => {
           const q = search.trim().toLowerCase()
           if (!q) return true
-          return row.code.toLowerCase().includes(q)
+          return (
+            row.name.toLowerCase().includes(q) ||
+            row.code.toLowerCase().includes(q)
+          )
         })
         .sort(
           (a, b) => b.vehicleStats.submitted - a.vehicleStats.submitted
@@ -76,9 +79,9 @@ export function ProvidersPage() {
             <Building2 className="size-4" />
           </div>
           <div className="min-w-0">
-            <p className="truncate font-mono text-sm font-medium">{row.code}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              #{row.id}
+            <p className="truncate text-sm font-medium">{row.name}</p>
+            <p className="truncate font-mono text-xs text-muted-foreground tabular-nums">
+              {row.name === row.code ? `#${row.id}` : row.code}
             </p>
           </div>
         </div>
