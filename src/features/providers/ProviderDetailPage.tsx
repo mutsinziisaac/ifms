@@ -71,7 +71,7 @@ export function ProviderDetailPage() {
   return (
     <div>
       <PageHeader
-        title={provider.code}
+        title={provider.name}
         actions={
           <Button variant="outline" onClick={() => navigate("/providers")}>
             <ArrowLeft className="size-4" />
@@ -85,6 +85,11 @@ export function ProviderDetailPage() {
           <Badge variant={provider.active ? "default" : "secondary"}>
             {provider.active ? t("providers.active") : t("providers.inactive")}
           </Badge>
+          {provider.name !== provider.code && (
+            <span className="inline-flex items-center gap-1.5 font-mono">
+              {provider.code}
+            </span>
+          )}
           <span className="inline-flex items-center gap-1.5 tabular-nums">
             <Hash className="size-3.5" />
             {provider.id}

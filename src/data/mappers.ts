@@ -204,6 +204,8 @@ export function mapVehicleMapItem(dto: VehicleMapItem): Vehicle {
 export interface ProviderResponse {
   id: number
   provider_code: string | null
+  // Human display name (e.g. "GPS-100 Telematics PLC"); shown in place of the code.
+  provider_name?: string | null
   active: boolean
   creation_time: string | null
   time_last_modified: string | null
@@ -219,9 +221,12 @@ export interface ProviderResponse {
 export function mapProviderResponse(dto: ProviderResponse): Provider {
   const created = dto.creation_time ?? new Date().toISOString()
   const s = dto.vehicle_stats
+  const code = dto.provider_code ?? `#${dto.id}`
   return {
     id: String(dto.id),
-    code: dto.provider_code ?? `#${dto.id}`,
+    code,
+    // Prefer the backend's display name; fall back to the code when it's absent.
+    name: dto.provider_name ?? code,
     active: dto.active,
     createdAt: created,
     modifiedAt: dto.time_last_modified ?? created,

@@ -57,7 +57,8 @@ export interface ProviderVehicleStats {
 // seed). The Providers feature reads this; the rest of the app still uses `Entity`.
 export interface Provider {
   id: ID // numeric backend id, stringified (used for routing)
-  code: string // provider_code — the displayed identifier + fleet-link key
+  code: string // provider_code — the fleet-link key (positions batches keyed by it)
+  name: string // provider_name — the human display label (falls back to code)
   active: boolean
   createdAt: string // creation_time (ISO)
   modifiedAt: string // time_last_modified (ISO)
