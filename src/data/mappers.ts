@@ -146,6 +146,8 @@ export interface VehicleMapItem {
   state_since: string | null
   last_seen_at: string | null
   plate_number?: string | null
+  // Operating provider/entity display name, surfaced on the map marker.
+  provider_name?: string | null
   itms_verification_status: ItmsVerificationStatus
 }
 
@@ -171,6 +173,9 @@ export function mapVehicleMapItem(dto: VehicleMapItem): Vehicle {
     plate: dto.plate_number ?? `#${dto.vehicle_id}`,
     type: "truck",
     description: "—",
+    // The snapshot carries no entity id; the provider display name (when sent)
+    // surfaces on the map marker via `provider` (see FleetLiveMap).
+    provider: dto.provider_name ?? undefined,
     entityId: "",
     region: "Addis Ababa",
     gpsProvider: "NileTrack GPS",
