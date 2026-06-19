@@ -35,8 +35,9 @@ export function FleetLiveMap({ className }: { className?: string }) {
   )
 
   // Resolve the operating provider/entity name for each vehicle. Seeded
-  // vehicles carry an `entityId`; the live backend map endpoint carries neither
-  // entity nor provider, so the marker simply omits the line for those.
+  // vehicles carry an `entityId`; the live backend map endpoint carries no
+  // entity id but sends a `provider_name` (mapped onto `vehicle.provider`),
+  // which the marker falls back to below.
   const entityNameById = useMemo(
     () => new Map(entities.map((e) => [e.id, e.shortName])),
     [entities]
