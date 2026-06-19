@@ -13,7 +13,7 @@ export default {
 
   items: {
     overview: "Overview",
-    fleet: "Fleet",
+    fleet: "Unverified Fleet",
     events: "Events",
     providers: "Providers",
     reports: "Reports",

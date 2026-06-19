@@ -29,6 +29,7 @@ import type {
   ItmsVerificationStatus,
   LatLng,
   ProviderTelemetry,
+  ProviderVehicleStats,
   Vehicle,
 } from "./types"
 
@@ -42,6 +43,32 @@ export function useEntities() {
 
 export function useProviders() {
   return useQuery({ queryKey: qk.providers, queryFn: api.listProviders })
+}
+
+// Zero tally used until a provider (and its stats) is known — keeps the hook
+// unconditional without firing a request.
+const NO_STATS: ProviderVehicleStats = {
+  submitted: 0,
+  verified: 0,
+  unverified: 0,
+  notFound: 0,
+}
+
+/**
+ * A provider's vehicle positions (dummy data — no backend endpoint yet). `stats`
+ * sizes the fleet to the submitted tally and distributes verification states; the
+ * query is disabled until a code is known.
+ */
+export function useProviderPositions(
+  code: string | undefined,
+  stats: ProviderVehicleStats | undefined
+) {
+  const tally = stats ?? NO_STATS
+  return useQuery({
+    queryKey: qk.providerPositions(code ?? "", tally),
+    queryFn: () => api.getProviderPositions(code!, tally),
+    enabled: !!code,
+  })
 }
 
 export function useVehicles(verification?: ItmsVerificationStatus) {

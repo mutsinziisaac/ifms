@@ -2,7 +2,12 @@ import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 
 import { isRealApi } from "@/data/api"
-import { useGeozones, useLiveVehicles, useRoutes } from "@/data/hooks"
+import {
+  useEntities,
+  useGeozones,
+  useLiveVehicles,
+  useRoutes,
+} from "@/data/hooks"
 import type { Vehicle } from "@/data/types"
 import { boundsOf, padBounds } from "@/lib/maps"
 
@@ -22,10 +27,19 @@ export function FleetLiveMap({ className }: { className?: string }) {
   const vehicles = useLiveVehicles()
   const geozones = useGeozones().data ?? []
   const routes = useRoutes().data ?? []
+  const entities = useEntities().data ?? []
 
   const geozoneNameById = useMemo(
     () => new Map(geozones.map((z) => [z.id, z.name])),
     [geozones]
+  )
+
+  // Resolve the operating provider/entity name for each vehicle. Seeded
+  // vehicles carry an `entityId`; the live backend map endpoint carries neither
+  // entity nor provider, so the marker simply omits the line for those.
+  const entityNameById = useMemo(
+    () => new Map(entities.map((e) => [e.id, e.shortName])),
+    [entities]
   )
 
   const bounds = useMemo(() => {
@@ -60,6 +74,9 @@ export function FleetLiveMap({ className }: { className?: string }) {
             vehicle.insideGeozoneId
               ? geozoneNameById.get(vehicle.insideGeozoneId)
               : undefined
+          }
+          providerName={
+            entityNameById.get(vehicle.entityId) ?? vehicle.provider
           }
           onClick={(v) => navigate(`/fleet/${v.id}`)}
         />

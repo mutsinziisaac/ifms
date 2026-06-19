@@ -10,7 +10,6 @@ import type {
   IncidentRootCause,
   IncidentSeverity,
   ItmsVerificationStatus,
-  Vehicle,
   VehicleRegistryStatus,
   VehicleStatus,
   WebUserStatus,
@@ -134,11 +133,14 @@ export const VEHICLE_REGISTRY_CONFIG: Record<
 }
 
 /**
- * Tailwind row accent for the fleet table — gives vehicles that failed ITMS
+ * Tailwind row accent for the fleet table — gives rows that failed ITMS
  * verification (NOT_FOUND) a red left rail so they read as "needs attention".
+ * Structural so both `Vehicle` and `VehiclePosition` rows can use it.
  */
-export function verificationRowAccent(vehicle: Vehicle): string {
-  return vehicle.itmsVerificationStatus === "NOT_FOUND"
+export function verificationRowAccent(row: {
+  itmsVerificationStatus: ItmsVerificationStatus
+}): string {
+  return row.itmsVerificationStatus === "NOT_FOUND"
     ? "border-l-2 border-l-rose-500 bg-rose-500/5"
     : ""
 }

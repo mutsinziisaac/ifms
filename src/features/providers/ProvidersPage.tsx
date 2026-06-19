@@ -1,32 +1,31 @@
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { Activity, Building2, CheckCircle2, RadioTower } from "lucide-react"
+import { Building2, CheckCircle2, Clock3, Truck } from "lucide-react"
 
 import { DataTable, type DataTableColumn } from "@/components/common/DataTable"
-import { RelativeTime } from "@/components/common/RelativeTime"
 import { StatCard } from "@/components/common/StatCard"
 import { PageHeader } from "@/components/layout/PageHeader"
 import { Badge } from "@/components/ui/badge"
-import { useLiveVehicles, useProviders } from "@/data/hooks"
+import { useProviders } from "@/data/hooks"
 import type { Provider } from "@/data/types"
-import { computeProviderStats, type ProviderStats } from "@/lib/provider-stats"
 import { cn } from "@/lib/utils"
 
-interface ProviderRow extends Provider {
-  stats: ProviderStats
-}
+type CountIntent = "verified" | "unverified" | "notFound"
 
-function OnlineBar({ stats }: { stats: ProviderStats }) {
-  const healthy = stats.onlinePct >= 90
+// A verification tally cell: muted when zero, otherwise coloured by intent.
+function Count({ value, intent }: { value: number; intent?: CountIntent }) {
   return (
     <span
       className={cn(
         "text-sm font-medium tabular-nums",
-        healthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+        value === 0 && "text-muted-foreground",
+        value > 0 && intent === "verified" && "text-emerald-600 dark:text-emerald-400",
+        value > 0 && intent === "unverified" && "text-amber-600 dark:text-amber-400",
+        value > 0 && intent === "notFound" && "text-red-600 dark:text-red-400"
       )}
     >
-      {stats.onlineCount}/{stats.deviceCount}
+      {value}
     </span>
   )
 }
@@ -35,32 +34,39 @@ export function ProvidersPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const providers = useProviders().data ?? []
-  const vehicles = useLiveVehicles()
   const [search, setSearch] = useState("")
 
-  const rows = useMemo<ProviderRow[]>(
+  const rows = useMemo<Provider[]>(
     () =>
       providers
-        .map((p) => ({
-          ...p,
-          stats: computeProviderStats(p.code, vehicles),
-        }))
         .filter((row) => {
           const q = search.trim().toLowerCase()
           if (!q) return true
           return row.code.toLowerCase().includes(q)
         })
-        .sort((a, b) => b.stats.deviceCount - a.stats.deviceCount),
-    [providers, vehicles, search]
+        .sort(
+          (a, b) => b.vehicleStats.submitted - a.vehicleStats.submitted
+        ),
+    [providers, search]
   )
 
   const activeProviders = providers.filter((p) => p.active).length
-  const totalDevices = vehicles.length
-  const onlineDevices = vehicles.filter((v) => v.status !== "no_signal").length
-  const onlinePct =
-    totalDevices > 0 ? Math.round((onlineDevices / totalDevices) * 100) : 0
+  const totals = useMemo(
+    () =>
+      providers.reduce(
+        (acc, p) => {
+          acc.submitted += p.vehicleStats.submitted
+          acc.verified += p.vehicleStats.verified
+          acc.unverified += p.vehicleStats.unverified
+          acc.notFound += p.vehicleStats.notFound
+          return acc
+        },
+        { submitted: 0, verified: 0, unverified: 0, notFound: 0 }
+      ),
+    [providers]
+  )
 
-  const columns: DataTableColumn<ProviderRow>[] = [
+  const columns: DataTableColumn<Provider>[] = [
     {
       key: "code",
       header: t("providers.table.provider"),
@@ -88,31 +94,34 @@ export function ProvidersPage() {
       ),
     },
     {
-      key: "devices",
-      header: t("providers.table.devices"),
+      key: "submitted",
+      header: t("providers.table.vehicles"),
       render: (row) => (
         <span className="text-sm font-medium tabular-nums">
-          {row.stats.deviceCount}
+          {row.vehicleStats.submitted}
         </span>
       ),
     },
     {
-      key: "online",
-      header: t("providers.table.transmitting"),
-      render: (row) => <OnlineBar stats={row.stats} />,
+      key: "verified",
+      header: t("providers.table.verified"),
+      render: (row) => (
+        <Count value={row.vehicleStats.verified} intent="verified" />
+      ),
     },
     {
-      key: "lastSync",
-      header: t("providers.table.lastSync"),
-      render: (row) =>
-        row.stats.lastSyncAt ? (
-          <RelativeTime
-            iso={row.stats.lastSyncAt}
-            className="text-sm text-muted-foreground"
-          />
-        ) : (
-          <span className="text-sm text-muted-foreground">—</span>
-        ),
+      key: "unverified",
+      header: t("providers.table.unverified"),
+      render: (row) => (
+        <Count value={row.vehicleStats.unverified} intent="unverified" />
+      ),
+    },
+    {
+      key: "notFound",
+      header: t("providers.table.notFound"),
+      render: (row) => (
+        <Count value={row.vehicleStats.notFound} intent="notFound" />
+      ),
     },
   ]
 
@@ -139,20 +148,21 @@ export function ProvidersPage() {
             hint={t("providers.stats.activeProvidersHint")}
           />
           <StatCard
-            label={t("providers.stats.devicesTransmitting")}
-            value={onlineDevices}
-            icon={RadioTower}
-            intent="success"
-            hint={t("providers.stats.devicesTransmittingHint", {
-              count: totalDevices,
+            label={t("providers.stats.vehiclesSubmitted")}
+            value={totals.submitted}
+            icon={Truck}
+            hint={t("providers.stats.vehiclesSubmittedHint", {
+              count: totals.verified,
             })}
           />
           <StatCard
-            label={t("providers.stats.fleetOnline")}
-            value={`${onlinePct}%`}
-            icon={Activity}
-            intent={onlinePct >= 90 ? "success" : "warning"}
-            hint={t("providers.stats.fleetOnlineHint")}
+            label={t("providers.stats.unverified")}
+            value={totals.unverified}
+            icon={Clock3}
+            intent={totals.unverified > 0 ? "warning" : "success"}
+            hint={t("providers.stats.unverifiedHint", {
+              count: totals.notFound,
+            })}
           />
         </div>
 

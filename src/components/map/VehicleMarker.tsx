@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { AdvancedMarker } from "@vis.gl/react-google-maps"
-import { MapPin, Navigation2 } from "lucide-react"
+import { Building2, MapPin, Navigation2 } from "lucide-react"
 
 import { nearestPlaceName } from "@/data/geo"
 import { formatRelativeTime, formatSpeed } from "@/lib/format"
@@ -11,12 +11,14 @@ import { cn } from "@/lib/utils"
 export interface VehicleMarkerProps {
   vehicle: Vehicle
   geozoneName?: string
+  /** Operating provider/entity name; omitted when the source has none. */
+  providerName?: string
   selected?: boolean
   onClick?: (vehicle: Vehicle) => void
 }
 
 export function VehicleMarker(props: VehicleMarkerProps) {
-  const { vehicle, geozoneName, selected, onClick } = props
+  const { vehicle, geozoneName, providerName, selected, onClick } = props
   const [hovered, setHovered] = useState(false)
 
   const config = VEHICLE_STATUS_CONFIG[vehicle.status]
@@ -47,6 +49,14 @@ export function VehicleMarker(props: VehicleMarkerProps) {
               </span>
             </div>
             <div className="mt-2 space-y-0.5 text-xs">
+              {providerName ? (
+                <p className="flex items-center gap-1 text-muted-foreground">
+                  <Building2 className="size-3 shrink-0" />
+                  <span className="truncate font-medium text-foreground">
+                    {providerName}
+                  </span>
+                </p>
+              ) : null}
               {moving ? (
                 <p className="text-muted-foreground">
                   Speed{" "}

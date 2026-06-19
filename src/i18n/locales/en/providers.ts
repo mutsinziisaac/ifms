@@ -18,18 +18,19 @@ export default {
     providersHint: "Registered with the platform",
     activeProviders: "Active providers",
     activeProvidersHint: "Currently enabled",
-    devicesTransmitting: "Devices transmitting",
-    devicesTransmittingHint: "of {{count}} registered devices",
-    fleetOnline: "Fleet online",
-    fleetOnlineHint: "Devices with an active signal",
+    vehiclesSubmitted: "Vehicles submitted",
+    vehiclesSubmittedHint: "{{count}} verified in the ITMS registry",
+    unverified: "Unverified",
+    unverifiedHint: "{{count}} not found in the registry",
   },
 
   table: {
     provider: "Provider",
     status: "Status",
-    devices: "Vehicles",
-    transmitting: "Success ratio",
-    lastSync: "Last sync",
+    vehicles: "Vehicles",
+    verified: "Verified",
+    unverified: "Unverified",
+    notFound: "Not found",
   },
 
   detail: {
@@ -41,14 +42,14 @@ export default {
     updated: "Updated",
 
     stats: {
-      devices: "Devices",
-      devicesHint: "{{count}} transmitting now",
-      fleetOnline: "Fleet online",
-      fleetOnlineHint_one: "{{count}} device without signal",
-      fleetOnlineHint_other: "{{count}} devices without signal",
-      allReporting: "All devices reporting",
-      lastSync: "Last sync",
-      lastSyncHint: "Most recent device report",
+      submitted: "Vehicles submitted",
+      submittedHint: "Total registered with the provider",
+      verified: "Verified",
+      verifiedHint: "Matched in the ITMS registry",
+      unverified: "Unverified",
+      unverifiedHint: "Awaiting verification",
+      notFound: "Not found",
+      notFoundHint: "No ITMS registry match",
     },
 
     events: {
@@ -57,15 +58,30 @@ export default {
       empty: "No events recorded for this provider.",
     },
 
-    devicesTable: {
+    fleet: {
+      searchPlaceholder: "Search plate or device IMEI…",
       plate: "Plate",
-      type: "Type",
+      verification: "Verification",
       status: "Status",
-      gpsDevice: "GPS device",
       speed: "Speed",
-      lastSync: "Last sync",
-      emptyTitle: "No devices",
-      emptyDescription: "This provider has no registered devices.",
+      heading: "Heading",
+      ignition: "Ignition",
+      ignitionOn: "On",
+      ignitionOff: "Off",
+      odometer: "Odometer",
+      recorded: "Last report",
+      payload: "JSON",
+      emptyTitle: "No vehicles",
+      emptyDescription: "This provider has no vehicles transmitting positions.",
+    },
+
+    payload: {
+      view: "View raw JSON",
+      title: "Raw position payload",
+      description: "The latest position report for {{plate}}.",
+      copy: "Copy JSON",
+      copied: "Payload copied to clipboard",
+      copyFailed: "Could not copy payload",
     },
   },
 }

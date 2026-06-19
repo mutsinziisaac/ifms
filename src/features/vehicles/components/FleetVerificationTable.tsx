@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useTranslation } from "react-i18next"
+import { Braces } from "lucide-react"
 
 import {
   DataTable,
@@ -9,8 +10,11 @@ import {
 } from "@/components/common/DataTable"
 import { RelativeTime } from "@/components/common/RelativeTime"
 import { VerificationBadge } from "@/components/common/status-badges"
+import { Button } from "@/components/ui/button"
 import type { ItmsVerificationStatus, Vehicle } from "@/data/types"
 import { verificationRowAccent } from "@/lib/status"
+
+import { VehiclePayloadDialog } from "./VehiclePayloadDialog"
 
 const ALL = "all"
 
@@ -46,6 +50,7 @@ export function FleetVerificationTable({
 
   const [search, setSearch] = useState("")
   const [verificationFilter, setVerificationFilter] = useState(ALL)
+  const [payloadVehicle, setPayloadVehicle] = useState<Vehicle | null>(null)
 
   const ordered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -104,6 +109,26 @@ export function FleetVerificationTable({
         <RelativeTime iso={v.lastSyncAt} className="text-muted-foreground" />
       ),
     },
+    {
+      key: "payload",
+      header: t("vehicles.table.payload"),
+      className: "w-px text-right",
+      render: (v) => (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("vehicles.payload.view")}
+          title={t("vehicles.payload.view")}
+          onClick={(e) => {
+            // Don't let the row's navigate-to-detail handler fire.
+            e.stopPropagation()
+            setPayloadVehicle(v)
+          }}
+        >
+          <Braces />
+        </Button>
+      ),
+    },
   ]
 
   const filters: DataTableFilter[] = [
@@ -120,18 +145,26 @@ export function FleetVerificationTable({
   ]
 
   return (
-    <DataTable
-      data={ordered}
-      columns={columns}
-      isLoading={isLoading}
-      searchValue={search}
-      onSearchChange={setSearch}
-      searchPlaceholder={t("vehicles.searchByPlateProvider")}
-      filters={filters}
-      rowClassName={verificationRowAccent}
-      onRowClick={(v) => navigate(`/fleet/${v.id}`)}
-      emptyTitle={t("vehicles.emptyTitle")}
-      emptyDescription={t("vehicles.emptyDescription")}
-    />
+    <>
+      <DataTable
+        data={ordered}
+        columns={columns}
+        isLoading={isLoading}
+        searchValue={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t("vehicles.searchByPlateProvider")}
+        filters={filters}
+        rowClassName={verificationRowAccent}
+        onRowClick={(v) => navigate(`/fleet/${v.id}`)}
+        emptyTitle={t("vehicles.emptyTitle")}
+        emptyDescription={t("vehicles.emptyDescription")}
+      />
+      <VehiclePayloadDialog
+        vehicle={payloadVehicle}
+        onOpenChange={(open) => {
+          if (!open) setPayloadVehicle(null)
+        }}
+      />
+    </>
   )
 }
